@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@shiftos/*": ["packages/*/src"],
+      "@shiftos/config": ["packages/config/src"],
+      "@shiftos/constants": ["packages/constants/src"],
+      "@shiftos/types": ["packages/types/src"],
+      "@shiftos/ui": ["packages/ui/src"],
+      "@shiftos/utils": ["packages/utils/src"]
+    }
+  },
+  "include": ["apps", "packages", "docs", "scripts"],
+  "exclude": ["node_modules", "dist", "build"]
+}

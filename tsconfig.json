@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "incremental": true
+  },
+  "references": [
+    { "path": "./apps/web" },
+    { "path": "./apps/mobile" },
+    { "path": "./packages/config" },
+    { "path": "./packages/constants" },
+    { "path": "./packages/types" },
+    { "path": "./packages/ui" },
+    { "path": "./packages/utils" }
+  ]
+}

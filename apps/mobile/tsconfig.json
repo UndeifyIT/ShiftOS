@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true
+  },
+  "include": ["src", "App.tsx"],
+  "references": [
+    { "path": "../../packages/config" },
+    { "path": "../../packages/constants" },
+    { "path": "../../packages/types" },
+    { "path": "../../packages/ui" },
+    { "path": "../../packages/utils" }
+  ]
+}

@@ -1,0 +1,28 @@
+# Shift
+
+## Purpose
+
+This volume contains the specifications for the shift domain of ShiftOS.
+
+## Specifications Contained Within
+
+- SHIFT-001-SHIFT-DEFINITION.md
+- SHIFT-002-SHIFT-LIFECYCLE.md
+- SHIFT-003-SHIFT-STATES.md
+- SHIFT-004-SHIFT-TEMPLATES.md
+- SHIFT-005-SHIFT-CREATION.md
+- SHIFT-006-SHIFT-EDITING.md
+- SHIFT-007-SHIFT-CANCELLATION.md
+- SHIFT-008-SHIFT-ASSIGNMENT.md
+- SHIFT-009-SHIFT-REASSIGNMENT.md
+- SHIFT-010-OPEN-SHIFTS.md
+- SHIFT-011-SHIFT-CONFLICTS.md
+- SHIFT-012-SHIFT-VALIDATION-RULES.md
+
+## Status
+
+Draft
+
+## Last Updated
+
+14/06/2026
