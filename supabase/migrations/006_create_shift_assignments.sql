@@ -73,6 +73,15 @@ BEGIN
     ALTER TABLE public.shifts
       ADD CONSTRAINT uq_shifts_id_organization_id UNIQUE (id, organization_id);
   END IF;
+
+  -- Crucial composite unique constraint on shift_assignments for attendance_records to reference it compositely
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c JOIN pg_class t ON c.conrelid = t.oid
+    WHERE c.contype = 'u' AND t.relname = 'shift_assignments' AND c.conname = 'uq_shift_assignments_id_organization_id')
+  THEN
+    ALTER TABLE public.shift_assignments
+      ADD CONSTRAINT uq_shift_assignments_id_organization_id UNIQUE (id, organization_id);
+  END IF;
 END$$;
 
 -- Foreign keys
