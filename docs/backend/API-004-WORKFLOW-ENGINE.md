@@ -1,91 +1,401 @@
-# API-004 — Workflow Engine
+# ShiftOS Workflow Engine
 
-Status: Draft
+**Document ID:** API-004
 
-Version: 0.1.0
+**Document Title:** Workflow Engine Architecture
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Backend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define how long-running or multi-step business workflows are orchestrated in the backend.
+This document defines how ShiftOS manages business workflows.
 
-## Business Rationale
+The workflow system controls state transitions, approvals, validations and side effects across operational processes.
 
-A workflow engine helps the platform manage approvals, state transitions, and complex operations consistently.
+---
 
-## Scope
+# 2. Workflow Philosophy
 
-This specification covers workflow state transitions, orchestration, execution control, and auditing.
+A workflow represents the lifecycle of a business entity.
 
-## Definitions
+Workflows define:
 
-- Workflow Engine: A component that executes and coordinates business workflows over time.
+- Available states.
+- Allowed transitions.
+- Authorized actors.
+- Validation requirements.
+- Side effects.
+- Historical tracking.
 
-## Business Rules
+---
 
-- Workflow transitions must be explicit, authorized, and auditable.
-- The engine must preserve data integrity across intermediate steps.
+# 3. Workflow Principles
 
-## User Workflow
+ShiftOS workflows follow these principles:
 
-- Users trigger or participate in workflows that advance through defined states.
+- Explicit states.
+- Controlled transitions.
+- No invalid state changes.
+- Auditable actions.
+- Domain ownership.
+- Clear responsibility boundaries.
 
-## Permissions
+---
 
-- Workflow actions must respect the current state, role, and tenant context.
+# 4. Workflow Architecture
 
-## UI Behaviour
+Workflow execution follows:
 
-- The UI should reflect the current workflow state and available actions.
+```
+User Action
 
-## Backend Behaviour
+↓
 
-- The backend should orchestrate workflow progress consistently and safely.
+API Request
 
-## Database Impact
+↓
 
-- Workflow state and transition history may require dedicated records and storage.
+Permission Check
 
-## Events Emitted
+↓
 
-- backend.workflow.started
-- backend.workflow.completed
+Business Validation
 
-## Notifications
+↓
 
-- Workflow changes should notify relevant parties when required.
+State Transition
 
-## Reporting Impact
+↓
 
-- Workflow metrics and bottlenecks should be measurable.
+Database Update
 
-## Edge Cases
+↓
 
-- Abandoned workflows, retries, and invalid transitions should be handled.
+Event Creation
 
-## Validation Rules
+↓
 
-- Only valid workflow transitions may be executed.
+Notifications / Background Jobs
+```
 
-## Acceptance Criteria
+---
 
-- Core business processes can be represented and executed by the backend workflow engine.
+# 5. State Management
 
-## Future Enhancements
+Every workflow entity should define:
 
-- Visual workflow design and richer conditional routing.
+- Current state.
+- Allowed next states.
+- Transition rules.
 
-## Open Questions
+Example:
 
-- Which workflows should be engine-driven versus implemented directly in services first?
+Task:
 
-## Decision History
+```
+pending
+
+↓
+
+assigned
+
+↓
+
+in_progress
+
+↓
+
+completed
+
+↓
+
+verified
+```
+
+---
+
+# 6. Transition Rules
+
+Transitions must define:
+
+- Starting state.
+- Ending state.
+- Required permissions.
+- Required conditions.
+
+Example:
+
+Publishing a schedule:
+
+Allowed:
+
+```
+draft → published
+```
+
+Not allowed:
+
+```
+completed → draft
+```
+
+unless a specific revision workflow exists.
+
+---
+
+# 7. Scheduling Workflow
+
+Example lifecycle:
+
+```
+Draft
+
+↓
+
+Reviewed
+
+↓
+
+Published
+
+↓
+
+Active
+
+↓
+
+Completed
+
+↓
+
+Archived
+```
+
+Rules:
+
+- Only authorized users can publish.
+- Published schedules require revision handling.
+- Historical versions must be preserved.
+
+---
+
+# 8. Attendance Workflow
+
+Example lifecycle:
+
+```
+Scheduled
+
+↓
+
+Checked In
+
+↓
+
+Checked Out
+
+↓
+
+Reviewed
+
+↓
+
+Finalized
+```
+
+Rules:
+
+- Attendance changes require permission.
+- Corrections must preserve original records.
+- Finalized records require controlled changes.
+
+---
+
+# 9. Task Workflow
+
+Example lifecycle:
+
+```
+Created
+
+↓
+
+Assigned
+
+↓
+
+In Progress
+
+↓
+
+Completed
+
+↓
+
+Verified
+
+↓
+
+Closed
+```
+
+Rules:
+
+- Only assigned users can complete tasks.
+- Verification requires authorized reviewers.
+
+---
+
+# 10. Communication Workflow
+
+Example lifecycle:
+
+```
+Draft
+
+↓
+
+Published
+
+↓
+
+Acknowledged
+
+↓
+
+Expired
+```
+
+Rules:
+
+- Published messages cannot silently change.
+- Acknowledgement history must be preserved.
+
+---
+
+# 11. Workflow History
+
+Important transitions should create history records.
+
+History should include:
+
+- Previous state.
+- New state.
+- Actor.
+- Timestamp.
+- Reason where applicable.
+
+---
+
+# 12. Side Effects
+
+Workflow transitions may trigger:
+
+- Notifications.
+- Events.
+- Audit records.
+- Background jobs.
+
+Example:
+
+Publishing a schedule:
+
+```
+Schedule Published
+
+↓
+
+Create Event
+
+↓
+
+Notify Employees
+```
+
+---
+
+# 13. Failed Transitions
+
+Invalid transitions should:
+
+- Be rejected.
+- Return clear errors.
+- Not partially update data.
+- Be logged when security-related.
+
+---
+
+# 14. Workflow Storage
+
+Workflow states may be stored using:
+
+- Database enums.
+- Status columns.
+- History tables.
+
+The choice depends on domain requirements.
+
+---
+
+# 15. Generic Workflow Engine Decision
+
+ShiftOS should initially use domain-specific workflows.
+
+A fully configurable workflow engine should only be introduced when:
+
+- Multiple customers require customization.
+- Similar workflow patterns repeat.
+- Configuration provides clear business value.
+
+---
+
+# 16. Testing Requirements
+
+Workflows require testing for:
+
+- Valid transitions.
+- Invalid transitions.
+- Permission failures.
+- Concurrent updates.
+- Recovery scenarios.
+
+---
+
+# 17. Future Enhancements
+
+Future versions may introduce:
+
+- Configurable workflows.
+- Workflow automation rules.
+- Approval chains.
+- Visual workflow builders.
+
+---
+
+# 18. Related Specifications
+
+- API-003 Validation Rules
+- API-005 Event System
+- API-006 Error Handling
+- DB-006 Constraints
+- SFT-005 Guidance Rules
+
+---
+
+# 19. Summary
+
+ShiftOS workflows provide controlled lifecycle management for workforce operations.
+
+By defining explicit states, controlled transitions and auditable actions, the platform prevents invalid operations while creating predictable workflows for supervisors and employees.

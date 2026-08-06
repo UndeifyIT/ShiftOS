@@ -1,90 +1,368 @@
-# UI-003 — Layout System
+# ShiftOS Layout System
 
-Status: Draft
+**Document ID:** UI-003
 
-Version: 0.1.0
+**Document Title:** Layout Architecture
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Frontend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define the layout structure and spatial rules for ShiftOS screens.
+This document defines the layout standards used across ShiftOS applications.
 
-## Business Rationale
+The layout system ensures consistent page structures, responsive behavior and predictable user experiences across web, mobile and PWA platforms.
 
-A predictable layout system helps users understand information hierarchy and improves usability.
+---
 
-## Scope
+# 2. Layout Philosophy
 
-This specification covers page structure, spacing, containers, responsive behavior, and composition patterns.
+ShiftOS layouts should:
 
-## Definitions
+- Present important information first.
+- Support quick scanning.
+- Reduce visual clutter.
+- Maintain consistency.
+- Adapt across screen sizes.
 
-- Layout System: The arrangement of UI regions and content areas across screens.
+---
 
-## Business Rules
+# 3. Layout Principles
 
-- Layouts should be consistent across similar feature types.
-- Important information should be positioned in a hierarchy that matches user priorities.
+## Information Hierarchy
 
-## User Workflow
+Every page should clearly communicate:
 
-- Users navigate through dashboards, detail views, forms, and tables using common layout conventions.
+1. Primary purpose.
+2. Important information.
+3. Available actions.
+4. Secondary details.
 
-## Permissions
+---
 
-- Layouts should adapt to role-specific content without breaking consistency.
+## Consistent Structure
 
-## UI Behaviour
+Pages should reuse established patterns.
 
-- The UI should preserve structure and clarity across screen sizes and feature types.
+Examples:
 
-## Backend Behaviour
+- Headers.
+- Sections.
+- Cards.
+- Tables.
+- Action areas.
 
-- Layouts should support the presentation of backend-driven data and workflow states.
+---
 
-## Database Impact
+## Progressive Disclosure
 
-- Layouts should accommodate the data structures and relationships exposed by the backend.
+Complex information should be revealed gradually.
 
-## Events Emitted
+Avoid showing every possible detail immediately.
 
-- ui.layout.rendered
+---
 
-## Notifications
+# 4. Standard Page Structure
 
-- Layout changes may need product and engineering review.
+Recommended structure:
 
-## Reporting Impact
+```
+Page Header
 
-- Layout consistency supports engagement and usability analysis.
+↓
 
-## Edge Cases
+Primary Actions
 
-- Dense forms, narrow screens, and long content should be handled gracefully.
+↓
 
-## Validation Rules
+Main Content
 
-- Layouts must remain usable and clear across supported viewport sizes.
+↓
 
-## Acceptance Criteria
+Supporting Information
+```
 
-- Core screens use a consistent layout structure that supports their intended tasks.
+Example:
 
-## Future Enhancements
+Employee Profile:
 
-- More adaptive layout patterns and personalization support.
+```
+Employee Name + Actions
 
-## Open Questions
+↓
 
-- Which screens need the most complex layout handling in MVP?
+Employment Information
 
-## Decision History
+↓
+
+Attendance Summary
+
+↓
+
+History
+```
+
+---
+
+# 5. Application Shell
+
+The application shell provides consistent structure.
+
+Includes:
+
+- Navigation.
+- Header.
+- User controls.
+- Notifications.
+- Main content area.
+
+---
+
+# 6. Desktop Layout
+
+Desktop experiences should support:
+
+- Large datasets.
+- Multiple panels.
+- Management workflows.
+
+Common patterns:
+
+## Sidebar Layout
+
+```
+Navigation
+
+|
+
+Main Content
+```
+
+---
+
+## Split View
+
+Example:
+
+```
+Employee List
+
+|
+
+Employee Details
+```
+
+---
+
+## Dashboard Grid
+
+Example:
+
+```
+Metric Card | Metric Card
+
+Chart      | Activity
+```
+
+---
+
+# 7. Mobile Layout
+
+Mobile layouts should prioritize:
+
+- Essential information.
+- Single-task focus.
+- Reduced scrolling.
+
+Patterns:
+
+- Stacked sections.
+- Bottom actions.
+- Expandable details.
+
+---
+
+# 8. Responsive Behavior
+
+Layouts should adapt based on screen size.
+
+Breakpoints should define:
+
+- Navigation changes.
+- Column changes.
+- Table behavior.
+- Content density.
+
+---
+
+# 9. Container System
+
+Pages should use consistent containers.
+
+Containers control:
+
+- Maximum width.
+- Horizontal spacing.
+- Alignment.
+
+Avoid full-width uncontrolled layouts.
+
+---
+
+# 10. Spacing Rules
+
+Layouts should use design tokens.
+
+Spacing applies to:
+
+- Sections.
+- Components.
+- Cards.
+- Forms.
+
+Avoid arbitrary spacing values.
+
+---
+
+# 11. Card Layouts
+
+Cards should be used for:
+
+- Summaries.
+- Quick insights.
+- Grouped information.
+
+Cards should not replace every interface element.
+
+Avoid excessive card usage.
+
+---
+
+# 12. Tables and Data Views
+
+Complex operational data should use structured layouts.
+
+Examples:
+
+- Employee lists.
+- Attendance records.
+- Schedules.
+
+Tables should support:
+
+- Filtering.
+- Sorting.
+- Pagination.
+
+---
+
+# 13. Empty Layouts
+
+Every major layout should support:
+
+- Empty states.
+- Loading states.
+- Error states.
+
+A page should never feel broken when data is unavailable.
+
+---
+
+# 14. Action Placement
+
+Primary actions should be predictable.
+
+Examples:
+
+Create:
+
+- Top-right action area.
+- Floating action where appropriate.
+
+Edit:
+
+- Near relevant information.
+
+Delete:
+
+- Secondary/destructive placement.
+
+---
+
+# 15. Accessibility Considerations
+
+Layouts should support:
+
+- Logical reading order.
+- Keyboard navigation.
+- Screen readers.
+- Clear focus movement.
+
+---
+
+# 16. Performance Considerations
+
+Layouts should avoid:
+
+- Rendering unnecessary content.
+- Huge initial datasets.
+- Heavy components above the fold.
+
+---
+
+# 17. MVP Layout Strategy
+
+Initial layouts should focus on:
+
+Supervisor:
+
+- Dashboard.
+- Schedule workspace.
+- Employee management.
+- Attendance operations.
+
+Employee:
+
+- Personal schedule.
+- Tasks.
+- Communication.
+
+---
+
+# 18. Future Enhancements
+
+Future versions may introduce:
+
+- Custom dashboards.
+- Drag-and-drop layouts.
+- Personalized workspaces.
+- Advanced widgets.
+
+---
+
+# 19. Related Specifications
+
+- UI-001 Design System
+- UI-002 Navigation
+- UI-006 Data Tables
+- UI-007 Calendar Components
+- UI-010 Responsive Design
+
+---
+
+# 20. Summary
+
+The ShiftOS layout system provides reusable structures that keep the platform consistent, scalable and easy to use.
+
+By designing around information hierarchy and operational workflows, ShiftOS can support complex workforce management tasks without creating unnecessary interface complexity.

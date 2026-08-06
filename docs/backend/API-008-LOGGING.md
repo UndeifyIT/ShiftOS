@@ -1,91 +1,321 @@
-# API-008 — Logging
+# ShiftOS Backend Logging
 
-Status: Draft
+**Document ID:** API-008
 
-Version: 0.1.0
+**Document Title:** Logging Architecture
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Backend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define how the backend records operational and diagnostic logs for monitoring, debugging, and auditing.
+This document defines the logging strategy used within the ShiftOS backend.
 
-## Business Rationale
+Logging provides visibility into system behavior, errors, performance issues and operational health.
 
-Good logging improves observability, incident response, and long-term maintainability.
+---
 
-## Scope
+# 2. Logging Philosophy
 
-This specification covers log levels, event content, log propagation, and retention expectations.
+Logs exist to help answer:
 
-## Definitions
+- What happened?
+- When did it happen?
+- Where did it happen?
+- Which component was involved?
+- What was the impact?
 
-- Logging: The recording of structured operational information for analysis and debugging.
+Logs should support:
 
-## Business Rules
+- Debugging.
+- Monitoring.
+- Security investigation.
+- Performance analysis.
 
-- Logs must be generated for important requests, state changes, failures, and security-relevant events.
-- Sensitive information must not be logged without explicit controls.
-- Logs must be accessible to authorized operators and systems.
+---
 
-## User Workflow
+# 3. Logging Principles
 
-- Users are supported by logs that help diagnose performance or problem conditions.
+ShiftOS logs follow these principles:
 
-## Permissions
+- Structured logging.
+- Consistent formats.
+- Appropriate detail levels.
+- Privacy protection.
+- Searchable records.
+- Production observability.
 
-- Log access should be restricted to authorized roles and systems.
+---
 
-## UI Behaviour
+# 4. Log Types
 
-- Logging mostly affects operations and debugging; user impact is indirect.
+ShiftOS uses several logging categories.
 
-## Backend Behaviour
+---
 
-- Services must structure and emit logs consistently and securely.
+# 5. Application Logs
 
-## Database Impact
+Purpose:
 
-- Logging may rely on external storage or operational databases rather than core application schemas.
+Track backend application behavior.
 
-## Events Emitted
+Examples:
 
-- backend.log.generated
+```
+Employee creation started
 
-## Notifications
+Schedule publishing completed
 
-- Significant failures or anomalies may trigger alerts.
+Task workflow executed
+```
 
-## Reporting Impact
+---
 
-- Logs should support operational dashboards and incident review.
+# 6. Error Logs
 
-## Edge Cases
+Purpose:
 
-- Log volume, log rotation, and log loss scenarios should be planned for.
+Record failures requiring investigation.
 
-## Validation Rules
+Examples:
 
-- Logging should capture relevant context without exposing secrets or unsupported details.
+```
+Database connection failure
 
-## Acceptance Criteria
+Notification delivery failure
 
-- The backend emits consistent, useful logs for core operational and debugging scenarios.
+Background job failure
+```
 
-## Future Enhancements
+Error logs should include:
 
-- Centralized log aggregation and richer tracing.
+- Error type.
+- Request ID.
+- Component.
+- Timestamp.
+- Technical details.
 
-## Open Questions
+---
 
-- Which log categories are required for MVP versus later phases?
+# 7. Security Logs
 
-## Decision History
+Purpose:
+
+Track security-related events.
+
+Examples:
+
+```
+Failed login attempt
+
+Permission denied action
+
+Suspicious access pattern
+```
+
+Security logging relates to:
+
+- Authentication.
+- Authorization.
+- Tenant access.
+
+---
+
+# 8. Performance Logs
+
+Purpose:
+
+Identify slow operations.
+
+Examples:
+
+```
+Slow database query
+
+Long-running background job
+
+API response delay
+```
+
+---
+
+# 9. Request Logging
+
+API requests should record:
+
+- Request ID.
+- Endpoint.
+- User context.
+- Organization context.
+- Response status.
+- Duration.
+
+Sensitive request data should not be logged unnecessarily.
+
+---
+
+# 10. Structured Logging
+
+Logs should use structured formats.
+
+Example:
+
+```
+{
+ event: "schedule_publish_failed",
+ organization_id: "...",
+ user_id: "...",
+ timestamp: "...",
+ error_code: "INVALID_STATE"
+}
+```
+
+Structured logs allow easier searching and analysis.
+
+---
+
+# 11. Log Levels
+
+Recommended levels:
+
+## DEBUG
+
+Development troubleshooting.
+
+---
+
+## INFO
+
+Normal system activity.
+
+---
+
+## WARNING
+
+Unexpected but recoverable situations.
+
+---
+
+## ERROR
+
+Failures requiring attention.
+
+---
+
+## CRITICAL
+
+Major system-impacting failures.
+
+---
+
+# 12. Privacy Requirements
+
+Logs must avoid storing unnecessary:
+
+- Employee personal information.
+- Authentication credentials.
+- Sensitive business data.
+
+Sensitive information should be masked where required.
+
+---
+
+# 13. Log Retention
+
+Retention policies should consider:
+
+- Operational needs.
+- Security requirements.
+- Privacy obligations.
+
+Logs should not be kept indefinitely without purpose.
+
+---
+
+# 14. Monitoring Integration
+
+Logs should support:
+
+- Error tracking.
+- Alerting.
+- Performance monitoring.
+- Operational dashboards.
+
+---
+
+# 15. Production Logging Requirements
+
+Production systems should provide:
+
+- Centralized log collection.
+- Search capability.
+- Alerting for critical failures.
+- Access controls.
+
+---
+
+# 16. Logging vs Audit Records
+
+Logging:
+
+Technical system behavior.
+
+Audit records:
+
+Business activity history.
+
+Example:
+
+Logging:
+
+```
+Database update query failed
+```
+
+Audit:
+
+```
+Supervisor approved attendance correction
+```
+
+Both systems should remain separate.
+
+---
+
+# 17. Future Enhancements
+
+Future versions may introduce:
+
+- Advanced observability platforms.
+- Distributed tracing.
+- Automated anomaly detection.
+- AI-assisted debugging.
+
+---
+
+# 18. Related Specifications
+
+- API-006 Error Handling
+- API-007 Background Jobs
+- SEC-006 Audit Logging
+- SEC-013 Incident Response
+- ARCH-006 Data Flow
+
+---
+
+# 19. Summary
+
+ShiftOS logging provides technical visibility into platform behavior while protecting customer and employee information.
+
+Through structured logs, appropriate retention and separation from audit records, ShiftOS can maintain reliability, security and operational transparency as the platform scales.

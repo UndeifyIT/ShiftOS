@@ -1,92 +1,304 @@
-# DB-012 — Migrations
+# ShiftOS Database Migrations
 
-Status: Draft
+**Document ID:** DB-012
 
-Version: 0.1.0
+**Document Title:** Database Migration Strategy
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Database
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define how database schema changes are applied, tracked, and reviewed.
+This document defines the migration strategy used to manage changes to the ShiftOS database schema.
 
-## Business Rationale
+The migration system ensures database changes are predictable, version-controlled and safely deployed across development, testing and production environments.
 
-Migrations provide a safe and repeatable way to evolve the database over time.
+---
 
-## Scope
+# 2. Migration Philosophy
 
-This specification covers migration creation, ordering, rollback strategy, and review practices.
+Database changes are treated as application changes.
 
-## Definitions
+Every schema modification must be:
 
-- Migration: A controlled change that updates the database schema or data from one version to another.
+- Documented.
+- Reviewed.
+- Tested.
+- Version controlled.
+- Deployable consistently.
 
-## Business Rules
+The database schema should never exist separately from the application codebase.
 
-- All schema changes must be captured as migrations.
-- Migrations must be reversible where practical and safe.
-- Migration execution must preserve data integrity and tenant isolation.
+---
 
-## User Workflow
+# 3. Migration Principles
 
-- Developers and operators apply migrations as part of deployment or maintenance.
+ShiftOS migrations follow these principles:
 
-## Permissions
+- One source of truth.
+- Automated deployment.
+- Reproducible environments.
+- Incremental changes.
+- Backward compatibility where practical.
+- Safe production execution.
 
-- Migration execution should be restricted to authorized deployment and operations personnel.
+---
 
-## UI Behaviour
+# 4. Migration Types
 
-- No direct UI impact, but migrations support platform stability and feature delivery.
+Common migration categories include:
 
-## Backend Behaviour
+## Schema Changes
 
-- Services must work against the current schema version and support safe deployment.
+Examples:
 
-## Database Impact
+- Create tables.
+- Add columns.
+- Modify constraints.
+- Create indexes.
 
-- This specification governs how database state evolves over time.
+---
 
-## Events Emitted
+## Data Changes
 
-- database.migration.applied
-- database.migration.failed
+Examples:
 
-## Notifications
+- Backfill existing records.
+- Transform stored values.
+- Migrate historical data.
 
-- Migration failures or rollback events should alert the responsible team.
+---
 
-## Reporting Impact
+## Database Object Changes
 
-- Migration status helps operations understand environment consistency.
+Examples:
 
-## Edge Cases
+- Create views.
+- Update triggers.
+- Modify functions.
 
-- Partial failures, long-running changes, and concurrent deployments require protection.
+---
 
-## Validation Rules
+# 5. Migration Naming
 
-- Migrations must be tested and validated before deployment to production.
+Migration names follow DB-002 standards.
 
-## Acceptance Criteria
+Examples:
 
-- Database changes can be deployed consistently and safely using documented migrations.
+```
+create_employee_tables
 
-## Future Enhancements
+add_attendance_indexes
 
-- Zero-downtime migrations, automated rollback testing, and migration observability.
+create_task_history_table
 
-## Open Questions
+add_notification_preferences
+```
 
-- Which migration patterns should be preferred for large-scale data changes?
+Names should clearly explain the purpose.
 
-## Decision History
+---
+
+# 6. Migration Workflow
+
+The standard workflow:
+
+```
+Developer Creates Migration
+
+↓
+
+Migration Review
+
+↓
+
+Local Testing
+
+↓
+
+Automated Testing
+
+↓
+
+Staging Deployment
+
+↓
+
+Production Deployment
+
+↓
+
+Verification
+```
+
+---
+
+# 7. Migration Safety
+
+Before production deployment:
+
+Review:
+
+- Data impact.
+- Execution time.
+- Locking behavior.
+- Rollback strategy.
+- Customer impact.
+
+Large migrations require additional planning.
+
+---
+
+# 8. Backward Compatibility
+
+Where possible:
+
+Applications should remain compatible with both:
+
+- Current schema.
+- New schema.
+
+Recommended approach:
+
+```
+Add New Structure
+
+↓
+
+Deploy Application Support
+
+↓
+
+Migrate Data
+
+↓
+
+Remove Old Structure Later
+```
+
+Avoid breaking changes in a single deployment.
+
+---
+
+# 9. Rollback Strategy
+
+Not every migration can be automatically reversed.
+
+Each migration should define:
+
+- Rollback possibility.
+- Recovery approach.
+- Data preservation strategy.
+
+Destructive migrations require additional review.
+
+---
+
+# 10. Production Data Protection
+
+Production migrations must protect:
+
+- Customer data.
+- Tenant isolation.
+- Historical records.
+- Audit information.
+
+Backups should exist before significant changes.
+
+---
+
+# 11. Environment Management
+
+Migrations should run consistently across:
+
+- Local development.
+- Testing.
+- Staging.
+- Production.
+
+No environment should rely on undocumented manual database changes.
+
+---
+
+# 12. Supabase Considerations
+
+ShiftOS uses Supabase and PostgreSQL.
+
+Migration management should include:
+
+- Schema migrations.
+- Database functions.
+- RLS policies.
+- Triggers.
+- Views.
+- Indexes.
+
+All database objects should be represented through migrations.
+
+---
+
+# 13. Testing Requirements
+
+Migrations should verify:
+
+- Schema correctness.
+- Data integrity.
+- Security behavior.
+- Application compatibility.
+
+Testing should include failure scenarios.
+
+---
+
+# 14. Migration Monitoring
+
+Production migrations should monitor:
+
+- Execution time.
+- Errors.
+- Lock duration.
+- Database performance.
+
+Failed migrations require controlled recovery.
+
+---
+
+# 15. Future Enhancements
+
+Future improvements may include:
+
+- Automated migration validation.
+- Zero-downtime migration tooling.
+- Schema compatibility checks.
+- Database deployment pipelines.
+
+---
+
+# 16. Related Specifications
+
+- DB-001 Database Philosophy
+- DB-005 Tables
+- DB-006 Constraints
+- DB-009 Triggers
+- DB-010 Views
+- SEC-004 Row-Level Security
+- ARCH-009 Scalability Strategy
+
+---
+
+# 17. Summary
+
+ShiftOS database migrations provide a controlled method for evolving the database safely as the platform grows.
+
+By treating schema changes as version-controlled software changes, using repeatable deployment processes and protecting production data, ShiftOS maintains database reliability while allowing continuous platform improvement.

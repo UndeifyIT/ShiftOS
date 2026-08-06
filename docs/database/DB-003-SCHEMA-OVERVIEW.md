@@ -1,90 +1,271 @@
-# DB-003 — Schema Overview
+# ShiftOS Schema Overview
 
-Status: Draft
+**Document ID:** DB-003
 
-Version: 0.1.0
+**Document Title:** Schema Overview
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Database
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Provide a high-level overview of the ShiftOS database schema structure.
+This document provides a high-level overview of the ShiftOS database schema.
 
-## Business Rationale
+It defines how the database is organized into logical domains and establishes the ownership boundaries for each domain without specifying individual table structures.
 
-A schema overview helps teams understand the major domain areas and their relationships.
+Detailed table definitions are documented separately.
 
-## Scope
+---
 
-This specification covers the top-level organization of the schema and major domain groupings.
+# 2. Schema Philosophy
 
-## Definitions
+The ShiftOS database uses a single primary application schema.
 
-- Schema Overview: A map of the major database areas and their responsibilities.
+Business domains are organized logically through table ownership, naming conventions and application architecture rather than multiple database schemas.
 
-## Business Rules
+This approach simplifies development, security, migrations and long-term maintenance.
 
-- The schema should reflect business domains such as organization, employee, scheduling, attendance, and security.
-- Core entities should be grouped clearly to improve maintainability.
+---
 
-## User Workflow
+# 3. Database Schema Strategy
 
-- Users interact with features that rely on entities from multiple schema areas.
+For Version 1, ShiftOS adopts:
 
-## Permissions
+- A single application schema (`public`).
+- Logical domain separation.
+- Strong Row-Level Security.
+- Modular application code.
+- Consistent naming conventions.
 
-- Schema design must align with authorization and tenant boundaries.
+Additional database schemas may be introduced in the future only when justified by operational requirements.
 
-## UI Behaviour
+---
 
-- The UI depends on the schema’s ability to support feature workflows efficiently.
+# 4. Logical Domains
 
-## Backend Behaviour
+The database is organized into the following logical domains:
 
-- Services should interact with schema areas using documented boundaries and contracts.
+### Platform
 
-## Database Impact
+Platform-wide configuration and shared resources.
 
-- This specification defines the conceptual structure for the database layer.
+Examples include:
 
-## Events Emitted
+- Organizations.
+- Branches.
+- Membership.
+- System configuration.
 
-- database.schema.reviewed
+---
 
-## Notifications
+### Identity & Access
 
-- Major schema changes should notify engineering and operations reviewers.
+Authentication and authorization-related resources.
 
-## Reporting Impact
+Examples include:
 
-- Clear schema organization simplifies reporting and analytics design.
+- Users.
+- Sessions.
+- Permissions.
+- Roles.
+- Access policies.
 
-## Edge Cases
+---
 
-- Legacy data and gradual migration should not break the schema overview.
+### Workforce
 
-## Validation Rules
+Employee-related operational data.
 
-- Schema changes must preserve the documented domain boundaries.
+Examples include:
 
-## Acceptance Criteria
+- Employees.
+- Employment records.
+- Departments.
+- Positions.
 
-- Engineers can understand the primary schema areas from the overview document.
+---
 
-## Future Enhancements
+### Scheduling
 
-- Visual schema maps and domain ownership metadata.
+Scheduling and workforce planning.
 
-## Open Questions
+Examples include:
 
-- Which schema areas should be split into separate services or modules first?
+- Schedules.
+- Shifts.
+- Assignments.
+- Schedule versions.
 
-## Decision History
+---
+
+### Attendance
+
+Attendance tracking.
+
+Examples include:
+
+- Attendance records.
+- Corrections.
+- Validation records.
+
+---
+
+### Task Management
+
+Operational task execution.
+
+Examples include:
+
+- Tasks.
+- Task assignments.
+- Task verification.
+- Task history.
+
+---
+
+### Communications
+
+Internal communications.
+
+Examples include:
+
+- Announcements.
+- Notice boards.
+- Acknowledgements.
+
+---
+
+### Notifications
+
+Notification management.
+
+Examples include:
+
+- Notifications.
+- Delivery attempts.
+- User preferences.
+
+---
+
+### Audit & Security
+
+Operational security and auditing.
+
+Examples include:
+
+- Audit logs.
+- Security events.
+- Login history.
+
+---
+
+### Reporting
+
+Reporting and analytical data structures.
+
+Examples include:
+
+- Reporting views.
+- Materialized views.
+- Aggregated statistics.
+
+---
+
+# 5. Domain Ownership
+
+Each table belongs to exactly one logical domain.
+
+Every domain owns:
+
+- Its business data.
+- Its relationships.
+- Its constraints.
+- Its validation rules.
+- Its lifecycle.
+
+Cross-domain relationships should occur through clearly defined foreign keys.
+
+---
+
+# 6. Shared Infrastructure
+
+Certain resources support the entire platform.
+
+Examples include:
+
+- Audit logging.
+- Realtime support.
+- Notification infrastructure.
+- Background processing metadata.
+
+Shared infrastructure should remain independent of business-specific domains.
+
+---
+
+# 7. Tenant Awareness
+
+Every tenant-owned table should include:
+
+- Organization ownership.
+- Appropriate foreign keys.
+- Row-Level Security.
+- Tenant-aware indexing.
+
+Tenant ownership must remain consistent across all domains.
+
+---
+
+# 8. Schema Evolution
+
+The database schema should evolve through:
+
+- Version-controlled migrations.
+- Incremental additions.
+- Backward-compatible changes where practical.
+- Documented architectural decisions.
+
+Schema evolution should preserve data integrity and minimize operational disruption.
+
+---
+
+# 9. Future Enhancements
+
+Future versions may introduce:
+
+- Dedicated reporting schemas.
+- Archive schemas.
+- Integration schemas.
+- Regional data partitioning.
+- Enterprise-specific extensions.
+
+Future expansion should preserve the logical ownership model.
+
+---
+
+# 10. Related Specifications
+
+- DB-001 Database Philosophy
+- DB-002 Naming Standards
+- DB-004 Entity Relationships
+- DB-005 Tables
+- DB-012 Migrations
+- ARCH-002 Multi-Tenant Architecture
+
+---
+
+# 11. Summary
+
+The ShiftOS database is organized as a single application schema with clearly defined logical business domains.
+
+By separating ownership through domain boundaries rather than multiple database schemas, the platform remains easier to develop, secure and maintain while preserving flexibility for future architectural evolution.

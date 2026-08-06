@@ -1,90 +1,379 @@
-# UI-001 — Design System
+# ShiftOS Design System
 
-Status: Draft
+**Document ID:** UI-001
 
-Version: 0.1.0
+**Document Title:** Design System
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Frontend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define the visual and interaction foundation for the ShiftOS frontend.
+This document defines the design system standards used throughout ShiftOS applications.
 
-## Business Rationale
+The design system provides reusable visual and interaction principles that ensure consistency across:
 
-A consistent design system helps create a cohesive product experience and improves implementation speed.
+- Web application.
+- Mobile application.
+- PWA experience.
 
-## Scope
+---
 
-This specification covers design tokens, component patterns, visual language, and UI principles.
+# 2. Design System Philosophy
 
-## Definitions
+The ShiftOS design system exists to:
 
-- Design System: A shared set of design principles, components, and patterns used across the product.
+- Reduce user cognitive load.
+- Improve workflow speed.
+- Maintain consistency.
+- Accelerate development.
+- Support future product growth.
 
-## Business Rules
+The system should prioritize operational efficiency over decorative design.
 
-- The UI should use a consistent visual language across all surfaces.
-- Core components should be reusable, accessible, and aligned to product principles.
+---
 
-## User Workflow
+# 3. Design Principles
 
-- Users experience the product through a consistent interface that reflects the same interaction patterns throughout the app.
+ShiftOS follows these principles:
 
-## Permissions
+## Simplicity First
 
-- UI design must support role-based experiences and respect authorization boundaries.
+Interfaces should minimize unnecessary decisions.
 
-## UI Behaviour
+Users should quickly understand:
 
-- Components should behave consistently and predictably across workflows.
+- What needs attention.
+- What action is available.
+- What happens next.
 
-## Backend Behaviour
+---
 
-- The frontend relies on backend services that return predictable data structures and states.
+## Operational Speed
 
-## Database Impact
+Common actions should require minimal effort.
 
-- The UI should represent data in a way that aligns with model and workflow expectations.
+Examples:
 
-## Events Emitted
+- Creating shifts.
+- Checking attendance.
+- Assigning tasks.
+- Publishing announcements.
 
-- ui.design-system.reviewed
+---
 
-## Notifications
+## Consistency
 
-- Design changes may require review by product and engineering stakeholders.
+Similar actions should look and behave similarly.
 
-## Reporting Impact
+Examples:
 
-- UI patterns should support analytics, telemetry, and user feedback collection.
+- Buttons.
+- Forms.
+- Tables.
+- Navigation.
+- Status indicators.
 
-## Edge Cases
+---
 
-- Empty states, loading states, and error states should be designed consistently.
+## Progressive Complexity
 
-## Validation Rules
+Advanced features should appear only when needed.
 
-- UI elements must follow the design system and accessibility expectations.
+New users should not be overwhelmed by enterprise functionality.
 
-## Acceptance Criteria
+---
 
-- The frontend uses a documented and consistent design language across key workflows.
+# 4. Visual Identity
 
-## Future Enhancements
+ShiftOS visual identity should communicate:
 
-- Component libraries, design tokens, and automated UI consistency checks.
+- Professionalism.
+- Reliability.
+- Efficiency.
+- Modern workforce management.
 
-## Open Questions
+The design should feel appropriate for:
 
-- Which components should be standardized first for MVP?
+- Retail.
+- Restaurants.
+- Warehouses.
+- Healthcare.
+- Hospitality.
 
-## Decision History
+---
+
+# 5. Color System
+
+The design system defines semantic colors.
+
+Colors should represent meaning.
+
+Example:
+
+## Primary
+
+Used for:
+
+- Main actions.
+- Brand identity.
+- Navigation highlights.
+
+---
+
+## Success
+
+Used for:
+
+- Completed actions.
+- Positive states.
+
+---
+
+## Warning
+
+Used for:
+
+- Attention required.
+- Potential issues.
+
+---
+
+## Error
+
+Used for:
+
+- Failed actions.
+- Critical problems.
+
+---
+
+## Neutral
+
+Used for:
+
+- Backgrounds.
+- Text.
+- Borders.
+- Supporting information.
+
+---
+
+# 6. Typography
+
+Typography should prioritize readability.
+
+Requirements:
+
+- Clear hierarchy.
+- Comfortable reading sizes.
+- Strong contrast.
+- Consistent spacing.
+
+Typography levels:
+
+```
+Page Title
+
+Section Heading
+
+Subheading
+
+Body Text
+
+Supporting Text
+```
+
+---
+
+# 7. Spacing System
+
+Spacing should use consistent design tokens.
+
+Purpose:
+
+- Predictable layouts.
+- Easier responsive design.
+- Faster development.
+
+Components should avoid arbitrary spacing values.
+
+---
+
+# 8. Component System
+
+Reusable components should be created for repeated patterns.
+
+Examples:
+
+## Buttons
+
+Variants:
+
+- Primary.
+- Secondary.
+- Destructive.
+- Disabled.
+
+---
+
+## Inputs
+
+Variants:
+
+- Text input.
+- Search.
+- Select.
+- Date picker.
+
+---
+
+## Cards
+
+Used for:
+
+- Dashboard summaries.
+- Employee information.
+- Task details.
+
+---
+
+## Status Indicators
+
+Used for:
+
+- Attendance.
+- Shift states.
+- Task states.
+
+---
+
+# 9. Interaction Standards
+
+Interfaces should provide:
+
+- Clear feedback.
+- Loading states.
+- Success confirmation.
+- Error recovery.
+
+Users should always understand:
+
+- What happened.
+- What is happening.
+- What they can do next.
+
+---
+
+# 10. Forms Design
+
+Forms should:
+
+- Group related information.
+- Validate clearly.
+- Prevent mistakes.
+- Minimize unnecessary fields.
+
+---
+
+# 11. Data Visualization
+
+Charts and metrics should prioritize:
+
+- Operational understanding.
+- Quick decisions.
+- Clear comparisons.
+
+Avoid unnecessary visual complexity.
+
+---
+
+# 12. Platform Consistency
+
+The experience should remain consistent across:
+
+- React Native mobile.
+- Web application.
+- PWA.
+
+However, components should respect platform differences.
+
+---
+
+# 13. Component Documentation
+
+Every reusable component should document:
+
+- Purpose.
+- Usage.
+- Variations.
+- Accessibility requirements.
+- Examples.
+
+---
+
+# 14. Design Tokens
+
+The design system should define:
+
+- Colors.
+- Typography.
+- Spacing.
+- Border radius.
+- Shadows.
+- Animation rules.
+
+These should be centralized.
+
+---
+
+# 15. Accessibility Foundation
+
+The design system must support:
+
+- Keyboard navigation.
+- Screen readers.
+- Sufficient contrast.
+- Clear focus states.
+
+Detailed accessibility rules are defined in UI-011.
+
+---
+
+# 16. Future Enhancements
+
+Future versions may introduce:
+
+- Advanced component libraries.
+- Theme customization.
+- Organization branding.
+- Design token automation.
+
+---
+
+# 17. Related Specifications
+
+- UI-002 Navigation
+- UI-003 Layout System
+- UI-005 Forms
+- UI-011 Accessibility
+- UI-012 PWA Behaviour
+
+---
+
+# 18. Summary
+
+The ShiftOS design system provides the foundation for a consistent, scalable and efficient user experience.
+
+By focusing on reusable components, operational speed and clear interaction patterns, ShiftOS can support multiple platforms while maintaining a professional enterprise SaaS experience.

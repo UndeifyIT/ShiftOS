@@ -1,90 +1,342 @@
-# UI-002 — Navigation
+# ShiftOS Navigation System
 
-Status: Draft
+**Document ID:** UI-002
 
-Version: 0.1.0
+**Document Title:** Navigation Architecture
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Frontend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define how users move through the ShiftOS product and access relevant workflows.
+This document defines the navigation architecture used across ShiftOS applications.
 
-## Business Rationale
+Navigation determines how users access features, move between workflows and complete operational tasks efficiently.
 
-Clear navigation helps users find tasks quickly and reduces friction in daily use.
+---
 
-## Scope
+# 2. Navigation Philosophy
 
-This specification covers app navigation, menus, hierarchy, and information architecture.
+ShiftOS navigation should:
 
-## Definitions
+- Prioritize frequent actions.
+- Reduce cognitive load.
+- Reflect user responsibilities.
+- Hide irrelevant complexity.
+- Support fast operational decisions.
 
-- Navigation: The structure and behavior of user movement through the product.
+---
 
-## Business Rules
+# 3. Navigation Principles
 
-- Navigation should align with user roles and common workflows.
-- Key actions should be discoverable without excessive depth.
+ShiftOS follows these principles:
 
-## User Workflow
+## Role-Based Navigation
 
-- Users move between dashboards, tasks, schedules, attendance, and settings through a coherent navigation model.
+Users should only see areas relevant to their responsibilities.
 
-## Permissions
+Example:
 
-- Navigation must hide or adapt features based on authorization and tenant context.
+Supervisor:
 
-## UI Behaviour
+- Scheduling.
+- Attendance.
+- Employees.
+- Tasks.
 
-- The app should present clear, predictable, and contextual navigation.
+Employee:
 
-## Backend Behaviour
+- My shifts.
+- My tasks.
+- Announcements.
 
-- Navigation should reflect backend capabilities and available resources.
+---
 
-## Database Impact
+## Task-Oriented Structure
 
-- Navigation structure should support the data and features the product exposes.
+Navigation should represent user goals.
 
-## Events Emitted
+Not:
 
-- ui.navigation.accessed
+```
+Database tables
+```
 
-## Notifications
+Instead:
 
-- Navigation changes may require product review or communication.
+```
+Daily operations
+Team management
+Planning
+Communication
+```
 
-## Reporting Impact
+---
 
-- Navigation patterns may inform funnel analysis and feature adoption.
+## Consistency
 
-## Edge Cases
+Navigation patterns should remain predictable across:
 
-- Deep links, missing permissions, and role changes should be handled gracefully.
+- Web.
+- Mobile.
+- PWA.
 
-## Validation Rules
+---
 
-- Navigation must remain coherent across supported roles and contexts.
+# 4. User Navigation Models
 
-## Acceptance Criteria
+ShiftOS supports multiple navigation experiences.
 
-- Users can reach core workflows with minimal confusion through the navigation system.
+---
 
-## Future Enhancements
+# 5. Supervisor Navigation
 
-- Adaptive navigation and personalized layouts.
+Primary navigation:
 
-## Open Questions
+```
+Home
 
-- Which navigation model is best for the initial manager and employee experiences?
+Schedule
 
-## Decision History
+Attendance
+
+Tasks
+
+Employees
+
+Communication
+
+Reports
+
+Settings
+```
+
+Purpose:
+
+Allow supervisors to manage daily branch operations.
+
+---
+
+# 6. Employee Navigation
+
+Primary navigation:
+
+```
+Home
+
+My Schedule
+
+My Tasks
+
+Announcements
+
+Profile
+```
+
+Purpose:
+
+Allow employees to understand responsibilities and receive information.
+
+---
+
+# 7. Management Navigation
+
+For higher-level users:
+
+```
+Dashboard
+
+Organizations
+
+Branches
+
+Workforce Analytics
+
+Reports
+
+Settings
+```
+
+Purpose:
+
+Provide oversight without operational clutter.
+
+---
+
+# 8. Web Navigation
+
+The web application should prioritize:
+
+- Large information views.
+- Tables.
+- Dashboards.
+- Multi-step management workflows.
+
+Recommended patterns:
+
+- Side navigation.
+- Top actions.
+- Breadcrumbs where needed.
+
+---
+
+# 9. Mobile Navigation
+
+Mobile should prioritize:
+
+- Frequent actions.
+- Limited navigation depth.
+- Quick access.
+
+Recommended patterns:
+
+- Bottom navigation for primary areas.
+- Stacked workflows.
+- Context actions.
+
+---
+
+# 10. Navigation Permissions
+
+Navigation visibility is not security.
+
+The system must still enforce:
+
+- Backend authorization.
+- Database permissions.
+- API validation.
+
+Navigation only improves user experience.
+
+---
+
+# 11. Deep Linking
+
+The system should support direct access to:
+
+Examples:
+
+```
+/employees/123
+
+/shifts/456
+
+/tasks/789
+```
+
+Benefits:
+
+- Faster workflows.
+- Better notifications.
+- Easier support.
+
+---
+
+# 12. Navigation States
+
+Navigation should handle:
+
+## Loading
+
+Show appropriate loading indicators.
+
+---
+
+## Empty
+
+Guide users toward first actions.
+
+---
+
+## Error
+
+Provide recovery paths.
+
+---
+
+## Offline
+
+Clearly indicate unavailable actions.
+
+---
+
+# 13. Navigation History
+
+The system should preserve useful context.
+
+Examples:
+
+- Returning to employee list after editing.
+- Returning to schedule position after viewing a shift.
+
+---
+
+# 14. Search Navigation
+
+Future navigation may include:
+
+- Global search.
+- Quick actions.
+- Command menus.
+
+---
+
+# 15. MVP Navigation Strategy
+
+Initial ShiftOS implementation should prioritize:
+
+Supervisor:
+
+- Dashboard.
+- Schedule.
+- Attendance.
+- Tasks.
+- Employees.
+
+Employee:
+
+- Schedule.
+- Tasks.
+- Communication.
+
+Additional sections can expand as features mature.
+
+---
+
+# 16. Future Enhancements
+
+Future versions may introduce:
+
+- Customizable navigation.
+- Organization-specific shortcuts.
+- Universal search.
+- AI navigation assistance.
+
+---
+
+# 17. Related Specifications
+
+- UI-001 Design System
+- UI-003 Layout System
+- UI-004 State Management
+- SEC-003 Authorization
+- ARCH-005 Workflow Architecture
+
+---
+
+# 18. Summary
+
+ShiftOS navigation is designed around user responsibilities and operational workflows rather than database structure.
+
+By providing role-based, task-oriented navigation across web and mobile platforms, ShiftOS enables supervisors and employees to complete work quickly while maintaining a scalable frontend architecture.

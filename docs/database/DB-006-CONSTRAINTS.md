@@ -1,90 +1,345 @@
-# DB-006 — Constraints
+# ShiftOS Database Constraints
 
-Status: Draft
+**Document ID:** DB-006
 
-Version: 0.1.0
+**Document Title:** Database Constraints
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Database
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define the expected use of database constraints to preserve data integrity.
+This document defines the database constraint strategy used within ShiftOS.
 
-## Business Rationale
+Constraints ensure that stored data remains valid, consistent and aligned with business rules regardless of the source of the database operation.
 
-Constraints prevent invalid states and reduce the risk of inconsistent data.
+---
 
-## Scope
+# 2. Constraint Philosophy
 
-This specification covers primary keys, foreign keys, uniqueness, check constraints, and not-null rules.
+Database constraints provide a final protection layer for data integrity.
 
-## Definitions
+They enforce:
 
-- Constraint: A rule that ensures data stored in the database satisfies expected conditions.
+- Valid relationships.
+- Unique business rules.
+- Required information.
+- Valid data ranges.
+- Operational consistency.
 
-## Business Rules
+Application validation improves usability, while database constraints guarantee correctness.
 
-- Constraints must protect key integrity, business validity, and security assumptions.
-- Constraints should be applied where they are enforceable and meaningful.
+---
 
-## User Workflow
+# 3. Constraint Types
 
-- Data entry and operations rely on constraints to reject invalid inputs.
+ShiftOS uses the following constraint types:
 
-## Permissions
+- Primary Key Constraints.
+- Foreign Key Constraints.
+- Unique Constraints.
+- Check Constraints.
+- Not Null Constraints.
+- Exclusion Constraints where required.
 
-- Constraint enforcement must not bypass tenant or role rules.
+---
 
-## UI Behaviour
+# 4. Primary Key Constraints
 
-- The UI should surface errors caused by constraint violations clearly.
+Every persistent table must have a primary key.
 
-## Backend Behaviour
+Standard format:
 
-- Services must handle constraint violations safely and predictably.
+```
+id
+```
 
-## Database Impact
+Primary keys must:
 
-- This specification defines the integrity rules for the data layer.
+- Uniquely identify records.
+- Never change after creation.
+- Remain available throughout the record lifecycle.
 
-## Events Emitted
+---
 
-- database.constraint.violated
+# 5. Foreign Key Constraints
 
-## Notifications
+Foreign keys enforce valid relationships between entities.
 
-- Constraint violations may require administrative attention.
+Examples:
 
-## Reporting Impact
+```
+employees.branch_id
+        ↓
+branches.id
+```
 
-- Data quality and integrity monitoring should reflect constraint behavior.
+Foreign keys prevent:
 
-## Edge Cases
+- Orphan records.
+- Invalid references.
+- Broken relationships.
 
-- Retroactive data fixes and legacy data may require temporary exceptions or cleanup.
+---
 
-## Validation Rules
+# 6. Foreign Key Actions
 
-- Data changes must satisfy all relevant constraints before commit.
+Cascade behavior must be selected carefully.
 
-## Acceptance Criteria
+Default preference:
 
-- Invalid data is rejected consistently by the database layer.
+- Restrict destructive deletes.
+- Preserve historical records.
+- Avoid accidental cascading data loss.
 
-## Future Enhancements
+Examples:
 
-- More expressive business rule enforcement and validation tooling.
+Acceptable:
 
-## Open Questions
+```
+organization
+    ↓
+organization_members
 
-- Which constraints should be enforced strictly in MVP versus later phases?
+ON DELETE CASCADE
+```
 
-## Decision History
+Potentially dangerous:
+
+```
+employee
+    ↓
+attendance_records
+
+ON DELETE CASCADE
+```
+
+Historical operational records should usually be preserved.
+
+---
+
+# 7. Not Null Constraints
+
+Required business information should use NOT NULL constraints.
+
+Examples:
+
+Required:
+
+```
+employees.organization_id
+employees.created_at
+shifts.start_time
+attendance_records.employee_id
+```
+
+Optional information may allow NULL values.
+
+---
+
+# 8. Unique Constraints
+
+Unique constraints protect against duplicate records.
+
+Examples:
+
+Organization:
+
+- Unique identifier.
+
+Employee:
+
+- Unique employee reference within organization where required.
+
+Membership:
+
+- Prevent duplicate user-organization relationships.
+
+---
+
+# 9. Tenant Constraints
+
+Tenant-owned data must maintain ownership integrity.
+
+Examples:
+
+Records should not allow:
+
+```
+employee.organization_id
+```
+
+to reference a different organization than:
+
+```
+employee.branch.organization_id
+```
+
+Tenant relationships must remain consistent.
+
+---
+
+# 10. Check Constraints
+
+Check constraints prevent impossible values.
+
+Examples:
+
+Attendance:
+
+```
+clock_out_time >= clock_in_time
+```
+
+Shift:
+
+```
+end_time > start_time
+```
+
+Employee:
+
+```
+employment_status
+must be a valid value
+```
+
+---
+
+# 11. Scheduling Constraints
+
+Scheduling constraints should prevent:
+
+- Invalid shift times.
+- Missing required assignments.
+- Impossible schedule states.
+
+Examples:
+
+A shift cannot:
+
+- End before it starts.
+- Exist without ownership.
+- Reference an inactive schedule.
+
+---
+
+# 12. Attendance Constraints
+
+Attendance constraints should protect:
+
+- Employee ownership.
+- Valid timestamps.
+- Valid attendance states.
+- Correction relationships.
+
+Examples:
+
+Prevent:
+
+- Clock-out before clock-in.
+- Duplicate active attendance sessions.
+- Invalid employee references.
+
+---
+
+# 13. Historical Data Constraints
+
+Historical records require special handling.
+
+Constraints should ensure:
+
+- Historical records remain valid.
+- Previous states are preserved.
+- Changes do not corrupt reporting.
+
+Historical data should generally be append-oriented.
+
+---
+
+# 14. Soft Delete Constraints
+
+Where soft deletes are used:
+
+Records should maintain:
+
+```
+deleted_at
+```
+
+Constraints should consider active records separately where necessary.
+
+Example:
+
+A deleted employee should not prevent creation of a future employee record with the same identifier if business rules allow it.
+
+---
+
+# 15. Constraint Naming
+
+Constraint names follow DB-002 standards.
+
+Examples:
+
+```
+pk_employees
+
+fk_employees_branch
+
+uq_employee_reference
+
+chk_shift_duration
+```
+
+---
+
+# 16. Constraint Testing
+
+Constraints should be tested through:
+
+- Migration testing.
+- Automated tests.
+- Invalid data scenarios.
+- Security testing.
+
+Testing should confirm that invalid states cannot enter production.
+
+---
+
+# 17. Future Enhancements
+
+Future versions may introduce:
+
+- Advanced PostgreSQL exclusion constraints.
+- Temporal constraints.
+- Complex scheduling validations.
+- Automated integrity monitoring.
+
+---
+
+# 18. Related Specifications
+
+- DB-001 Database Philosophy
+- DB-004 Entity Relationships
+- DB-005 Tables
+- DB-007 Indexes
+- SEC-004 Row-Level Security
+
+---
+
+# 19. Summary
+
+ShiftOS uses database constraints as a fundamental integrity layer.
+
+By enforcing relationships, uniqueness, required data and valid business states directly within PostgreSQL, the platform protects operational accuracy, prevents corruption and maintains reliable workforce data throughout its lifecycle.

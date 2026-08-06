@@ -1,90 +1,329 @@
-# UI-008 — Empty States
+# ShiftOS Empty States
 
-Status: Draft
+**Document ID:** UI-008
 
-Version: 0.1.0
+**Document Title:** Empty State Design Standards
 
-Priority: Medium
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Frontend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define how empty or no-result UI states should be presented to users.
+This document defines standards for empty states across ShiftOS applications.
 
-## Business Rationale
+Empty states guide users when information, records or activity do not yet exist.
 
-Clear empty states reduce confusion and guide users toward the next action.
+---
 
-## Scope
+# 2. Empty State Philosophy
 
-This specification covers empty lists, empty dashboards, no-results states, and first-use experiences.
+Empty states should:
 
-## Definitions
+- Explain the current situation.
+- Guide the next action.
+- Reduce confusion.
+- Support onboarding.
 
-- Empty State: A UI state that appears when no data or no relevant content is available.
+An empty screen should never feel like a failure.
 
-## Business Rules
+---
 
-- Empty states should explain what is missing and what the user can do next.
-- The tone should be helpful and non-judgmental.
+# 3. Empty State Types
 
-## User Workflow
+ShiftOS recognizes several empty state categories.
 
-- Users encounter empty states when there is no existing data or the current filter returns nothing.
+---
 
-## Permissions
+# 4. First-Time Empty States
 
-- Empty-state content should align with the user’s available actions and permissions.
+Purpose:
 
-## UI Behaviour
+Help new users begin using a feature.
 
-- Empty states should be visually consistent with the rest of the interface.
+Examples:
 
-## Backend Behaviour
+No employees:
 
-- Empty states should reflect the actual absence of data from backend responses.
+```
+Your team has not been added yet.
 
-## Database Impact
+Add your first employee to start managing shifts.
+```
 
-- Empty states should support queries that return no rows or no matching records.
+Action:
 
-## Events Emitted
+```
+Add Employee
+```
 
-- ui.empty-state.rendered
+---
 
-## Notifications
+# 5. User-Created Empty States
 
-- Empty states may inform users about pending data or workflow expectations.
+Purpose:
 
-## Reporting Impact
+Show that information is missing because users have not created it.
 
-- Empty states can influence feature adoption and task completion analytics.
+Examples:
 
-## Edge Cases
+No schedules:
 
-- First-use flows, filters with no results, and permission-limited views should be handled clearly.
+```
+No schedules created for this period.
+```
 
-## Validation Rules
+Action:
 
-- Empty states must be understandable and not ambiguous.
+```
+Create Schedule
+```
 
-## Acceptance Criteria
+---
 
-- Users receive helpful guidance whenever content is unavailable or empty.
+# 6. Search Empty States
 
-## Future Enhancements
+Purpose:
 
-- Context-aware empty states with richer interactive guidance.
+Explain when a search returns no results.
 
-## Open Questions
+Bad:
 
-- Which empty states need the most tailored guidance in MVP?
+```
+No results.
+```
 
-## Decision History
+Better:
+
+```
+No employees match "John".
+Try another search term.
+```
+
+---
+
+# 7. Filter Empty States
+
+Purpose:
+
+Explain when filters remove all results.
+
+Example:
+
+```
+No employees match these filters.
+
+Clear filters
+```
+
+---
+
+# 8. Permission Empty States
+
+Purpose:
+
+Handle situations where users cannot access information.
+
+Example:
+
+```
+You do not have access to this section.
+
+Contact your administrator.
+```
+
+---
+
+# 9. Empty State Structure
+
+Standard structure:
+
+```
+Illustration/Icon
+
+↓
+
+Title
+
+↓
+
+Explanation
+
+↓
+
+Primary Action
+
+↓
+
+Optional Secondary Action
+```
+
+---
+
+# 10. Writing Guidelines
+
+Empty state messages should be:
+
+- Clear.
+- Short.
+- Action-oriented.
+- Helpful.
+
+Avoid:
+
+- Technical language.
+- Blaming users.
+- Generic messages.
+
+---
+
+# 11. Actions
+
+Every empty state should consider:
+
+## Primary Action
+
+The next recommended step.
+
+Example:
+
+```
+Create Shift
+```
+
+---
+
+## Secondary Action
+
+Optional alternatives.
+
+Example:
+
+```
+Import Employees
+```
+
+---
+
+# 12. Dashboard Empty States
+
+Dashboards require special handling.
+
+A new organization may have:
+
+- No employees.
+- No shifts.
+- No attendance history.
+
+The dashboard should guide setup rather than show empty metrics.
+
+---
+
+# 13. Mobile Empty States
+
+Mobile empty states should:
+
+- Use concise messaging.
+- Keep actions visible.
+- Avoid unnecessary scrolling.
+
+---
+
+# 14. Loading vs Empty
+
+Empty and loading states must be distinguished.
+
+Loading:
+
+```
+Data is being retrieved.
+```
+
+Empty:
+
+```
+Data does not exist yet.
+```
+
+---
+
+# 15. Error vs Empty
+
+Errors should not appear as empty states.
+
+Example:
+
+Wrong:
+
+```
+No employees found
+```
+
+when the database failed.
+
+Correct:
+
+```
+Unable to load employees.
+Retry.
+```
+
+---
+
+# 16. Accessibility
+
+Empty states should support:
+
+- Screen readers.
+- Clear focus order.
+- Accessible action buttons.
+
+---
+
+# 17. MVP Priority
+
+Important empty states:
+
+- Organization setup.
+- Employee list.
+- Schedule calendar.
+- Task list.
+- Attendance history.
+- Reports.
+
+---
+
+# 18. Future Enhancements
+
+Future versions may introduce:
+
+- Guided onboarding flows.
+- AI setup assistants.
+- Industry-specific templates.
+
+---
+
+# 19. Related Specifications
+
+- UI-009 Error States
+- UI-005 Forms
+- UI-002 Navigation
+- UI-012 PWA Behaviour
+
+---
+
+# 20. Summary
+
+ShiftOS empty states transform missing data into guided workflows.
+
+By explaining the situation and providing clear next actions, empty states help users successfully adopt and operate the platform.

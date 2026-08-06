@@ -1,8 +1,8 @@
-# ShiftOS Operational KPIs
+# ShiftOS Attendance KPIs
 
-**Document ID:** REP-002
+**Document ID:** REP-003
 
-**Document Title:** Operational Key Performance Indicators (KPIs)
+**Document Title:** Attendance Key Performance Indicators
 
 **Version:** 1.0.0
 
@@ -20,285 +20,219 @@
 
 # 1. Purpose
 
-This document defines the standard operational KPIs used throughout ShiftOS.
+This document defines the attendance-related KPIs used throughout ShiftOS.
 
-These KPIs provide managers and supervisors with measurable indicators of workforce performance and operational health.
-
----
-
-# 2. KPI Philosophy
-
-Operational KPIs should:
-
-- Be actionable.
-- Be measurable.
-- Be easy to understand.
-- Be calculated consistently.
-- Support operational decision-making.
-
-Metrics that do not influence decisions should not be presented as KPIs.
+These KPIs provide managers and supervisors with insights into workforce attendance, punctuality and attendance reliability.
 
 ---
 
-# 3. KPI Categories
+# 2. Objectives
 
-ShiftOS organizes KPIs into the following categories:
+Attendance KPIs should help organizations:
 
-- Workforce
-- Scheduling
-- Attendance
-- Tasks
-- Branch Operations
-
----
-
-# 4. Workforce KPIs
-
-## Total Employees
-
-Purpose:
-
-Displays the current active workforce.
-
-Used for:
-
-- Workforce planning.
-- Staffing overview.
+- Monitor attendance performance.
+- Detect attendance issues early.
+- Improve workforce reliability.
+- Reduce absenteeism.
+- Support payroll preparation.
+- Support compliance reporting.
 
 ---
 
-## Active Employees Today
+# 3. Reporting Scope
 
-Purpose:
+Attendance KPIs may be generated for:
 
-Employees scheduled or working today.
-
----
-
-## Employees Currently Working
-
-Purpose:
-
-Employees with active shifts.
-
-Useful for:
-
-- Operational visibility.
-- Live branch monitoring.
+- Organization.
+- Branch.
+- Employee.
+- Date range.
 
 ---
 
-# 5. Scheduling KPIs
-
-## Scheduled Shifts Today
-
-Measures:
-
-Total planned shifts.
-
----
-
-## Completed Shifts
-
-Measures:
-
-Successfully completed shifts.
-
----
-
-## Cancelled Shifts
-
-Measures:
-
-Cancelled scheduled shifts.
-
----
-
-## Missed Shifts
-
-Measures:
-
-Shifts that never commenced.
-
----
-
-# 6. Attendance KPIs
+# 4. Core Attendance KPIs
 
 ## Attendance Rate
 
-Measures:
+Definition:
 
-Percentage of scheduled employees who attended.
+Percentage of scheduled shifts with a recorded attendance outcome other than **Absent**.
 
----
+Purpose:
 
-## Late Arrival Rate
-
-Measures:
-
-Percentage of employees marked late.
+Measures overall attendance reliability.
 
 ---
 
 ## Absence Rate
 
-Measures:
+Definition:
 
-Percentage of scheduled employees marked absent.
+Percentage of scheduled shifts with an attendance outcome of **Absent**.
 
----
+Purpose:
 
-## Attendance Exceptions
-
-Measures:
-
-Attendance records requiring review or correction.
+Identifies workforce availability issues.
 
 ---
 
-# 7. Task KPIs
+## Late Arrival Rate
 
-## Active Tasks
+Definition:
 
-Measures:
+Percentage of attended shifts where the employee arrived after the organization's configured grace period.
 
-Currently outstanding operational tasks.
+Purpose:
 
----
-
-## Completed Tasks
-
-Measures:
-
-Tasks completed during the reporting period.
+Measures punctuality.
 
 ---
 
-## Overdue Tasks
+## On-Time Arrival Rate
 
-Measures:
+Definition:
 
-Tasks that exceeded their due time without completion.
+Percentage of attended shifts where the employee arrived on or before the scheduled start time, considering any configured grace period.
 
----
+Purpose:
 
-## Verification Pending
-
-Measures:
-
-Completed tasks awaiting supervisor verification.
+Measures punctual attendance.
 
 ---
 
-# 8. Branch Operations KPIs
+## Attendance Correction Rate
 
-## Branch Operational Status
+Definition:
 
-Possible values:
+Percentage of attendance records that entered the correction workflow.
 
-- Normal
-- Attention Required
-- Critical
+Purpose:
 
-Determined from configurable operational thresholds.
+Highlights operational accuracy and potential process issues.
 
 ---
 
-## Open Operational Issues
+## Attendance Verification Rate
 
-Measures:
+Definition:
 
-Outstanding operational exceptions requiring action.
+Percentage of attendance records that required and successfully completed verification.
 
----
+Purpose:
 
-# 9. KPI Refresh Frequency
-
-| KPI Type          | Refresh           |
-| ----------------- | ----------------- |
-| Live Operations   | Real-time         |
-| Attendance        | Real-time         |
-| Tasks             | Real-time         |
-| Historical Trends | Scheduled refresh |
+Measures completion of attendance review processes.
 
 ---
 
-# 10. KPI Calculation Rules
+# 5. Trend Metrics
 
-All KPIs shall:
+Attendance trends should be available for:
 
-- Use authoritative operational data.
-- Apply consistent calculation methods.
-- Respect organization and branch boundaries.
-- Exclude archived or invalid records unless explicitly required.
+- Daily.
+- Weekly.
+- Monthly.
+- Custom date ranges.
 
----
-
-# 11. KPI Timeframes
-
-KPIs may be calculated for:
-
-- Today.
-- Yesterday.
-- Current week.
-- Current month.
-- Custom date range.
-
-Historical comparisons may be supported where appropriate.
+Trend reports should support comparison with previous periods where applicable.
 
 ---
 
-# 12. KPI Thresholds
+# 6. Employee Attendance Metrics
 
-Organizations may configure thresholds for selected KPIs.
+Each employee may have:
 
-Examples:
+- Attendance rate.
+- Late arrivals.
+- Absences.
+- Attendance corrections.
+- Consecutive attended shifts.
+- Consecutive absences.
 
-Attendance Rate:
-
-- ≥ 95% → Healthy
-- 90–94% → Warning
-- < 90% → Critical
-
-Threshold values should be configurable rather than hardcoded.
-
----
-
-# 13. KPI Presentation
-
-KPIs should display:
-
-- Current value.
-- Trend direction where available.
-- Reporting period.
-- Last updated timestamp.
-
-Visual indicators should supplement—not replace—numeric values.
+These metrics are intended for operational review, not automated disciplinary action.
 
 ---
 
-# 14. Security
+# 7. Branch Attendance Metrics
 
-Users may only view KPIs permitted by:
+Each branch may report:
 
-- Organization.
-- Branch.
-- Role.
-
-Branch managers shall not see metrics outside their authorized scope.
+- Overall attendance rate.
+- Average lateness.
+- Total absences.
+- Attendance corrections.
+- Attendance trends.
 
 ---
 
-# 15. Related Specifications
+# 8. Attendance Exceptions
+
+The system should identify:
+
+- Missing attendance records.
+- Duplicate attendance records.
+- Attendance outside scheduled shift windows.
+- Records awaiting correction approval.
+
+These are operational exceptions requiring review.
+
+---
+
+# 9. Calculation Rules
+
+Attendance KPIs shall:
+
+- Use finalized attendance records.
+- Exclude cancelled shifts.
+- Respect organization-configured attendance rules.
+- Apply the same calculation logic across dashboards, reports and exports.
+
+---
+
+# 10. Visualization Guidelines
+
+Attendance reports may include:
+
+- Summary KPI cards.
+- Trend line charts.
+- Daily attendance tables.
+- Branch comparison charts.
+
+Visualizations should support quick operational understanding rather than complex statistical analysis.
+
+---
+
+# 11. Security
+
+Managers may view attendance KPIs within their authorized organization.
+
+Supervisors may view attendance KPIs for their assigned branches.
+
+Employees may view only their own attendance history and personal attendance metrics.
+
+---
+
+# 12. Performance
+
+Frequently accessed attendance reports should:
+
+- Use indexed attendance tables.
+- Leverage materialized views for historical aggregations.
+- Refresh according to reporting requirements.
+
+---
+
+# 13. Related Specifications
 
 - REP-001 Reporting Philosophy
-- REP-003 Attendance KPIs
-- REP-007 Dashboard Metrics
+- REP-002 Operational KPIs
+- MAN-004 Attendance
+- SUP-004 Attendance
 - DB-011 Materialized Views
-- API-007 Background Jobs
 
 ---
 
-# 16. Summary
+# 14. Summary
 
-ShiftOS Operational KPIs provide a standardized set of actionable workforce metrics that help managers and supervisors monitor daily operations, identify issues quickly and make informed staffing decisions.
+Attendance KPIs provide standardized measurements of workforce attendance, punctuality and attendance quality.
+
+By using consistent calculations and separating operational metrics from attendance-specific analytics, ShiftOS enables organizations to monitor attendance accurately while supporting operational decision-making.

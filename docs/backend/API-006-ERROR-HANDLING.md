@@ -1,91 +1,359 @@
-# API-006 — Error Handling
+# ShiftOS API Error Handling
 
-Status: Draft
+**Document ID:** API-006
 
-Version: 0.1.0
+**Document Title:** Error Handling Standards
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Backend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define the expected backend behavior for handling errors and failures.
+This document defines the error handling standards used across the ShiftOS backend.
 
-## Business Rationale
+The goal is to provide predictable, secure and actionable error responses across web, mobile and future client applications.
 
-Consistent error handling improves reliability, debugging, and user trust.
+---
 
-## Scope
+# 2. Error Philosophy
 
-This specification covers exception handling, structured error responses, retry behavior, and operational logging.
+Errors should:
 
-## Definitions
+- Clearly communicate failure.
+- Help users recover.
+- Support debugging.
+- Protect sensitive information.
+- Remain consistent across the platform.
 
-- Error Handling: The process of detecting, classifying, and responding to failures.
+---
 
-## Business Rules
+# 3. Error Principles
 
-- Errors must be classified as user, validation, authorization, infrastructure, or system failures.
-- Sensitive details must not be exposed to unauthorized users.
-- Errors must be logged consistently for diagnosis and monitoring.
+ShiftOS errors follow these principles:
 
-## User Workflow
+- Never expose internal system details.
+- Use consistent error formats.
+- Provide meaningful error codes.
+- Log technical details separately.
+- Separate user messages from developer diagnostics.
 
-- A user experiences a failure or invalid operation; the system responds clearly and safely.
+---
 
-## Permissions
+# 4. Error Categories
 
-- Error details should be restricted based on the caller’s role and access scope.
+ShiftOS uses the following categories:
 
-## UI Behaviour
+## Validation Errors
 
-- Frontend consumers should receive clear and predictable error states.
+The request contains invalid information.
 
-## Backend Behaviour
+Examples:
 
-- Services should fail gracefully and preserve system stability during errors.
+```
+INVALID_DATE_RANGE
 
-## Database Impact
+MISSING_REQUIRED_FIELD
 
-- Failed transactional actions must not leave the database in an inconsistent state.
+INVALID_SHIFT_TIME
+```
 
-## Events Emitted
+---
 
-- backend.error.reported
+## Authentication Errors
 
-## Notifications
+The user identity cannot be verified.
 
-- Critical failures or repeated errors may trigger operational alerts.
+Examples:
 
-## Reporting Impact
+```
+UNAUTHENTICATED
 
-- Error trends and response codes should be measurable.
+SESSION_EXPIRED
+```
 
-## Edge Cases
+---
 
-- Timeouts, partial failures, and cascading dependencies should be handled predictably.
+## Authorization Errors
 
-## Validation Rules
+The user is authenticated but cannot perform the action.
 
-- Errors must be logged, classified, and surfaced in a safe and consistent format.
+Examples:
 
-## Acceptance Criteria
+```
+PERMISSION_DENIED
 
-- The backend provides clear error handling for common and critical failure modes.
+BRANCH_ACCESS_REQUIRED
+```
 
-## Future Enhancements
+---
 
-- Centralized error telemetry and richer remediation guidance.
+## Resource Errors
 
-## Open Questions
+A requested resource cannot be found or accessed.
 
-- Which error categories require special user-facing handling in MVP?
+Examples:
 
-## Decision History
+```
+EMPLOYEE_NOT_FOUND
+
+SHIFT_NOT_FOUND
+```
+
+---
+
+## Workflow Errors
+
+The requested action violates a business process.
+
+Examples:
+
+```
+INVALID_STATUS_TRANSITION
+
+SHIFT_ALREADY_COMPLETED
+```
+
+---
+
+## System Errors
+
+Unexpected technical failures.
+
+Examples:
+
+```
+DATABASE_ERROR
+
+SERVICE_UNAVAILABLE
+```
+
+---
+
+# 5. Error Response Format
+
+All API errors should follow a consistent structure.
+
+Example:
+
+```
+{
+  "code": "SHIFT_ALREADY_PUBLISHED",
+  "message": "This schedule has already been published.",
+  "details": {},
+  "request_id": "..."
+}
+```
+
+---
+
+# 6. Error Codes
+
+Error codes should be:
+
+- Unique.
+- Descriptive.
+- Stable over time.
+
+Naming format:
+
+```
+DOMAIN_ERROR_DESCRIPTION
+```
+
+Examples:
+
+```
+ATTENDANCE_ALREADY_CLOCKED_IN
+
+TASK_NOT_ASSIGNED
+
+SCHEDULE_INVALID_STATE
+```
+
+---
+
+# 7. User Messages
+
+User-facing messages should:
+
+- Explain the problem.
+- Suggest recovery where possible.
+- Avoid technical language.
+
+Bad:
+
+```
+Foreign key violation.
+```
+
+Good:
+
+```
+This employee is no longer available for this assignment.
+```
+
+---
+
+# 8. Developer Diagnostics
+
+Technical details should be available through:
+
+- Logs.
+- Monitoring systems.
+- Request identifiers.
+
+They should not be returned directly to users.
+
+---
+
+# 9. HTTP Status Standards
+
+Common mappings:
+
+## 400 Bad Request
+
+Invalid request format.
+
+---
+
+## 401 Unauthorized
+
+Authentication required.
+
+---
+
+## 403 Forbidden
+
+Permission denied.
+
+---
+
+## 404 Not Found
+
+Resource unavailable.
+
+---
+
+## 409 Conflict
+
+Business conflict.
+
+Example:
+
+Duplicate operation.
+
+---
+
+## 422 Unprocessable Entity
+
+Business validation failure.
+
+---
+
+## 500 Internal Server Error
+
+Unexpected system failure.
+
+---
+
+# 10. Error Logging
+
+Errors should capture:
+
+- Request ID.
+- User context.
+- Organization context.
+- Timestamp.
+- Technical details.
+
+Sensitive information should not be logged unnecessarily.
+
+---
+
+# 11. Security Considerations
+
+Errors must not expose:
+
+- Database structure.
+- Internal IDs unnecessarily.
+- Authentication details.
+- Sensitive employee information.
+
+---
+
+# 12. Retryable Errors
+
+Some errors may allow retry.
+
+Examples:
+
+```
+TEMPORARY_SERVICE_FAILURE
+
+NETWORK_TIMEOUT
+```
+
+Clients should handle retries carefully.
+
+---
+
+# 13. Client Handling
+
+Clients should:
+
+- Display appropriate messages.
+- Handle expired sessions.
+- Support offline recovery where applicable.
+- Avoid exposing raw backend errors.
+
+---
+
+# 14. Monitoring
+
+Error monitoring should track:
+
+- Frequency.
+- Impact.
+- Affected workflows.
+- Customer impact.
+
+Critical errors should trigger alerts.
+
+---
+
+# 15. Future Enhancements
+
+Future versions may introduce:
+
+- Automated error categorization.
+- Advanced monitoring.
+- AI-assisted debugging.
+- Self-healing workflows.
+
+---
+
+# 16. Related Specifications
+
+- API-003 Validation Rules
+- API-004 Workflow Engine
+- API-008 Logging
+- SEC-009 API Security
+
+---
+
+# 17. Summary
+
+ShiftOS error handling provides a consistent approach for communicating failures across the platform.
+
+By separating user-friendly messages from technical diagnostics and maintaining predictable error formats, ShiftOS improves reliability, security and user experience.

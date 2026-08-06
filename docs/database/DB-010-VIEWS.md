@@ -1,90 +1,335 @@
-# DB-010 — Views
+# ShiftOS Database Views
 
-Status: Draft
+**Document ID:** DB-010
 
-Version: 0.1.0
+**Document Title:** Database Views Strategy
 
-Priority: Medium
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Database
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define how database views are used to expose structured and secure access to data.
+This document defines the strategy for using PostgreSQL views within ShiftOS.
 
-## Business Rationale
+Views provide simplified, reusable representations of operational data for reporting, dashboards and application queries.
 
-Views simplify access to complex data and can help enforce consistent query semantics.
+---
 
-## Scope
+# 2. View Philosophy
 
-This specification covers view design, purpose, and governance expectations.
+Views are read-oriented database objects that simplify access to complex data relationships.
 
-## Definitions
+They should:
 
-- View: A stored query that presents a logical representation of data.
+- Improve query readability.
+- Reduce duplicated query logic.
+- Support reporting needs.
+- Provide consistent data access patterns.
 
-## Business Rules
+Views should not replace normalized operational tables.
 
-- Views must reflect the correct business semantics and access boundaries.
-- Views should be used to simplify access without hiding important logic.
+---
 
-## User Workflow
+# 3. View Principles
 
-- Reporting and application queries may rely on views for common access patterns.
+ShiftOS views follow these principles:
 
-## Permissions
+- Operational tables remain the source of truth.
+- Views should represent useful read models.
+- Views should avoid unnecessary complexity.
+- Views should have clear ownership.
+- Views should be documented.
 
-- Views must respect authorization and tenant boundaries.
+---
 
-## UI Behaviour
+# 4. View Categories
 
-- The UI should not depend on undocumented view behavior.
+ShiftOS views are divided into:
 
-## Backend Behaviour
+## Operational Views
 
-- Services should use views where they improve consistency and reduce duplication.
+Used by application workflows.
 
-## Database Impact
+Examples:
 
-- This specification governs the use and shape of logical query layers.
+- Current schedules.
+- Employee status.
+- Active tasks.
 
-## Events Emitted
+---
 
-- database.view.accessed
+## Reporting Views
 
-## Notifications
+Used for analytics and reporting.
 
-- View changes should be communicated to impacted teams.
+Examples:
 
-## Reporting Impact
+- Attendance summaries.
+- Workforce statistics.
+- Branch performance.
 
-- Reporting layers may rely heavily on well-designed views.
+---
 
-## Edge Cases
+## Administrative Views
 
-- Complex joins, performance issues, and stale semantics should be managed carefully.
+Used for management operations.
 
-## Validation Rules
+Examples:
 
-- Views must remain accurate, performant, and aligned with the underlying data model.
+- Organization overview.
+- User access summaries.
 
-## Acceptance Criteria
+---
 
-- The database uses views where appropriate to simplify access and preserve consistency.
+# 5. Workforce Views
 
-## Future Enhancements
+Potential views:
 
-- Materialized view strategies and richer query abstractions.
+## employee_overview
 
-## Open Questions
+Purpose:
 
-- Which views should be exposed to reporting and analytics first?
+Provides a simplified employee profile.
 
-## Decision History
+May include:
+
+- Employee details.
+- Branch information.
+- Employment status.
+
+---
+
+## employee_status_summary
+
+Purpose:
+
+Provides workforce status information.
+
+Examples:
+
+- Active employees.
+- Inactive employees.
+- Employment counts.
+
+---
+
+# 6. Scheduling Views
+
+Potential views:
+
+## upcoming_shifts_view
+
+Purpose:
+
+Provides upcoming scheduled shifts.
+
+May include:
+
+- Employee.
+- Branch.
+- Date.
+- Time.
+
+---
+
+## schedule_summary_view
+
+Purpose:
+
+Provides schedule-level information.
+
+Examples:
+
+- Total shifts.
+- Assigned employees.
+- Coverage status.
+
+---
+
+# 7. Attendance Views
+
+Potential views:
+
+## attendance_summary_view
+
+Purpose:
+
+Provides attendance reporting.
+
+May include:
+
+- Employee.
+- Date.
+- Status.
+- Attendance metrics.
+
+---
+
+## daily_attendance_view
+
+Purpose:
+
+Provides branch daily attendance information.
+
+---
+
+# 8. Task Views
+
+Potential views:
+
+## task_status_view
+
+Purpose:
+
+Provides operational task visibility.
+
+May include:
+
+- Task.
+- Assignment.
+- Completion status.
+
+---
+
+# 9. Notification Views
+
+Potential views:
+
+## unread_notifications_view
+
+Purpose:
+
+Provides user unread notifications.
+
+---
+
+# 10. Security Views
+
+Potential views:
+
+## user_access_summary_view
+
+Purpose:
+
+Provides simplified access information.
+
+May include:
+
+- User.
+- Organization.
+- Roles.
+- Permissions.
+
+---
+
+# 11. Tenant Awareness
+
+Views must preserve tenant boundaries.
+
+Tenant-owned views should:
+
+- Include organization context.
+- Respect Row-Level Security requirements.
+- Avoid exposing cross-tenant data.
+
+Views must never become a security bypass.
+
+---
+
+# 12. View Naming
+
+Views follow DB-002 standards.
+
+Examples:
+
+```
+employee_overview
+
+attendance_summary_view
+
+branch_statistics
+```
+
+Names should describe the data they represent.
+
+---
+
+# 13. View Performance
+
+Views should be monitored for:
+
+- Query complexity.
+- Execution time.
+- Frequent usage.
+- Impact on database resources.
+
+Complex frequently accessed views may become candidates for materialized views.
+
+---
+
+# 14. View Maintenance
+
+Views should be:
+
+- Version controlled.
+- Created through migrations.
+- Reviewed when underlying tables change.
+
+Breaking view changes should be carefully managed.
+
+---
+
+# 15. Views vs Materialized Views
+
+Standard views:
+
+- Always show current data.
+- Execute query when accessed.
+
+Materialized views:
+
+- Store computed results.
+- Require refreshing.
+- Used for expensive calculations.
+
+The choice depends on workload requirements.
+
+---
+
+# 16. Future Enhancements
+
+Future versions may introduce:
+
+- Analytics views.
+- Executive dashboards.
+- Workforce intelligence views.
+- External reporting views.
+
+---
+
+# 17. Related Specifications
+
+- DB-003 Schema Overview
+- DB-005 Tables
+- DB-007 Indexes
+- DB-011 Materialized Views
+- ARCH-006 Data Flow
+
+---
+
+# 18. Summary
+
+ShiftOS views provide simplified read models over normalized operational data.
+
+By using views for reusable queries, reporting and dashboards while keeping operational tables as the source of truth, ShiftOS maintains database clarity, performance and flexibility as the platform grows.

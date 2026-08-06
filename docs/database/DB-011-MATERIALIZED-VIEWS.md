@@ -1,90 +1,284 @@
-# DB-011 — Materialized Views
+# ShiftOS Database Materialized Views
 
-Status: Draft
+**Document ID:** DB-011
 
-Version: 0.1.0
+**Document Title:** Materialized View Strategy
 
-Priority: Medium
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Database
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define how materialized views are used to support expensive or frequently queried data sets.
+This document defines the strategy for using PostgreSQL materialized views within ShiftOS.
 
-## Business Rationale
+Materialized views provide precomputed datasets for expensive queries that are frequently accessed and do not require real-time calculation.
 
-Materialized views can improve read performance for reporting and analytical workloads.
+---
 
-## Scope
+# 2. Materialized View Philosophy
 
-This specification covers when materialized views are appropriate, how they are refreshed, and their operational considerations.
+Materialized views are performance optimization tools.
 
-## Definitions
+They should be introduced when:
 
-- Materialized View: A precomputed result set stored for faster access than recomputing a query each time.
+- Query complexity is high.
+- Data volume is large.
+- Real-time calculation is unnecessary.
+- Performance measurements justify their use.
 
-## Business Rules
+They should not replace the operational database model.
 
-- Materialized views should be used only where they provide clear performance benefits.
-- Refresh strategy and staleness expectations must be documented.
+---
 
-## User Workflow
+# 3. Materialized View Principles
 
-- Reporting and analytics workflows may benefit from precomputed datasets.
+ShiftOS materialized views follow these principles:
 
-## Permissions
+- Operational tables remain the source of truth.
+- Materialized views contain derived data.
+- Refresh strategies must be defined.
+- Data freshness expectations must be documented.
+- Performance benefits must be measurable.
 
-- Materialized views must respect authorization and tenant boundaries.
+---
 
-## UI Behaviour
+# 4. When To Use Materialized Views
 
-- These views mainly support analytics and admin reporting experiences.
+Appropriate use cases include:
 
-## Backend Behaviour
+- Large reporting queries.
+- Executive dashboards.
+- Historical analytics.
+- Aggregated workforce metrics.
+- Complex calculations across multiple tables.
 
-- Backend systems may read from materialized views for reporting or caching scenarios.
+---
 
-## Database Impact
+# 5. When NOT To Use Materialized Views
 
-- This specification defines the expectations for precomputed query outputs.
+Avoid using them for:
 
-## Events Emitted
+- Real-time operational screens.
+- Employee profiles.
+- Active schedules.
+- Current attendance actions.
+- Permission checks.
 
-- database.materialized-view.refreshed
+These require current data.
 
-## Notifications
+---
 
-- Refresh failures or staleness problems may require review.
+# 6. Potential ShiftOS Materialized Views
 
-## Reporting Impact
+Future examples include:
 
-- Materialized views are especially relevant for analytics and dashboard performance.
+---
 
-## Edge Cases
+## workforce_performance_summary
 
-- Refresh timing, large datasets, and stale data should be managed carefully.
+Purpose:
 
-## Validation Rules
+Provides aggregated workforce statistics.
 
-- Materialized views must remain accurate enough for their intended purpose.
+Possible metrics:
 
-## Acceptance Criteria
+- Total employees.
+- Active employees.
+- Attendance trends.
+- Task completion rates.
 
-- The platform can use materialized views where appropriate for reporting and read-heavy workloads.
+Refresh:
 
-## Future Enhancements
+Periodic.
 
-- Adaptive refresh strategies and richer observability.
+---
 
-## Open Questions
+## branch_attendance_metrics
 
-- Which reporting views should be materialized in the first release?
+Purpose:
 
-## Decision History
+Provides branch-level attendance analytics.
+
+Possible metrics:
+
+- Attendance rate.
+- Late frequency.
+- Absence trends.
+
+Refresh:
+
+Scheduled.
+
+---
+
+## organization_usage_metrics
+
+Purpose:
+
+Supports platform analytics.
+
+Possible metrics:
+
+- Active users.
+- Feature usage.
+- Operational activity.
+
+Refresh:
+
+Scheduled.
+
+---
+
+# 7. Refresh Strategy
+
+Each materialized view must define:
+
+- Refresh frequency.
+- Refresh method.
+- Acceptable data delay.
+- Failure handling.
+
+Possible strategies:
+
+## Scheduled Refresh
+
+Example:
+
+Every hour.
+
+---
+
+## Event-Based Refresh
+
+Example:
+
+After major data changes.
+
+---
+
+## Manual Refresh
+
+Example:
+
+Administrative reporting.
+
+---
+
+# 8. Data Freshness
+
+Every materialized view must document:
+
+- Last refresh time.
+- Expected freshness.
+- Whether stale data is acceptable.
+
+Users should never assume materialized data is real-time unless guaranteed.
+
+---
+
+# 9. Indexing Materialized Views
+
+Materialized views may require their own indexes.
+
+Indexes should support:
+
+- Filtering.
+- Sorting.
+- Reporting queries.
+
+Indexing strategy should be based on actual usage.
+
+---
+
+# 10. Tenant Isolation
+
+Materialized views containing tenant data must preserve:
+
+- Organization boundaries.
+- Access restrictions.
+- Security requirements.
+
+Derived data must never expose cross-tenant information.
+
+---
+
+# 11. Refresh Failures
+
+If refresh operations fail:
+
+The system should:
+
+- Record the failure.
+- Alert operations where necessary.
+- Preserve the previous valid dataset.
+- Retry according to policy.
+
+A failed refresh should not destroy usable reporting data.
+
+---
+
+# 12. Maintenance
+
+Materialized views should be:
+
+- Created through migrations.
+- Version controlled.
+- Documented.
+- Reviewed periodically.
+
+Unused materialized views should be removed.
+
+---
+
+# 13. Performance Monitoring
+
+Measure:
+
+- Query improvement.
+- Refresh duration.
+- Storage growth.
+- Database load.
+- User impact.
+
+Materialized views should provide measurable value.
+
+---
+
+# 14. Future Enhancements
+
+Future versions may introduce:
+
+- Advanced analytics models.
+- AI-generated insights.
+- Workforce intelligence dashboards.
+- Dedicated analytics databases.
+- Data warehouse integrations.
+
+---
+
+# 15. Related Specifications
+
+- DB-007 Indexes
+- DB-010 Views
+- DB-012 Migrations
+- ARCH-009 Scalability Strategy
+- SFT-007 Recommendations
+
+---
+
+# 16. Summary
+
+ShiftOS uses materialized views selectively to improve performance for expensive analytical workloads while keeping operational tables as the authoritative source of truth.
+
+By introducing materialized views only when justified by measurable performance requirements, ShiftOS maintains a balance between scalability, simplicity and maintainability.

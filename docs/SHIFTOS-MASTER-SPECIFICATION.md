@@ -118,7 +118,23 @@ SHIFT-012 Shift Validation Rules
 
 ────────────────────────────
 
-VOLUME 7 — ATTENDANCE DOMAIN
+VOLUME 7 — Scheduling DOMAIN
+SCH-001 Schedule Definition
+SCH-002 Schedule Lifecycle
+SCH-003 Schedule States
+SCH-004 Schedule Periods
+SCH-005 Schedule Creation
+SCH-006 Schedule Editing
+SCH-007 Schedule Publishing
+SCH-008 Schedule Versioning
+SCH-009 Schedule Locking
+SCH-010 Schedule Calendar Views
+SCH-011 Schedule Notifications
+SCH-012 Schedule Validation
+
+────────────────────────────
+
+VOLUME 8 — ATTENDANCE DOMAIN
 
 ATT-001 Attendance Philosophy
 ATT-002 Clock In
@@ -132,7 +148,7 @@ ATT-009 Attendance Validation
 
 ────────────────────────────
 
-VOLUME 8 — TASK MANAGEMENT
+VOLUME 9 — TASK MANAGEMENT
 
 TASK-001 Task Model
 TASK-002 Task Assignment
@@ -143,7 +159,7 @@ TASK-006 Task History
 
 ────────────────────────────
 
-VOLUME 9 — COMMUNICATION
+VOLUME 10 — COMMUNICATION
 
 COM-001 Announcements
 COM-002 Notice Board
@@ -153,7 +169,7 @@ COM-005 Communication History
 
 ────────────────────────────
 
-VOLUME 10 — SHIFTY
+VOLUME 11 — SHIFTY
 
 SFT-001 Purpose
 SFT-002 Personality
@@ -168,7 +184,7 @@ SFT-010 Future AI Features
 
 ────────────────────────────
 
-VOLUME 11 — NOTIFICATIONS
+VOLUME 12 — NOTIFICATIONS
 
 NOTIF-001 Notification Philosophy
 NOTIF-002 Event Triggers
@@ -180,7 +196,7 @@ NOTIF-007 User Preferences
 
 ────────────────────────────
 
-VOLUME 12 — REALTIME
+VOLUME 13 — REALTIME
 
 RT-001 Event Architecture
 RT-002 Live Updates
@@ -190,7 +206,7 @@ RT-005 Conflict Resolution
 
 ────────────────────────────
 
-VOLUME 13 — SECURITY
+VOLUME 14 — SECURITY
 
 SEC-001 Security Principles
 SEC-002 Authentication
@@ -208,7 +224,7 @@ SEC-013 Incident Response (Future)
 
 ────────────────────────────
 
-VOLUME 14 — SYSTEM ARCHITECTURE
+VOLUME 15 — SYSTEM ARCHITECTURE
 
 ARCH-001 System Overview
 ARCH-002 Multi-Tenant Architecture
@@ -222,7 +238,7 @@ ARCH-009 Scalability Strategy
 
 ────────────────────────────
 
-VOLUME 15 — DATABASE
+VOLUME 16 — DATABASE
 
 DB-001 Database Philosophy
 DB-002 Naming Standards
@@ -239,7 +255,7 @@ DB-012 Migrations
 
 ────────────────────────────
 
-VOLUME 16 — BACKEND
+VOLUME 17 — BACKEND
 
 API-001 Backend Architecture
 API-002 RPC Standards
@@ -254,7 +270,7 @@ API-010 API Versioning
 
 ────────────────────────────
 
-VOLUME 17 — FRONTEND
+VOLUME 18 — FRONTEND
 
 UI-001 Design System
 UI-002 Navigation
@@ -271,7 +287,7 @@ UI-012 PWA Behaviour
 
 ────────────────────────────
 
-VOLUME 18 — SCREEN SPECIFICATIONS
+VOLUME 19 — SCREEN SPECIFICATIONS
 
 AUTH-001 Authentication Screens
 ONB-001 Onboarding Screens
@@ -301,7 +317,7 @@ NAV-001 Navigation Flows
 
 ────────────────────────────
 
-VOLUME 19 — STATE MACHINES
+VOLUME 20 — STATE MACHINES
 
 SM-001 Application State
 SM-002 Authentication
@@ -313,7 +329,7 @@ SM-007 Notification Lifecycle
 
 ────────────────────────────
 
-VOLUME 20 — REPORTING & ANALYTICS
+VOLUME 21 — REPORTING & ANALYTICS
 
 REP-001 Reporting Philosophy
 REP-002 Operational KPIs
@@ -326,7 +342,7 @@ REP-008 Data Exports
 
 ────────────────────────────
 
-VOLUME 21 — INTEGRATIONS
+VOLUME 22 — INTEGRATIONS
 
 INT-001 Integration Philosophy
 INT-002 Email
@@ -338,7 +354,7 @@ INT-007 Public API (Future)
 
 ────────────────────────────
 
-VOLUME 22 — DEPLOYMENT & OPERATIONS
+VOLUME 23 — DEPLOYMENT & OPERATIONS
 
 OPS-001 Environments
 OPS-002 CI/CD
@@ -351,7 +367,7 @@ OPS-008 Rollback Strategy
 
 ────────────────────────────
 
-VOLUME 23 — TESTING
+VOLUME 24 — TESTING
 
 TEST-001 Testing Strategy
 TEST-002 Unit Testing
@@ -363,7 +379,7 @@ TEST-007 User Acceptance Testing
 
 ────────────────────────────
 
-VOLUME 24 — MVP BUILD PLAN
+VOLUME 25 — MVP BUILD PLAN
 
 MVP-001 Build Order
 MVP-002 Development Milestones

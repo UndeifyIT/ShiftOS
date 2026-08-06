@@ -1,91 +1,407 @@
-# UI-006 — Data Tables
+# ShiftOS Data Tables
 
-Status: Draft
+**Document ID:** UI-006
 
-Version: 0.1.0
+**Document Title:** Data Table Architecture
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Frontend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define how tabular data is presented and interacted with in the ShiftOS frontend.
+This document defines standards for designing and implementing data tables across ShiftOS applications.
 
-## Business Rationale
+Data tables allow users to view, search, analyze and manage operational information efficiently.
 
-Tables are essential for viewing lists of employees, shifts, attendance records, and tasks.
+---
 
-## Scope
+# 2. Data Table Philosophy
 
-This specification covers table structure, sorting, filtering, pagination, selection, and empty states.
+ShiftOS tables should:
 
-## Definitions
+- Support quick decision-making.
+- Prioritize important information.
+- Handle large datasets.
+- Provide efficient actions.
+- Avoid unnecessary complexity.
 
-- Data Table: A structured view for displaying rows of related information.
+---
 
-## Business Rules
+# 3. Table Principles
 
-- Tables must support efficient scanning and actionability.
-- Sorting, filtering, and selection should be consistent and accessible.
+## Information Priority
 
-## User Workflow
+Tables should show the information users need most often.
 
-- Users review lists of records and perform actions from table views.
+Avoid displaying every available field.
 
-## Permissions
+---
 
-- Table rows and actions should reflect the user’s access scope.
+## Scannability
 
-## UI Behaviour
+Users should quickly identify:
 
-- Tables should be clear, responsive, and easy to navigate with keyboard and screen readers.
+- Problems.
+- Status changes.
+- Required actions.
 
-## Backend Behaviour
+---
 
-- Backend responses should support pagination, filtering, and sorting requirements.
+## Performance
 
-## Database Impact
+Tables must support:
 
-- Table design should align with query patterns and reporting needs.
+- Large datasets.
+- Efficient loading.
+- Server-side operations.
 
-## Events Emitted
+---
 
-- ui.table.filtered
-- ui.table.sorted
+# 4. Common ShiftOS Tables
 
-## Notifications
+Examples:
 
-- Table actions or long-running operations may trigger progress or completion feedback.
+## Employee Table
 
-## Reporting Impact
+Information:
 
-- Data tables are important for operational reporting and review workflows.
+- Name.
+- Role.
+- Branch.
+- Status.
+- Current assignment.
 
-## Edge Cases
+Actions:
 
-- Empty result sets, large datasets, and partially loaded content should be handled gracefully.
+- View profile.
+- Edit.
+- Manage status.
 
-## Validation Rules
+---
 
-- Table behavior must remain consistent with the data and access model.
+## Attendance Table
 
-## Acceptance Criteria
+Information:
 
-- Users can search, filter, sort, and act on table data reliably.
+- Employee.
+- Shift.
+- Clock-in.
+- Clock-out.
+- Status.
 
-## Future Enhancements
+Actions:
 
-- Virtualized tables and richer inline actions.
+- Review.
+- Correct.
 
-## Open Questions
+---
 
-- Which tables need advanced filtering and bulk actions first?
+## Schedule Table
 
-## Decision History
+Information:
+
+- Employee.
+- Date.
+- Shift time.
+- Status.
+
+Actions:
+
+- Edit.
+- Publish.
+
+---
+
+## Task Table
+
+Information:
+
+- Task.
+- Assigned employee.
+- Due date.
+- Status.
+
+Actions:
+
+- Review.
+- Verify.
+
+---
+
+# 5. Table Structure
+
+Standard structure:
+
+```
+Table Header
+
+↓
+
+Filters/Search
+
+↓
+
+Rows
+
+↓
+
+Pagination
+
+↓
+
+Actions
+```
+
+---
+
+# 6. Sorting
+
+Tables should support sorting where useful.
+
+Examples:
+
+Employee:
+
+- Name.
+- Status.
+- Recently added.
+
+Attendance:
+
+- Time.
+- Missing clock-out.
+
+---
+
+# 7. Filtering
+
+Filters should help users answer operational questions.
+
+Examples:
+
+Attendance:
+
+```
+Show absent employees
+```
+
+Tasks:
+
+```
+Show incomplete tasks
+```
+
+Employees:
+
+```
+Show inactive employees
+```
+
+---
+
+# 8. Search
+
+Search should support common workflows.
+
+Examples:
+
+- Employee name.
+- Employee ID.
+- Task name.
+
+Large datasets should use server-side search.
+
+---
+
+# 9. Pagination
+
+Large datasets should not load all records at once.
+
+Use:
+
+- Pagination.
+- Infinite scrolling where appropriate.
+- Virtualized rendering.
+
+---
+
+# 10. Bulk Actions
+
+Bulk actions should be used carefully.
+
+Examples:
+
+Allowed:
+
+- Assign multiple employees.
+- Export records.
+
+Restricted:
+
+- Mass deletion.
+- Destructive changes.
+
+Bulk actions require confirmation.
+
+---
+
+# 11. Row Actions
+
+Actions should be predictable.
+
+Common patterns:
+
+- Action menu.
+- Inline actions.
+- Detail navigation.
+
+Avoid overwhelming every row with buttons.
+
+---
+
+# 12. Status Display
+
+Statuses should use consistent indicators.
+
+Examples:
+
+Attendance:
+
+- Present.
+- Late.
+- Absent.
+
+Tasks:
+
+- Pending.
+- Completed.
+- Verified.
+
+---
+
+# 13. Mobile Tables
+
+Traditional tables do not always work on mobile.
+
+Mobile alternatives:
+
+- Cards.
+- Expandable rows.
+- Detail screens.
+
+---
+
+# 14. Empty Tables
+
+Tables must support empty states.
+
+Examples:
+
+No employees:
+
+```
+Add your first employee
+```
+
+No tasks:
+
+```
+Create a task for your team
+```
+
+---
+
+# 15. Loading States
+
+Tables should provide:
+
+- Skeleton loading.
+- Progress indicators.
+- Preserved layout.
+
+Avoid sudden page shifts.
+
+---
+
+# 16. Error Handling
+
+Table failures should provide:
+
+- Clear error messages.
+- Retry actions.
+- Recovery paths.
+
+---
+
+# 17. Accessibility
+
+Tables should support:
+
+- Keyboard navigation.
+- Screen readers.
+- Proper column descriptions.
+- Focus management.
+
+---
+
+# 18. Performance Considerations
+
+Large tables require:
+
+- Server-side pagination.
+- Query optimization.
+- Virtualized rendering.
+- Lazy loading.
+
+---
+
+# 19. MVP Strategy
+
+Priority tables:
+
+1. Employee management.
+2. Schedule management.
+3. Attendance tracking.
+4. Task management.
+
+Advanced reporting tables can come later.
+
+---
+
+# 20. Future Enhancements
+
+Future versions may introduce:
+
+- Customizable columns.
+- Saved filters.
+- Advanced analytics tables.
+- Export automation.
+
+---
+
+# 21. Related Specifications
+
+- UI-003 Layout System
+- UI-008 Empty States
+- UI-009 Error States
+- DB-007 Indexes
+- API-007 Background Jobs
+
+---
+
+# 22. Summary
+
+ShiftOS data tables provide efficient tools for managing workforce information at scale.
+
+By focusing on operational questions, performance and clear actions, tables become decision-making tools rather than simple data containers.

@@ -1,90 +1,301 @@
-# UI-011 — Accessibility
+# ShiftOS Accessibility Standards
 
-Status: Draft
+**Document ID:** UI-011
 
-Version: 0.1.0
+**Document Title:** Accessibility Architecture
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Frontend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define the accessibility requirements for the ShiftOS frontend.
+This document defines accessibility standards across ShiftOS applications.
 
-## Business Rationale
+The goal is to ensure the platform can be effectively used by the widest possible range of users.
 
-Accessibility ensures the product is usable by people with different abilities and meets inclusive product expectations.
+---
 
-## Scope
+# 2. Accessibility Philosophy
 
-This specification covers keyboard support, screen reader support, contrast, semantics, focus management, and assistive technology compatibility.
+ShiftOS accessibility focuses on:
 
-## Definitions
+- Usability.
+- Inclusion.
+- Clear communication.
+- Consistent interaction.
 
-- Accessibility: The design and implementation of interfaces that are usable by people with a wide range of abilities.
+Accessibility improvements should improve the experience for everyone.
 
-## Business Rules
+---
 
-- The frontend must be usable with keyboard navigation and assistive technologies.
-- Interfaces should provide clear focus states, labels, and semantic structure.
+# 3. Accessibility Principles
 
-## User Workflow
+ShiftOS follows the principles:
 
-- Users interact with forms, tables, dialogs, and navigation using varied input methods and assistive tools.
+## Perceivable
 
-## Permissions
+Users should be able to understand information presented.
 
-- Accessibility should not reduce or bypass permission-driven UI behavior.
+Examples:
 
-## UI Behaviour
+- Clear text.
+- Sufficient contrast.
+- Alternative descriptions.
 
-- The interface should be understandable and operable without relying on visual-only interaction.
+---
 
-## Backend Behaviour
+## Operable
 
-- Accessibility depends on backend data that is delivered in a consistent and meaningful form.
+Users should be able to interact with the platform.
 
-## Database Impact
+Examples:
 
-- Accessibility is largely presentation- and interaction-focused and does not change core data modeling.
+- Keyboard navigation.
+- Touch-friendly controls.
+- Clear focus states.
 
-## Events Emitted
+---
 
-- ui.accessibility.reviewed
+## Understandable
 
-## Notifications
+The interface should be predictable.
 
-- Accessibility issues may require product or engineering follow-up.
+Examples:
 
-## Reporting Impact
+- Consistent navigation.
+- Clear language.
+- Helpful errors.
 
-- Accessibility quality can be measured through testing and feedback.
+---
 
-## Edge Cases
+## Robust
 
-- Focus traps, dynamic content updates, and custom controls must be handled carefully.
+The system should work across:
 
-## Validation Rules
+- Browsers.
+- Devices.
+- Assistive technologies.
 
-- Core workflows must meet accessibility expectations for keyboard, semantics, contrast, and clarity.
+---
 
-## Acceptance Criteria
+# 4. Accessibility Standards
 
-- Primary user journeys can be completed using assistive technologies and keyboard-only interaction.
+ShiftOS should aim to follow recognized accessibility practices such as:
 
-## Future Enhancements
+- WCAG guidelines.
+- Platform accessibility standards.
 
-- Automated accessibility testing and continuous quality monitoring.
+---
 
-## Open Questions
+# 5. Color Usage
 
-- Which core journeys should be prioritized for accessibility validation first?
+Color should not be the only way information is communicated.
 
-## Decision History
+Bad:
+
+```
+Red = absent
+Green = present
+```
+
+Good:
+
+```
+Red indicator + "Absent" label
+```
+
+---
+
+# 6. Typography
+
+Text should prioritize:
+
+- Readability.
+- Appropriate sizing.
+- Clear hierarchy.
+
+Avoid:
+
+- Tiny text.
+- Poor contrast.
+- Excessive text density.
+
+---
+
+# 7. Interactive Elements
+
+Controls should have:
+
+- Clear labels.
+- Visible states.
+- Appropriate sizes.
+
+Examples:
+
+Buttons:
+
+- Have descriptive text.
+
+Icons:
+
+- Have supporting labels where needed.
+
+---
+
+# 8. Keyboard Navigation
+
+Web applications should support:
+
+- Keyboard movement.
+- Logical tab order.
+- Visible focus indicators.
+
+---
+
+# 9. Screen Readers
+
+Components should support:
+
+- Meaningful labels.
+- Proper semantic structure.
+- Announcements for dynamic changes.
+
+Examples:
+
+Realtime updates:
+
+```
+Attendance status updated
+```
+
+---
+
+# 10. Forms Accessibility
+
+Forms should provide:
+
+- Associated labels.
+- Clear errors.
+- Field descriptions.
+
+Errors should not rely only on color.
+
+---
+
+# 11. Tables Accessibility
+
+Data tables should support:
+
+- Column identification.
+- Navigation support.
+- Clear relationships.
+
+---
+
+# 12. Calendar Accessibility
+
+Calendars should provide alternatives.
+
+Users should not rely only on visual positioning.
+
+Example:
+
+Alternative:
+
+```
+List of shifts
+```
+
+---
+
+# 13. Mobile Accessibility
+
+Mobile applications should support:
+
+- Screen readers.
+- Touch accessibility.
+- Dynamic text sizing where possible.
+
+---
+
+# 14. Accessibility Testing
+
+Testing should include:
+
+- Automated checks.
+- Manual testing.
+- Keyboard testing.
+- Assistive technology testing.
+
+---
+
+# 15. Design System Requirements
+
+Accessibility should be built into reusable components.
+
+Examples:
+
+Buttons:
+
+- Focus states.
+- Disabled states.
+
+Forms:
+
+- Error handling.
+
+Navigation:
+
+- Clear active states.
+
+---
+
+# 16. MVP Accessibility Priorities
+
+Priority areas:
+
+- Authentication.
+- Forms.
+- Navigation.
+- Tables.
+- Scheduling.
+- Notifications.
+
+---
+
+# 17. Future Enhancements
+
+Future versions may introduce:
+
+- Advanced accessibility preferences.
+- Personalized interfaces.
+- Additional assistive technology support.
+
+---
+
+# 18. Related Specifications
+
+- UI-001 Design System
+- UI-005 Forms
+- UI-006 Data Tables
+- UI-007 Calendar Components
+- UI-009 Error States
+
+---
+
+# 19. Summary
+
+ShiftOS accessibility ensures that users can effectively operate the platform regardless of ability or device.
+
+By building accessibility into components and workflows from the beginning, ShiftOS creates a more reliable and professional SaaS experience.

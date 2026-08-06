@@ -1,90 +1,378 @@
-# DB-008 — Enums
+# ShiftOS Database Enums
 
-Status: Draft
+**Document ID:** DB-008
 
-Version: 0.1.0
+**Document Title:** Enum Strategy
 
-Priority: Medium
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Database
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define how enumerated values are represented and governed in the database.
+This document defines the strategy for using PostgreSQL enum types within the ShiftOS database.
 
-## Business Rationale
+Enums provide controlled sets of values for stable system states while maintaining data consistency.
 
-Enums provide a controlled vocabulary for values such as state, status, and type.
+---
 
-## Scope
+# 2. Enum Philosophy
 
-This specification covers enum definition, usage, and evolution across the schema.
+Enums should represent:
 
-## Definitions
+- Stable system states.
+- Technical classifications.
+- Limited controlled values.
 
-- Enum: A constrained set of valid values for a field or category.
+Enums should not represent:
 
-## Business Rules
+- User-configurable data.
+- Frequently changing business rules.
+- Organization-specific settings.
 
-- Enum values must be explicit and documented.
-- New values should be added through controlled changes to preserve compatibility.
+---
 
-## User Workflow
+# 3. Enum Principles
 
-- Users interact with values that are represented through business states and statuses.
+ShiftOS enums follow these principles:
 
-## Permissions
+- Keep enums small.
+- Avoid unnecessary enums.
+- Prefer tables for dynamic data.
+- Review enum changes carefully.
+- Maintain backward compatibility.
 
-- Enum values should comply with role and workflow expectations.
+---
 
-## UI Behaviour
+# 4. Enum Naming
 
-- The UI should display enum values consistently and clearly.
+Enums follow DB-002 naming standards.
 
-## Backend Behaviour
+Format:
 
-- Services should validate inputs against the defined enum values.
+```
+<domain>_<purpose>_enum
+```
 
-## Database Impact
+Examples:
 
-- This document governs the representation of controlled categorical values.
+```
+attendance_status_enum
 
-## Events Emitted
+task_priority_enum
 
-- database.enum.updated
+notification_channel_enum
+```
 
-## Notifications
+---
 
-- Enum changes may trigger review and impact awareness for dependent systems.
+# 5. Attendance Enums
 
-## Reporting Impact
+## attendance_status_enum
 
-- Reporting should use stable and documented enum values.
+Purpose:
 
-## Edge Cases
+Represents attendance states.
 
-- Legacy values and transitional states must be handled carefully during changes.
+Values:
 
-## Validation Rules
+```
+present
 
-- Only approved enum values may be stored in corresponding fields.
+late
 
-## Acceptance Criteria
+absent
 
-- Standardized enum values are used across the schema where appropriate.
+on_leave
 
-## Future Enhancements
+pending_review
 
-- Centralized enum management and migration support.
+corrected
+```
 
-## Open Questions
+---
 
-- Which values should remain fixed in MVP versus allow extension later?
+# 6. Shift Enums
 
-## Decision History
+## shift_status_enum
+
+Purpose:
+
+Represents shift lifecycle.
+
+Values:
+
+```
+draft
+
+published
+
+started
+
+completed
+
+cancelled
+```
+
+---
+
+# 7. Schedule Enums
+
+## schedule_status_enum
+
+Purpose:
+
+Represents schedule lifecycle.
+
+Values:
+
+```
+draft
+
+published
+
+archived
+```
+
+---
+
+# 8. Task Enums
+
+## task_status_enum
+
+Purpose:
+
+Represents task progress.
+
+Values:
+
+```
+pending
+
+assigned
+
+in_progress
+
+completed
+
+verified
+
+cancelled
+```
+
+---
+
+## task_priority_enum
+
+Purpose:
+
+Represents task urgency.
+
+Values:
+
+```
+low
+
+medium
+
+high
+
+urgent
+```
+
+---
+
+# 9. Notification Enums
+
+## notification_channel_enum
+
+Purpose:
+
+Represents delivery methods.
+
+Values:
+
+```
+in_app
+
+push
+
+email
+
+sms
+```
+
+---
+
+## notification_priority_enum
+
+Purpose:
+
+Represents notification importance.
+
+Values:
+
+```
+low
+
+normal
+
+high
+
+critical
+```
+
+---
+
+# 10. Communication Enums
+
+## announcement_status_enum
+
+Purpose:
+
+Represents announcement lifecycle.
+
+Values:
+
+```
+draft
+
+published
+
+expired
+```
+
+---
+
+# 11. User Account Enums
+
+## account_status_enum
+
+Purpose:
+
+Represents user account state.
+
+Values:
+
+```
+active
+
+inactive
+
+suspended
+
+pending
+```
+
+---
+
+# 12. Employment Enums
+
+## employment_status_enum
+
+Purpose:
+
+Represents employee lifecycle.
+
+Values:
+
+```
+active
+
+inactive
+
+terminated
+
+on_leave
+```
+
+---
+
+# 13. Where NOT To Use Enums
+
+The following should usually be tables:
+
+## Employee roles
+
+Reason:
+
+Businesses create custom roles.
+
+---
+
+## Departments
+
+Reason:
+
+Organizations define their own departments.
+
+---
+
+## Branch types
+
+Reason:
+
+Organizations may have different classifications.
+
+---
+
+## Task categories
+
+Reason:
+
+Businesses require customization.
+
+---
+
+# 14. Enum Migration Rules
+
+Enum changes require careful handling.
+
+Before adding values:
+
+- Confirm backwards compatibility.
+- Review application impact.
+- Update documentation.
+- Test migrations.
+
+Removing enum values requires additional migration planning.
+
+---
+
+# 15. Future Expansion
+
+Future versions may introduce:
+
+- Additional workflow states.
+- Enterprise-specific classifications.
+- More advanced operational states.
+
+New enums should only be created when values are stable across organizations.
+
+---
+
+# 16. Related Specifications
+
+- DB-005 Tables
+- DB-006 Constraints
+- DB-012 Migrations
+- TASK-001 Task Model
+- NOTIF-004 Priority Levels
+
+---
+
+# 17. Summary
+
+ShiftOS uses PostgreSQL enums selectively for stable system states while avoiding enums for frequently changing business concepts.
+
+This approach provides strong data consistency without limiting future customization for different organizations and industries.

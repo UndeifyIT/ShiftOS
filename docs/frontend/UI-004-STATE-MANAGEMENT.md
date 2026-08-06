@@ -1,90 +1,293 @@
-# UI-004 — State Management
+# ShiftOS State Management
 
-Status: Draft
+**Document ID:** UI-004
 
-Version: 0.1.0
+**Document Title:** Frontend State Management Architecture
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Frontend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define how frontend state is organized, updated, and synchronized across the application.
+This document defines how frontend state is managed across ShiftOS applications.
 
-## Business Rationale
+The goal is to maintain predictable data flow, efficient rendering and reliable user experiences across web, mobile and PWA platforms.
 
-Reliable state management supports responsive interaction, data consistency, and maintainable UI code.
+---
 
-## Scope
+# 2. State Management Philosophy
 
-This specification covers local state, shared state, async state, cache behavior, and synchronization patterns.
+ShiftOS separates state based on responsibility.
 
-## Definitions
+The platform avoids storing all application data in one global state system.
 
-- State Management: The approach used to store and update UI and application state.
+---
 
-## Business Rules
+# 3. State Categories
 
-- State updates should be predictable and traceable.
-- Shared state should reflect the latest server truth where appropriate.
+ShiftOS uses three primary state categories:
 
-## User Workflow
+```
+Server State
 
-- Users interact with forms, lists, and workflows that depend on current frontend state.
+↓
 
-## Permissions
+Application State
 
-- State should reflect the current authorization and tenant context.
+↓
 
-## UI Behaviour
+UI State
+```
 
-- The UI should respond consistently to changes in loading, success, error, and empty states.
+---
 
-## Backend Behaviour
+# 4. Server State
 
-- State should be synchronized with backend responses and domain events where applicable.
+Server state represents data owned by the backend.
 
-## Database Impact
+Examples:
 
-- Frontend state should represent the data surfaced from the backend and persistence layer.
+- Employees.
+- Shifts.
+- Attendance.
+- Tasks.
+- Announcements.
 
-## Events Emitted
+Characteristics:
 
-- ui.state.updated
+- Shared across users.
+- Persisted remotely.
+- Requires synchronization.
 
-## Notifications
+---
 
-- Significant state transitions may need user feedback or operational visibility.
+# 5. Server State Management
 
-## Reporting Impact
+Server state should support:
 
-- State behavior can influence usability analytics and error diagnosis.
+- Fetching.
+- Caching.
+- Background updates.
+- Invalidations.
+- Optimistic updates where appropriate.
 
-## Edge Cases
+Examples:
 
-- Race conditions, stale data, and reconnects should be handled safely.
+Supervisor publishes schedule:
 
-## Validation Rules
+```
+Update server
 
-- State transitions must remain consistent and avoid invalid UI states.
+↓
 
-## Acceptance Criteria
+Refresh related views
 
-- The frontend uses a clear and maintainable state management approach for key workflows.
+↓
 
-## Future Enhancements
+Notify affected users
+```
 
-- More advanced caching, optimistic UI handling, and state persistence.
+---
 
-## Open Questions
+# 6. Application State
 
-- Which state concerns should be handled globally versus locally in MVP?
+Application state represents client-wide information.
 
-## Decision History
+Examples:
+
+- Logged-in user.
+- Selected organization.
+- Current branch.
+- Theme preference.
+- Feature settings.
+
+This state should remain limited.
+
+---
+
+# 7. UI State
+
+UI state represents temporary interface behavior.
+
+Examples:
+
+- Modal visibility.
+- Dropdown selection.
+- Active tab.
+- Form progress.
+
+UI state should usually remain local to components.
+
+---
+
+# 8. State Ownership Rules
+
+Every piece of state should have a clear owner.
+
+Questions:
+
+- Who controls this data?
+- Who needs access?
+- How long should it exist?
+
+Avoid unnecessary duplication.
+
+---
+
+# 9. Data Synchronization
+
+ShiftOS must support synchronization between:
+
+- Web clients.
+- Mobile clients.
+- PWA clients.
+- Backend updates.
+
+Synchronization methods include:
+
+- API refresh.
+- Realtime updates.
+- Cache invalidation.
+
+---
+
+# 10. Optimistic Updates
+
+Optimistic updates may improve speed.
+
+Example:
+
+Task completion:
+
+```
+User completes task
+
+↓
+
+UI updates immediately
+
+↓
+
+Backend confirms
+
+↓
+
+Rollback if failed
+```
+
+Use only when failure recovery is clear.
+
+---
+
+# 11. Offline State
+
+Offline behavior requires special handling.
+
+The frontend should track:
+
+- Connection status.
+- Pending actions.
+- Sync status.
+- Conflict states.
+
+Offline strategy is defined further in architecture documents.
+
+---
+
+# 12. Real-Time Updates
+
+Realtime updates may affect:
+
+- Attendance.
+- Task status.
+- Notifications.
+- Schedule changes.
+
+Realtime data should update relevant caches instead of creating duplicate state.
+
+---
+
+# 13. Forms State
+
+Forms should manage their own temporary state.
+
+Examples:
+
+- Employee creation form.
+- Schedule creation form.
+
+Submitted data becomes server state.
+
+---
+
+# 14. Performance Rules
+
+State management should avoid:
+
+- Unnecessary re-renders.
+- Large global objects.
+- Duplicate API requests.
+- Stale data.
+
+---
+
+# 15. Error Handling
+
+State systems should handle:
+
+- Loading states.
+- Failed requests.
+- Retry actions.
+- Offline failures.
+
+---
+
+# 16. MVP Strategy
+
+Recommended approach:
+
+- Server state management solution.
+- Lightweight client state.
+- Component-level UI state.
+
+Avoid building custom state infrastructure.
+
+---
+
+# 17. Future Enhancements
+
+Future versions may introduce:
+
+- Advanced offline synchronization.
+- Cross-device state persistence.
+- Predictive data loading.
+- AI-assisted state optimization.
+
+---
+
+# 18. Related Specifications
+
+- UI-005 Forms
+- UI-012 PWA Behaviour
+- RT-002 Live Updates
+- RT-004 Synchronization Rules
+- API-007 Background Jobs
+
+---
+
+# 19. Summary
+
+ShiftOS state management separates backend data, application preferences and temporary interface behavior.
+
+By keeping ownership clear and avoiding unnecessary global state, ShiftOS maintains a scalable frontend architecture that supports realtime updates, offline behavior and multiple client platforms.

@@ -1,90 +1,337 @@
-# UI-009 — Error States
+# ShiftOS Error States
 
-Status: Draft
+**Document ID:** UI-009
 
-Version: 0.1.0
+**Document Title:** Frontend Error State Standards
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Frontend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define how frontend error states should be handled and communicated to users.
+This document defines how ShiftOS handles errors in the user interface.
 
-## Business Rationale
+The goal is to provide clear communication, recovery paths and reliable user experiences when operations fail.
 
-Clear error states help users understand problems and recover from them without confusion.
+---
 
-## Scope
+# 2. Error State Philosophy
 
-This specification covers inline errors, global error messaging, retry patterns, and failure recovery guidance.
+Errors should:
 
-## Definitions
+- Explain what happened.
+- Help users recover.
+- Avoid unnecessary technical details.
+- Maintain user confidence.
 
-- Error State: A UI condition representing a failed request, invalid action, or unexpected issue.
+---
 
-## Business Rules
+# 3. Error State Principles
 
-- Error states should be clear, actionable, and consistent.
-- Sensitive internal details should not be exposed to users.
+ShiftOS follows these principles:
 
-## User Workflow
+## Actionable Errors
 
-- Users encounter errors when data cannot be loaded, saved, or processed successfully.
+Users should know what to do next.
 
-## Permissions
+---
 
-- Error messaging should reflect the user’s permissions and available recovery options.
+## Contextual Errors
 
-## UI Behaviour
+Errors should appear where the problem occurred.
 
-- Error states should be visible, understandable, and low-friction to recover from.
+---
 
-## Backend Behaviour
+## Human Language
 
-- Backend errors should be transformed into clear frontend error states.
+Avoid technical messages.
 
-## Database Impact
+---
 
-- Error states may be associated with failed writes, invalid constraints, or unavailable data.
+## Recovery First
 
-## Events Emitted
+Whenever possible, provide a solution.
 
-- ui.error.displayed
+---
 
-## Notifications
+# 4. Error Categories
 
-- Critical UI errors may trigger support or operations visibility.
+ShiftOS frontend errors are grouped into categories.
 
-## Reporting Impact
+---
 
-- Error feedback can support product quality and incident analysis.
+# 5. Validation Errors
 
-## Edge Cases
+Cause:
 
-- Network failures, permission denial, and validation errors should be surfaced clearly.
+User input does not satisfy requirements.
 
-## Validation Rules
+Examples:
 
-- Users should receive understandable guidance whenever an operation fails.
+```
+End time must be after start time.
+```
 
-## Acceptance Criteria
+Display:
 
-- Core failure scenarios produce clear and actionable error states.
+Near the relevant field.
 
-## Future Enhancements
+---
 
-- Smarter recovery and error context suggestions.
+# 6. Permission Errors
 
-## Open Questions
+Cause:
 
-- Which user-facing errors need custom recovery flows first?
+User cannot perform an action.
 
-## Decision History
+Examples:
+
+```
+You do not have permission to publish schedules.
+```
+
+Actions:
+
+- Explain restriction.
+- Suggest contacting administrator.
+
+---
+
+# 7. Network Errors
+
+Cause:
+
+Connection problems.
+
+Examples:
+
+```
+Unable to connect.
+
+Check your internet connection and try again.
+```
+
+Actions:
+
+- Retry.
+- Show offline status where relevant.
+
+---
+
+# 8. Server Errors
+
+Cause:
+
+Unexpected backend failure.
+
+Examples:
+
+```
+We could not complete this action.
+
+Please try again.
+```
+
+Avoid exposing:
+
+- Database errors.
+- Internal details.
+
+---
+
+# 9. Conflict Errors
+
+Important for workforce operations.
+
+Examples:
+
+Schedule conflict:
+
+```
+This employee already has another shift at this time.
+```
+
+Attendance conflict:
+
+```
+This attendance record has already been updated.
+```
+
+---
+
+# 10. Session Errors
+
+Examples:
+
+```
+Your session has expired.
+
+Please sign in again.
+```
+
+---
+
+# 11. Error Display Patterns
+
+Common patterns:
+
+## Inline Errors
+
+Used for:
+
+- Forms.
+- Fields.
+
+---
+
+## Toast Messages
+
+Used for:
+
+- Temporary confirmations.
+- Minor failures.
+
+---
+
+## Error Pages
+
+Used for:
+
+- Full page failures.
+
+---
+
+## Dialog Errors
+
+Used for:
+
+- Important decisions.
+- Destructive actions.
+
+---
+
+# 12. Retry Behavior
+
+Retry should be available when appropriate.
+
+Examples:
+
+Network failure:
+
+```
+Retry
+```
+
+Permission failure:
+
+No retry.
+
+---
+
+# 13. Offline Errors
+
+Offline situations should explain:
+
+- Current connection state.
+- Available actions.
+- Pending changes.
+
+Example:
+
+```
+Changes saved locally.
+
+Waiting for connection.
+```
+
+---
+
+# 14. Error Recovery
+
+Recovery options may include:
+
+- Retry.
+- Edit information.
+- Return to previous step.
+- Contact administrator.
+
+---
+
+# 15. Error Logging
+
+Frontend errors should provide:
+
+- Error context.
+- User action.
+- Technical reference ID where available.
+
+---
+
+# 16. Accessibility
+
+Errors should support:
+
+- Screen reader announcements.
+- Visible indicators.
+- Clear focus movement.
+
+---
+
+# 17. Performance Considerations
+
+Error handling should avoid:
+
+- Infinite retry loops.
+- Repeated failed requests.
+- Blocking the entire application unnecessarily.
+
+---
+
+# 18. MVP Priority
+
+Important error experiences:
+
+- Login failures.
+- Schedule conflicts.
+- Attendance failures.
+- Form submission errors.
+- Network problems.
+
+---
+
+# 19. Future Enhancements
+
+Future versions may introduce:
+
+- Automated recovery suggestions.
+- AI troubleshooting.
+- Predictive error prevention.
+
+---
+
+# 20. Related Specifications
+
+- UI-004 State Management
+- UI-005 Forms
+- UI-008 Empty States
+- API-006 Error Handling
+- API-009 Rate Limiting
+
+---
+
+# 21. Summary
+
+ShiftOS error states turn failures into guided recovery experiences.
+
+By providing clear explanations, appropriate actions and consistent behavior, ShiftOS maintains user trust even when operations fail.

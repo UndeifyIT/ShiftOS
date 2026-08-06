@@ -1,90 +1,532 @@
-# DB-005 — Tables
+# ShiftOS Database Tables
 
-Status: Draft
+**Document ID:** DB-005
 
-Version: 0.1.0
+**Document Title:** Database Tables
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Draft
 
-Dependencies:
+**Classification:** Database
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define the core table design expectations for ShiftOS data storage.
+This document defines the core database tables used within the ShiftOS platform.
 
-## Business Rationale
+Each table represents a persistent business entity or supporting system resource.
 
-Tables provide the structural foundation for storing and retrieving business data.
+Detailed column definitions, constraints and indexes are documented separately.
 
-## Scope
+---
 
-This specification covers table responsibilities, ownership, and general storage expectations.
+# 2. Table Design Principles
 
-## Definitions
+ShiftOS tables follow these principles:
 
-- Table: A collection of rows storing related data for a business entity or relationship.
+- One table represents one primary business concept.
+- Tables have clear ownership.
+- Tenant-owned tables include organization ownership.
+- Historical data is preserved where required.
+- Relationships are enforced through foreign keys.
+- Tables should support reporting requirements.
 
-## Business Rules
+---
 
-- Tables must have clear ownership and purpose.
-- Data should be normalized where appropriate and denormalized only when justified.
+# 3. Platform Tables
 
-## User Workflow
+## organizations
 
-- Business features rely on tables that reflect operational data accurately.
+Purpose:
 
-## Permissions
+Stores tenant organizations using the ShiftOS platform.
 
-- Table access must follow tenant and role-based controls.
+Ownership:
 
-## UI Behaviour
+Platform
 
-- The UI depends on tables that support the required queries and workflows.
+Contains:
 
-## Backend Behaviour
+- Organization identity.
+- Subscription information.
+- Organization settings.
+- Lifecycle status.
 
-- Services should read and write data through stable table contracts.
+---
 
-## Database Impact
+## branches
 
-- This document defines the general expectations for the core physical schema.
+Purpose:
 
-## Events Emitted
+Stores physical operating locations belonging to organizations.
 
-- database.table.reviewed
+Ownership:
 
-## Notifications
+Platform
 
-- Major table changes should trigger review workflows.
+Relationship:
 
-## Reporting Impact
+Organization → Many Branches
 
-- Reporting logic depends on stable table structures and columns.
+Contains:
 
-## Edge Cases
+- Branch identity.
+- Location information.
+- Operational settings.
+- Status.
 
-- Large tables, historical records, and sparse data should be handled intentionally.
+---
 
-## Validation Rules
+# 4. Identity & Access Tables
 
-- Each table must align with its documented purpose and constraints.
+## users
 
-## Acceptance Criteria
+Purpose:
 
-- The core tables for major workflows are clearly defined and documented.
+Stores authenticated system users.
 
-## Future Enhancements
+Ownership:
 
-- Automated table documentation and ownership metadata.
+Identity
 
-## Open Questions
+Contains:
 
-- Which tables need partitioning or special performance treatment first?
+- User identity.
+- Authentication references.
+- Account status.
 
-## Decision History
+---
+
+## organization_members
+
+Purpose:
+
+Links users to organizations.
+
+Ownership:
+
+Identity
+
+Relationship:
+
+User ↔ Organization
+
+Contains:
+
+- Membership status.
+- Organization access.
+- User association.
+
+---
+
+## roles
+
+Purpose:
+
+Stores system roles.
+
+Ownership:
+
+Security
+
+Contains:
+
+- Role definitions.
+- Permission groups.
+
+---
+
+## permissions
+
+Purpose:
+
+Stores available system permissions.
+
+Ownership:
+
+Security
+
+Contains:
+
+- Permission identifiers.
+- Permission descriptions.
+
+---
+
+## role_permissions
+
+Purpose:
+
+Maps permissions to roles.
+
+Relationship:
+
+Role ↔ Permission
+
+---
+
+# 5. Workforce Tables
+
+## employees
+
+Purpose:
+
+Stores employee workforce records.
+
+Ownership:
+
+Workforce
+
+Relationship:
+
+Organization → Employees
+
+Contains:
+
+- Employee profile information.
+- Employment status.
+- Branch association.
+
+---
+
+## employee_history
+
+Purpose:
+
+Stores historical changes to employee information.
+
+Ownership:
+
+Workforce
+
+Contains:
+
+- Previous values.
+- Effective dates.
+- Change reasons.
+
+---
+
+# 6. Scheduling Tables
+
+## schedules
+
+Purpose:
+
+Stores workforce schedules.
+
+Ownership:
+
+Scheduling
+
+Contains:
+
+- Schedule information.
+- Date ranges.
+- Publishing status.
+
+---
+
+## schedule_versions
+
+Purpose:
+
+Stores historical versions of schedules.
+
+Ownership:
+
+Scheduling
+
+Purpose:
+
+Allows schedule changes to be tracked.
+
+---
+
+## shifts
+
+Purpose:
+
+Stores individual shift records.
+
+Ownership:
+
+Scheduling
+
+Contains:
+
+- Start time.
+- End time.
+- Shift status.
+
+---
+
+## shift_assignments
+
+Purpose:
+
+Maps employees to shifts.
+
+Relationship:
+
+Employee ↔ Shift
+
+---
+
+# 7. Attendance Tables
+
+## attendance_records
+
+Purpose:
+
+Stores employee attendance activity.
+
+Ownership:
+
+Attendance
+
+Contains:
+
+- Clock-in information.
+- Clock-out information.
+- Attendance state.
+
+---
+
+## attendance_corrections
+
+Purpose:
+
+Stores approved attendance adjustments.
+
+Ownership:
+
+Attendance
+
+Contains:
+
+- Original values.
+- Corrected values.
+- Approval information.
+
+---
+
+# 8. Task Management Tables
+
+## tasks
+
+Purpose:
+
+Stores operational tasks.
+
+Ownership:
+
+Task Management
+
+Contains:
+
+- Task details.
+- Status.
+- Priority.
+
+---
+
+## task_assignments
+
+Purpose:
+
+Maps tasks to employees.
+
+Relationship:
+
+Employee ↔ Task
+
+---
+
+## task_history
+
+Purpose:
+
+Stores task lifecycle changes.
+
+Contains:
+
+- Status changes.
+- Verification events.
+- Completion records.
+
+---
+
+# 9. Communication Tables
+
+## announcements
+
+Purpose:
+
+Stores organizational announcements.
+
+Ownership:
+
+Communication
+
+---
+
+## announcement_acknowledgements
+
+Purpose:
+
+Stores employee acknowledgement records.
+
+Relationship:
+
+Announcement ↔ Employee
+
+---
+
+# 10. Notification Tables
+
+## notifications
+
+Purpose:
+
+Stores generated notifications.
+
+Ownership:
+
+Notification
+
+---
+
+## notification_preferences
+
+Purpose:
+
+Stores user notification settings.
+
+---
+
+## notification_delivery_attempts
+
+Purpose:
+
+Tracks notification delivery status.
+
+---
+
+# 11. Audit & Security Tables
+
+## audit_logs
+
+Purpose:
+
+Stores important system activity.
+
+Contains:
+
+- Actor.
+- Action.
+- Resource.
+- Timestamp.
+
+---
+
+## security_events
+
+Purpose:
+
+Stores security-related events.
+
+Examples:
+
+- Login activity.
+- Permission changes.
+- Session events.
+
+---
+
+# 12. Reporting Tables
+
+Reporting structures may include:
+
+- Database views.
+- Materialized views.
+- Aggregated reporting tables.
+
+These should not replace operational tables.
+
+---
+
+# 13. Common Table Columns
+
+Most tables should include:
+
+```
+id
+
+organization_id (where applicable)
+
+created_at
+
+updated_at
+
+deleted_at (where applicable)
+```
+
+Additional columns depend on the business purpose of each table.
+
+---
+
+# 14. Table Ownership Rules
+
+Each table must have:
+
+- One owning domain.
+- Defined relationships.
+- Defined lifecycle.
+- Defined security rules.
+
+Tables should not become shared dumping grounds for unrelated features.
+
+---
+
+# 15. Future Tables
+
+Potential future additions:
+
+- Departments.
+- Employee certifications.
+- Payroll integrations.
+- External integrations.
+- Advanced analytics storage.
+- AI recommendation history.
+
+Future tables should follow the same ownership principles.
+
+---
+
+# 16. Related Specifications
+
+- DB-003 Schema Overview
+- DB-004 Entity Relationships
+- DB-006 Constraints
+- DB-007 Indexes
+- DB-008 Enums
+- DB-012 Migrations
+
+---
+
+# 17. Summary
+
+The ShiftOS database consists of domain-owned tables representing organizations, workforce operations, scheduling, attendance, tasks, communication, notifications and security activity.
+
+Each table exists to represent durable business information and follows consistent ownership, relationship and security principles.
+
+The table architecture provides a strong foundation for reliable workforce operations while remaining flexible for future platform expansion.

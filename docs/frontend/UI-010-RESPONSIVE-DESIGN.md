@@ -1,90 +1,321 @@
-# UI-010 — Responsive Design
+# ShiftOS Responsive Design
 
-Status: Draft
+**Document ID:** UI-010
 
-Version: 0.1.0
+**Document Title:** Responsive Design Standards
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Frontend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define how the frontend should adapt to different screen sizes and device contexts.
+This document defines responsive design standards across ShiftOS applications.
 
-## Business Rationale
+The goal is to provide effective experiences across desktop, tablet, mobile and PWA environments.
 
-Responsive design ensures the platform remains usable on phones, tablets, and desktops.
+---
 
-## Scope
+# 2. Responsive Design Philosophy
 
-This specification covers layout adaptation, navigation changes, content scaling, and interaction adjustments across devices.
+Responsive design in ShiftOS focuses on:
 
-## Definitions
+- User context.
+- Device capabilities.
+- Workflow requirements.
+- Information priorities.
 
-- Responsive Design: The practice of adjusting UI layout and behavior to fit different viewport sizes.
+Responsive behavior should adapt the experience, not simply resize components.
 
-## Business Rules
+---
 
-- Core workflows must remain usable on major device types.
-- Content should remain readable and actionable across supported screen sizes.
+# 3. Responsive Principles
 
-## User Workflow
+## Preserve Core Workflows
 
-- Users access ShiftOS on different devices and screen dimensions throughout the day.
+Important actions must remain accessible across devices.
 
-## Permissions
+Examples:
 
-- Responsive behavior must preserve role-based visibility and action availability.
+Supervisor:
 
-## UI Behaviour
+- Review schedule.
+- Manage attendance.
+- Assign tasks.
 
-- The interface should reflow appropriately and maintain usability across breakpoints.
+Employee:
 
-## Backend Behaviour
+- View shifts.
+- Complete tasks.
+- Read announcements.
 
-- Responsive design should not change core data access or validation behavior.
+---
 
-## Database Impact
+## Prioritize Information
 
-- Responsive design may affect how data is presented but not the underlying model.
+Smaller screens require stronger prioritization.
 
-## Events Emitted
+Not all desktop information should appear on mobile.
 
-- ui.viewport.changed
+---
 
-## Notifications
+## Maintain Consistency
 
-- Responsive issues may require design or engineering review.
+The experience should feel like the same product across platforms.
 
-## Reporting Impact
+---
 
-- Device and viewport analytics can help inform improvements.
+# 4. Device Categories
 
-## Edge Cases
+ShiftOS supports:
 
-- Small screens, rotated devices, and unusual browser sizes should be handled gracefully.
+## Desktop
 
-## Validation Rules
+Primary use:
 
-- Key actions should remain accessible at each supported breakpoint.
+- Management workflows.
+- Scheduling.
+- Reporting.
+- Data-heavy operations.
 
-## Acceptance Criteria
+---
 
-- The frontend is usable and coherent on major device sizes and orientations.
+## Tablet
 
-## Future Enhancements
+Primary use:
 
-- Device-specific optimization and richer adaptive patterns.
+- Supervisor operations.
+- On-site management.
 
-## Open Questions
+---
 
-- Which devices or viewport ranges need the most attention for MVP?
+## Mobile
 
-## Decision History
+Primary use:
+
+- Employee workflows.
+- Quick supervisor actions.
+
+---
+
+## PWA
+
+Primary use:
+
+- Fast access.
+- Lightweight deployment.
+- Offline-supported workflows.
+
+---
+
+# 5. Responsive Layout Rules
+
+Layouts should adapt:
+
+Desktop:
+
+```
+Multiple columns
+
+Expanded navigation
+
+Dense information
+```
+
+Mobile:
+
+```
+Single column
+
+Compact navigation
+
+Focused actions
+```
+
+---
+
+# 6. Navigation Adaptation
+
+Desktop:
+
+- Sidebar navigation.
+- Multiple sections visible.
+
+Mobile:
+
+- Bottom navigation.
+- Reduced primary options.
+
+Detailed navigation rules are defined in UI-002.
+
+---
+
+# 7. Tables and Data
+
+Desktop:
+
+Use:
+
+- Full tables.
+- Multiple columns.
+- Filters.
+
+Mobile:
+
+Use:
+
+- Cards.
+- Expandable rows.
+- Detail pages.
+
+---
+
+# 8. Forms
+
+Desktop:
+
+May use:
+
+- Multi-column layouts.
+- Side-by-side fields.
+
+Mobile:
+
+Should use:
+
+- Single-column layouts.
+- Large touch targets.
+- Simplified flows.
+
+---
+
+# 9. Calendars
+
+Desktop:
+
+Support:
+
+- Week views.
+- Employee columns.
+- Detailed scheduling.
+
+Mobile:
+
+Prioritize:
+
+- Personal schedule.
+- Daily view.
+- Quick changes.
+
+---
+
+# 10. Touch Interaction
+
+Mobile interfaces should support:
+
+- Larger buttons.
+- Comfortable spacing.
+- Touch gestures.
+
+Avoid:
+
+- Tiny controls.
+- Hover-only actions.
+
+---
+
+# 11. Content Density
+
+Different devices require different density.
+
+Desktop:
+
+Higher information density.
+
+Mobile:
+
+Higher action clarity.
+
+---
+
+# 12. Performance Considerations
+
+Responsive experiences should avoid:
+
+- Loading unnecessary desktop content on mobile.
+- Heavy components on smaller devices.
+- Large data downloads.
+
+---
+
+# 13. Accessibility
+
+Responsive layouts should maintain:
+
+- Logical reading order.
+- Keyboard support.
+- Screen reader compatibility.
+
+---
+
+# 14. Testing Requirements
+
+Responsive testing should include:
+
+- Different screen sizes.
+- Different browsers.
+- Different connection speeds.
+- Touch interaction.
+
+---
+
+# 15. MVP Strategy
+
+Priority responsive experiences:
+
+Supervisor:
+
+- Desktop/tablet scheduling.
+- Mobile quick operations.
+
+Employee:
+
+- Mobile-first experience.
+
+---
+
+# 16. Future Enhancements
+
+Future versions may introduce:
+
+- Adaptive dashboards.
+- Device-specific workflows.
+- Smart layout recommendations.
+
+---
+
+# 17. Related Specifications
+
+- UI-002 Navigation
+- UI-003 Layout System
+- UI-006 Data Tables
+- UI-007 Calendar Components
+- UI-012 PWA Behaviour
+
+---
+
+# 18. Summary
+
+ShiftOS responsive design ensures that users can complete important workforce tasks regardless of device.
+
+By adapting workflows rather than simply resizing screens, ShiftOS provides effective experiences for supervisors, employees and managers across all platforms.

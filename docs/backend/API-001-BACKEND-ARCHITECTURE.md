@@ -1,91 +1,366 @@
-# API-001 — Backend Architecture
+# ShiftOS Backend Architecture
 
-Status: Draft
+**Document ID:** API-001
 
-Version: 0.1.0
+**Document Title:** Backend Architecture
 
-Priority: High
+**Version:** 1.0.0
 
-Owner:
+**Status:** Approved
 
-Dependencies:
+**Classification:** Backend
 
-Related Specifications:
+**Owner:** ShiftOS Product Team
+
+**Created:** 2026-08-04
+
+**Last Updated:** 2026-08-04
 
 ---
 
-## Purpose
+# 1. Purpose
 
-Define the overall backend architecture for ShiftOS and the responsibilities of its major components.
+This document defines the backend architecture for ShiftOS.
 
-## Business Rationale
+It establishes how backend services process requests, execute business workflows, enforce security, interact with the database and communicate with other system components.
 
-A clear backend architecture improves maintainability, scalability, reliability, and team ownership.
+---
 
-## Scope
+# 2. Backend Philosophy
 
-This specification covers service boundaries, runtime structure, application layers, and technical responsibilities.
+The ShiftOS backend is the central business execution layer.
 
-## Definitions
+Its responsibilities include:
 
-- Backend Architecture: The overall structure and organization of server-side services and application layers.
+- Business logic execution.
+- Request processing.
+- Authorization enforcement.
+- Data validation.
+- Workflow orchestration.
+- Event publishing.
+- Background processing.
 
-## Business Rules
+The backend ensures that all clients interact with the platform through consistent business rules.
 
-- Backend services must enforce authentication, authorization, and tenant isolation.
-- Business logic must be implemented in a consistent, testable, and maintainable way.
-- APIs and services must support the expected operational workflows of ShiftOS.
+---
 
-## User Workflow
+# 3. Architectural Principles
 
-- Users interact with the system through the frontend, which relies on backend services for data and workflow processing.
+The backend follows these principles:
 
-## Permissions
+- Server-authoritative business logic.
+- Secure by default.
+- Domain-driven organization.
+- Clear separation of concerns.
+- Reusable business workflows.
+- Observable operations.
+- Maintainable code structure.
 
-- Backend services must honor user roles, permissions, and tenant context.
+---
 
-## UI Behaviour
+# 4. Backend Responsibilities
 
-- The UI depends on stable backend contracts and predictable API behavior.
+The backend is responsible for:
 
-## Backend Behaviour
+## Business Logic
 
-- Backend services must be designed for modularity, observability, and safe interaction with the database and event systems.
+Examples:
 
-## Database Impact
+- Scheduling rules.
+- Attendance validation.
+- Task workflows.
+- Communication permissions.
 
-- Backend services must coordinate data access through well-defined persistence layers.
+---
 
-## Events Emitted
+## Security Enforcement
 
-- backend.architecture.reviewed
+Including:
 
-## Notifications
+- Authentication verification.
+- Authorization checks.
+- Tenant isolation.
+- Permission enforcement.
 
-- Service or deployment issues may require operational notifications.
+---
 
-## Reporting Impact
+## Data Coordination
 
-- Backend performance, usage, and error metrics should be visible to operations and engineering.
+Including:
 
-## Edge Cases
+- Database operations.
+- Transactions.
+- Consistency checks.
+- Event creation.
 
-- Partial outages, dependency failures, and retry scenarios must be handled gracefully.
+---
 
-## Validation Rules
+## Integration Management
 
-- The backend architecture must support required business workflows without violating security or consistency constraints.
+Including:
 
-## Acceptance Criteria
+- External services.
+- Notifications.
+- Background jobs.
+- Future integrations.
 
-- The platform has a documented backend architecture that clearly explains major services and responsibilities.
+---
 
-## Future Enhancements
+# 5. Backend Architecture Model
 
-- Service decomposition and greater platform modularity.
+ShiftOS follows a layered architecture:
 
-## Open Questions
+```
+Client Applications
 
-- Which backend capabilities should be implemented as shared services versus domain-specific services first?
+(Web / Mobile / PWA)
 
-## Decision History
+↓
+
+API Layer
+
+↓
+
+Application Services
+
+↓
+
+Domain Logic
+
+↓
+
+Data Access Layer
+
+↓
+
+PostgreSQL Database
+```
+
+Each layer has a defined responsibility.
+
+---
+
+# 6. API Layer
+
+The API layer is responsible for:
+
+- Receiving requests.
+- Authentication handling.
+- Request formatting.
+- Input validation.
+- Returning responses.
+
+The API layer should not contain complex business rules.
+
+---
+
+# 7. Application Layer
+
+The application layer coordinates business operations.
+
+Responsibilities:
+
+- Execute workflows.
+- Coordinate domain actions.
+- Manage transactions.
+- Publish events.
+
+Examples:
+
+```
+Publish Schedule
+
+Clock In Employee
+
+Complete Task
+```
+
+---
+
+# 8. Domain Layer
+
+The domain layer contains business rules.
+
+Examples:
+
+Attendance:
+
+- Valid clock-in conditions.
+- Attendance state changes.
+
+Scheduling:
+
+- Shift assignment rules.
+- Schedule publishing rules.
+
+Task Management:
+
+- Completion requirements.
+- Verification rules.
+
+---
+
+# 9. Database Layer
+
+The database layer manages:
+
+- Queries.
+- Persistence.
+- Transactions.
+- Database functions.
+- RLS interaction.
+
+The database remains the source of truth.
+
+---
+
+# 10. Backend Modules
+
+Backend modules align with business domains:
+
+## Organization
+
+Handles:
+
+- Tenants.
+- Branches.
+- Organization settings.
+
+---
+
+## Workforce
+
+Handles:
+
+- Employees.
+- Employment records.
+
+---
+
+## Scheduling
+
+Handles:
+
+- Schedules.
+- Shifts.
+- Assignments.
+
+---
+
+## Attendance
+
+Handles:
+
+- Clock events.
+- Attendance records.
+
+---
+
+## Task Management
+
+Handles:
+
+- Tasks.
+- Verification.
+- History.
+
+---
+
+## Communication
+
+Handles:
+
+- Announcements.
+- Notice boards.
+
+---
+
+## Notification
+
+Handles:
+
+- Delivery.
+- Preferences.
+
+---
+
+# 11. Transactions
+
+Business operations requiring consistency should execute within transactions.
+
+Examples:
+
+Publishing a schedule:
+
+```
+Validate Schedule
+
+↓
+
+Update Schedule Status
+
+↓
+
+Create Event
+
+↓
+
+Commit Transaction
+```
+
+---
+
+# 12. Error Handling
+
+Backend errors should:
+
+- Be predictable.
+- Avoid exposing sensitive information.
+- Provide useful client feedback.
+- Be logged appropriately.
+
+Detailed error handling is defined in API-006.
+
+---
+
+# 13. Scalability
+
+The backend should support:
+
+- Horizontal scaling.
+- Stateless services.
+- Independent background processing.
+- Increased tenant workloads.
+
+The architecture should allow future service extraction if required.
+
+---
+
+# 14. Future Enhancements
+
+Future versions may support:
+
+- Dedicated backend services.
+- External API integrations.
+- Advanced workflow orchestration.
+- Enterprise integrations.
+- AI-powered operations.
+
+---
+
+# 15. Related Specifications
+
+- ARCH-003 Service Architecture
+- ARCH-005 Workflow Architecture
+- DB-001 Database Philosophy
+- API-002 RPC Standards
+- API-005 Event System
+- SEC-009 API Security
+
+---
+
+# 16. Summary
+
+The ShiftOS backend provides the central execution layer for workforce operations.
+
+By organizing around business domains, enforcing security centrally and separating API handling from business logic, the backend provides a scalable foundation for web, mobile and future platform integrations.
