@@ -6,7 +6,7 @@
 
 **Version:** 1.0.0
 
-**Status:** Draft
+**Status:** Approved
 
 **Classification:** Database
 
@@ -14,519 +14,113 @@
 
 **Created:** 2026-08-04
 
-**Last Updated:** 2026-08-04
+**Last Updated:** 2026-08-06
 
 ---
 
 # 1. Purpose
 
-This document defines the core database tables used within the ShiftOS platform.
-
-Each table represents a persistent business entity or supporting system resource.
-
-Detailed column definitions, constraints and indexes are documented separately.
+This document defines the 27 authoritative database tables used within the ShiftOS platform.
 
 ---
 
 # 2. Table Design Principles
 
 ShiftOS tables follow these principles:
-
-- One table represents one primary business concept.
-- Tables have clear ownership.
-- Tenant-owned tables include organization ownership.
-- Historical data is preserved where required.
-- Relationships are enforced through foreign keys.
-- Tables should support reporting requirements.
+- Normalized relational model.
+- Enterprise-grade tenant isolation with Row-Level Security.
+- Composite foreign keys for referential integrity.
+- Automated system auditing.
 
 ---
 
-# 3. Platform Tables
+# 3. Core Table Definitions (Inventory of All 27 Tables)
 
-## organizations
-
-Purpose:
-
+## 1. organizations
 Stores tenant organizations using the ShiftOS platform.
 
-Ownership:
-
-Platform
-
-Contains:
-
-- Organization identity.
-- Subscription information.
-- Organization settings.
-- Lifecycle status.
-
----
-
-## branches
-
-Purpose:
-
+## 2. branches
 Stores physical operating locations belonging to organizations.
 
-Ownership:
-
-Platform
-
-Relationship:
-
-Organization → Many Branches
-
-Contains:
-
-- Branch identity.
-- Location information.
-- Operational settings.
-- Status.
-
----
-
-# 4. Identity & Access Tables
-
-## users
-
-Purpose:
-
+## 3. users
 Stores authenticated system users.
 
-Ownership:
+## 4. organization_memberships
+Junction table linking users to organizations and assigning roles.
 
-Identity
+## 5. roles
+Stores organization-specific security roles.
 
-Contains:
+## 6. permissions
+Stores system-wide access permissions.
 
-- User identity.
-- Authentication references.
-- Account status.
+## 7. role_permissions
+Junction table mapping permissions to roles.
 
----
-
-## organization_members
-
-Purpose:
-
-Links users to organizations.
-
-Ownership:
-
-Identity
-
-Relationship:
-
-User ↔ Organization
-
-Contains:
-
-- Membership status.
-- Organization access.
-- User association.
-
----
-
-## roles
-
-Purpose:
-
-Stores system roles.
-
-Ownership:
-
-Security
-
-Contains:
-
-- Role definitions.
-- Permission groups.
-
----
-
-## permissions
-
-Purpose:
-
-Stores available system permissions.
-
-Ownership:
-
-Security
-
-Contains:
-
-- Permission identifiers.
-- Permission descriptions.
-
----
-
-## role_permissions
-
-Purpose:
-
-Maps permissions to roles.
-
-Relationship:
-
-Role ↔ Permission
-
----
-
-# 5. Workforce Tables
-
-## employees
-
-Purpose:
-
+## 8. employees
 Stores employee workforce records.
 
-Ownership:
+## 9. employee_history
+Tracks historical changes to employee records for audit compliance.
 
-Workforce
+## 10. shift_templates
+Reusable branch-scoped shift templates used by scheduling.
 
-Relationship:
+## 11. schedules
+Weekly scheduling boundaries holding planned shifts.
 
-Organization → Employees
+## 12. schedule_versions
+Stores historical snapshotted versions of published schedules.
 
-Contains:
+## 13. shifts
+Scheduled work shifts scoped to branches.
 
-- Employee profile information.
-- Employment status.
-- Branch association.
+## 14. shift_assignments
+Maps scheduled shifts to employees.
 
----
+## 15. attendance_records
+Tracks actual clock punches, break times, and worked durations.
 
-## employee_history
+## 16. attendance_corrections
+Approved administrative manual adjustments to employee clock punches.
 
-Purpose:
+## 17. leave_requests
+Employee leave submissions, balance tracking, and approvals.
 
-Stores historical changes to employee information.
+## 18. tasks
+Operational tasks assigned by managers.
 
-Ownership:
+## 19. task_assignments
+Maps operational tasks to employees.
 
-Workforce
+## 20. task_history
+Lifecycle logs of task state progressions.
 
-Contains:
+## 21. announcements
+Tenant-wide or branch-scoped messaging.
 
-- Previous values.
-- Effective dates.
-- Change reasons.
+## 22. announcement_acknowledgements
+Tracks employee read acknowledgments for announcements.
 
----
+## 23. notifications
+Generated user notification records.
 
-# 6. Scheduling Tables
+## 24. notification_preferences
+User delivery configurations (push, email, SMS).
 
-## schedules
+## 25. notification_delivery_attempts
+Audit logs of notification retries and outcomes.
 
-Purpose:
+## 26. audit_logs
+Platform security and administrative change tracking logs.
 
-Stores workforce schedules.
-
-Ownership:
-
-Scheduling
-
-Contains:
-
-- Schedule information.
-- Date ranges.
-- Publishing status.
-
----
-
-## schedule_versions
-
-Purpose:
-
-Stores historical versions of schedules.
-
-Ownership:
-
-Scheduling
-
-Purpose:
-
-Allows schedule changes to be tracked.
+## 27. security_events
+Tracks authentication logins, security overrides, and role changes.
 
 ---
 
-## shifts
-
-Purpose:
-
-Stores individual shift records.
-
-Ownership:
-
-Scheduling
-
-Contains:
-
-- Start time.
-- End time.
-- Shift status.
-
----
-
-## shift_assignments
-
-Purpose:
-
-Maps employees to shifts.
-
-Relationship:
-
-Employee ↔ Shift
-
----
-
-# 7. Attendance Tables
-
-## attendance_records
-
-Purpose:
-
-Stores employee attendance activity.
-
-Ownership:
-
-Attendance
-
-Contains:
-
-- Clock-in information.
-- Clock-out information.
-- Attendance state.
-
----
-
-## attendance_corrections
-
-Purpose:
-
-Stores approved attendance adjustments.
-
-Ownership:
-
-Attendance
-
-Contains:
-
-- Original values.
-- Corrected values.
-- Approval information.
-
----
-
-# 8. Task Management Tables
-
-## tasks
-
-Purpose:
-
-Stores operational tasks.
-
-Ownership:
-
-Task Management
-
-Contains:
-
-- Task details.
-- Status.
-- Priority.
-
----
-
-## task_assignments
-
-Purpose:
-
-Maps tasks to employees.
-
-Relationship:
-
-Employee ↔ Task
-
----
-
-## task_history
-
-Purpose:
-
-Stores task lifecycle changes.
-
-Contains:
-
-- Status changes.
-- Verification events.
-- Completion records.
-
----
-
-# 9. Communication Tables
-
-## announcements
-
-Purpose:
-
-Stores organizational announcements.
-
-Ownership:
-
-Communication
-
----
-
-## announcement_acknowledgements
-
-Purpose:
-
-Stores employee acknowledgement records.
-
-Relationship:
-
-Announcement ↔ Employee
-
----
-
-# 10. Notification Tables
-
-## notifications
-
-Purpose:
-
-Stores generated notifications.
-
-Ownership:
-
-Notification
-
----
-
-## notification_preferences
-
-Purpose:
-
-Stores user notification settings.
-
----
-
-## notification_delivery_attempts
-
-Purpose:
-
-Tracks notification delivery status.
-
----
-
-# 11. Audit & Security Tables
-
-## audit_logs
-
-Purpose:
-
-Stores important system activity.
-
-Contains:
-
-- Actor.
-- Action.
-- Resource.
-- Timestamp.
-
----
-
-## security_events
-
-Purpose:
-
-Stores security-related events.
-
-Examples:
-
-- Login activity.
-- Permission changes.
-- Session events.
-
----
-
-# 12. Reporting Tables
-
-Reporting structures may include:
-
-- Database views.
-- Materialized views.
-- Aggregated reporting tables.
-
-These should not replace operational tables.
-
----
-
-# 13. Common Table Columns
-
-Most tables should include:
-
-```
-id
-
-organization_id (where applicable)
-
-created_at
-
-updated_at
-
-deleted_at (where applicable)
-```
-
-Additional columns depend on the business purpose of each table.
-
----
-
-# 14. Table Ownership Rules
-
-Each table must have:
-
-- One owning domain.
-- Defined relationships.
-- Defined lifecycle.
-- Defined security rules.
-
-Tables should not become shared dumping grounds for unrelated features.
-
----
-
-# 15. Future Tables
-
-Potential future additions:
-
-- Departments.
-- Employee certifications.
-- Payroll integrations.
-- External integrations.
-- Advanced analytics storage.
-- AI recommendation history.
-
-Future tables should follow the same ownership principles.
-
----
-
-# 16. Related Specifications
-
+# 4. Related Specifications
+- DB-001 Database Philosophy
 - DB-003 Schema Overview
-- DB-004 Entity Relationships
-- DB-006 Constraints
-- DB-007 Indexes
-- DB-008 Enums
 - DB-012 Migrations
-
----
-
-# 17. Summary
-
-The ShiftOS database consists of domain-owned tables representing organizations, workforce operations, scheduling, attendance, tasks, communication, notifications and security activity.
-
-Each table exists to represent durable business information and follows consistent ownership, relationship and security principles.
-
-The table architecture provides a strong foundation for reliable workforce operations while remaining flexible for future platform expansion.
+- SEC-004 Row-Level Security

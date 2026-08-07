@@ -133,16 +133,6 @@ BEGIN
         AND trim(employee_number) <> ''
       );
   END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint c JOIN pg_class t ON c.conrelid = t.oid
-    WHERE t.relname = 'employees' AND c.conname = 'chk_employees_hire_date_not_future')
-  THEN
-    ALTER TABLE public.employees
-      ADD CONSTRAINT chk_employees_hire_date_not_future CHECK (
-        hire_date <= current_date
-      );
-  END IF;
 END$$;
 
 -- Indexes
@@ -186,14 +176,9 @@ COMMENT ON COLUMN public.employees.branch_id IS 'Current primary branch assignme
 COMMENT ON COLUMN public.employees.employee_number IS 'Organization-specific employee identifier; unique within the organization.';
 COMMENT ON COLUMN public.employees.email IS 'Optional employee email address used for communication and identification.';
 COMMENT ON COLUMN public.employees.phone IS 'Optional employee phone number.';
-COMMENT ON COLUMN public.employees.hire_date IS 'Employee hire date; must not be in the future.';
+COMMENT ON COLUMN public.employees.hire_date IS 'Employee hire date; must not be in the future (enforced by trigger).';
 COMMENT ON COLUMN public.employees.employment_status IS 'Current employment lifecycle status.';
 COMMENT ON COLUMN public.employees.notes IS 'Optional internal notes about the employee.';
-
--- Future branch history note:
--- A later migration should create employee_branch_assignments to capture branch transfers,
--- effective dates, transfer reasons, approval history and historical reporting.
--- This migration only records the employee's current primary branch in employees.branch_id.
 
 -- Row-Level Security (RLS)
 -- RLS is enabled now to lock down employee records. Policies will be implemented in a later migration alongside tenant-aware identity and membership rules.
@@ -209,5 +194,31 @@ BEGIN
     CREATE TRIGGER trg_employees_set_updated_at
       BEFORE UPDATE ON public.employees
       FOR EACH ROW EXECUTE FUNCTION public.trg_set_updated_at();
+  END IF;
+END$$;
+
+-- Validation Trigger: ensure hire_date is not in the future (stable validation helper)
+CREATE OR REPLACE FUNCTION public.trg_employees_validate()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.hire_date > current_date THEN
+    RAISE EXCEPTION 'Hire date cannot be in the future';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- Attach validation trigger to employees
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger t JOIN pg_class c ON t.tgrelid = c.oid
+    WHERE t.tgname = 'trg_employees_validate' AND c.relname = 'employees')
+  THEN
+    CREATE TRIGGER trg_employees_validate
+      BEFORE INSERT OR UPDATE ON public.employees
+      FOR EACH ROW EXECUTE FUNCTION public.trg_employees_validate();
   END IF;
 END$$;
