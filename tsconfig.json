@@ -18,6 +18,8 @@
     { "path": "./packages/validation" },
     { "path": "./packages/errors" },
     { "path": "./packages/repositories" },
+    { "path": "./packages/services" },
+    { "path": "./packages/api" },
     { "path": "./packages/backend" }
   ]
 }

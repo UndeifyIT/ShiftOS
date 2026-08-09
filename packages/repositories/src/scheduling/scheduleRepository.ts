@@ -19,6 +19,12 @@ export class ScheduleRepository extends BranchScopedRepository<Schedule> {
     super(client, 'schedules');
   }
 
+  /** Exact (branch_id, start_date, end_date) match — mirrors uq_schedules_branch_active_dates, so callers can pre-check and return a clean ValidationError instead of surfacing a raw unique-constraint violation. */
+  async findExact(organizationId: string, branchId: string, startDate: string, endDate: string): Promise<Schedule | null> {
+    const matches = await this.list(organizationId, { filters: { branch_id: branchId, start_date: startDate, end_date: endDate } });
+    return matches[0] ?? null;
+  }
+
   async findCoveringDate(organizationId: string, branchId: string, date: string): Promise<Schedule | null> {
     const rows = await this.client.query<Schedule>(
       `SELECT * FROM schedules

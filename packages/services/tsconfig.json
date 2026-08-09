@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": true,
+    "declarationMap": true,
+    "composite": true,
+    "noEmit": false
+  },
+  "references": [
+    { "path": "../authorization" },
+    { "path": "../database" },
+    { "path": "../errors" },
+    { "path": "../repositories" },
+    { "path": "../types" }
+  ],
+  "include": ["src"]
+}

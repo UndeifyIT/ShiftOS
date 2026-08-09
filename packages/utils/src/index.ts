@@ -1,8 +1,8 @@
-import type { LogLevel, ApiResponse } from '@shiftos/types';
+import type { LogLevel, ApiResponse, ApiError } from '@shiftos/types';
 import { ShiftOSError, ValidationError, AuthorizationError, NotFoundError, DatabaseError, ConfigError, HttpError } from '@shiftos/errors';
 
-export function buildApiResponse<T>(data: T | null, error?: string): ApiResponse<T> {
-  return { data, error };
+export function buildApiResponse<T>(data: T | null, error?: ApiError): ApiResponse<T> {
+  return { success: error === undefined, data, error };
 }
 
 export function isString(value: unknown): value is string {
@@ -17,11 +17,8 @@ export function normalizeLogLevel(level: string | undefined): LogLevel {
   return 'info';
 }
 
-export interface SafeApiError {
-  message: string;
-  code: string;
+export interface SafeApiError extends ApiError {
   statusCode: number;
-  details?: string[];
 }
 
 /**
@@ -58,8 +55,8 @@ export function toSafeApiError(error: unknown): SafeApiError {
   return { message: 'An unexpected error occurred', code: 'INTERNAL_ERROR', statusCode: 500 };
 }
 
-/** Builds a client-safe ApiResponse error envelope directly from a thrown value. */
+/** Builds a client-safe ApiResponse error envelope (success: false) directly from a thrown value. */
 export function buildErrorApiResponse<T>(error: unknown): ApiResponse<T> {
   const safe = toSafeApiError(error);
-  return buildApiResponse<T>(null, safe.message);
+  return buildApiResponse<T>(null, { message: safe.message, code: safe.code, details: safe.details });
 }

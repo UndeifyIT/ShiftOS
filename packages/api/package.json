@@ -1,0 +1,19 @@
+{
+  "name": "@shiftos/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@shiftos/database": "workspace:*",
+    "@shiftos/errors": "workspace:*",
+    "@shiftos/repositories": "workspace:*",
+    "@shiftos/services": "workspace:*",
+    "@shiftos/types": "workspace:*",
+    "@shiftos/utils": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

@@ -48,7 +48,14 @@ export interface ValidationResult {
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+export interface ApiError {
+  message: string;
+  code: string;
+  details?: string[];
+}
+
 export interface ApiResponse<T> {
+  success: boolean;
   data: T | null;
-  error?: string;
+  error?: ApiError;
 }
