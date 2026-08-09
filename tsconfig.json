@@ -11,6 +11,13 @@
     { "path": "./packages/constants" },
     { "path": "./packages/types" },
     { "path": "./packages/ui" },
-    { "path": "./packages/utils" }
+    { "path": "./packages/utils" },
+    { "path": "./packages/database" },
+    { "path": "./packages/auth" },
+    { "path": "./packages/authorization" },
+    { "path": "./packages/validation" },
+    { "path": "./packages/errors" },
+    { "path": "./packages/repositories" },
+    { "path": "./packages/backend" }
   ]
 }

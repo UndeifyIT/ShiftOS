@@ -1,0 +1,2 @@
+curl: (56) schannel: failed to read data from server: SEC_E_DECRYPT_FAILURE (0x80090330) - The specified data could not be decrypted.
+Failed to download binary 

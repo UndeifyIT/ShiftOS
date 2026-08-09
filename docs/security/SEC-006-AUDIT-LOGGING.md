@@ -90,3 +90,10 @@ This specification covers auditable actions, log contents, retention, and review
 - What retention period is required for MVP?
 
 ## Decision History
+
+**2026-08-09 — Implementation status:** `audit_logs` and `security_events` are
+append-only as of migration 024: RLS defines SELECT and INSERT policies only (no
+UPDATE/DELETE policy exists, so both commands default-deny), backed by a
+`BEFORE UPDATE OR DELETE` trigger that unconditionally rejects mutation, independent
+of RLS bypass. Verified live against both the standard `authenticated` role and the
+RLS-bypassing table-owner role (2026-08-09).

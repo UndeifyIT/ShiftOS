@@ -4,7 +4,9 @@
     "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "outDir": "dist"
+    "outDir": "dist",
+    "composite": true,
+    "noEmit": false
   },
   "include": ["src"],
   "references": [

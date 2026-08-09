@@ -1,0 +1,17 @@
+{
+  "name": "@shiftos/authorization",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@shiftos/database": "workspace:*",
+    "@shiftos/errors": "workspace:*",
+    "@shiftos/repositories": "workspace:*",
+    "@shiftos/types": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

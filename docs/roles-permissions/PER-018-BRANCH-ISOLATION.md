@@ -252,6 +252,27 @@ Frontend restrictions are not considered security controls.
 
 ---
 
+# 12a. Implementation Status (2026-08-09)
+
+Implemented via migrations 020-022:
+
+- `roles.grants_org_wide_branch_access` marks organization-wide roles (Rule 2, Manager).
+- `organization_member_branch_access` grants a specific `organization_memberships`
+  row access to one or more branches (Rules 3-4, Supervisor/Staff), independent of
+  any `employees` record -- see GOV-003 DEC-032 for why authorization identity and
+  workforce identity are kept separate.
+- `public.user_accessible_branches()` resolves the caller's accessible branch set;
+  applied as an RLS predicate to every branch-owned table (employees, shift_templates,
+  shifts, shift_assignments, attendance_records, leave_requests, tasks,
+  task_assignments, schedules, announcements).
+- Not yet branch-scoped (organization-level only, documented follow-up):
+  attendance_corrections, announcement_acknowledgements, employee_history,
+  task_history, schedule_versions.
+
+Section 9 ("Temporary Operational Takeover") and multi-branch Manager scenarios are
+satisfied by the org-wide flag; per-branch temporary/time-boxed grants (distinct from
+a standing `organization_member_branch_access` row) remain a future enhancement.
+
 # 13. Summary
 
 Branch Isolation ensures ShiftOS can securely support organizations with multiple supermarket locations.

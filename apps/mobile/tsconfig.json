@@ -4,7 +4,9 @@
     "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "noEmit": true
+    "outDir": "dist",
+    "composite": true,
+    "noEmit": false
   },
   "include": ["src", "App.tsx"],
   "references": [

@@ -89,3 +89,12 @@ This specification covers tenant, branch, department, and resource-level access 
 - Which tables require row-level enforcement first?
 
 ## Decision History
+
+**2026-08-09 — Implementation status:** RLS enforces three independent boundaries,
+each implemented as of migration 024:
+- **Organization:** every tenant-owned table filters via `public.get_user_organizations()` (017).
+- **Branch:** tables with a `branch_id` (directly or via a parent shift/task) additionally filter via `public.user_accessible_branches()` (021-022), per PER-018.
+- **Role/permission:** writes to `roles`, `role_permissions`, and `organization_memberships` require `public.user_has_permission()` (020, 023); a member can never change their own `role_id`.
+
+See GOV-003 DEC-031/DEC-032 for the full rationale and ShiftOS Enterprise Database
+Readiness Audit (2026-08-09) for the gap this closed.

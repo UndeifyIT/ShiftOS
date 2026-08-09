@@ -89,3 +89,11 @@ This specification covers isolation in data storage, access control, workflows, 
 - Which operational tasks require elevated cross-tenant support access?
 
 ## Decision History
+
+**2026-08-09 — Implementation status:** organization isolation is enforced on all 28
+tables via `public.get_user_organizations()` (017), which resolves strictly from the
+caller's authenticated identity (`auth.uid()` -> `users` -> `organization_memberships`),
+never from a client-supplied `organization_id`. `organization_memberships.role_id` is
+tenant-bound via a composite `(role_id, organization_id)` foreign key (019), closing
+a gap that previously allowed a membership to reference another organization's role.
+Verified live via transactional cross-organization access tests (2026-08-09).

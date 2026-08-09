@@ -9,6 +9,7 @@
   "scripts": {
     "dev:web": "pnpm --filter @shiftos/web dev",
     "start:mobile": "pnpm --filter @shiftos/mobile start",
+    "build": "pnpm -w exec tsc -b",
     "build:web": "pnpm --filter @shiftos/web build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",

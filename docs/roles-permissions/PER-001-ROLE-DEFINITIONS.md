@@ -400,6 +400,27 @@ Permissions should reflect real supermarket operations rather than organizationa
 
 ---
 
+# 14a. Implemented Authorization-Management Permissions (2026-08-09)
+
+Three permission codes gate role/permission/membership management at the database
+level (migration 023), enforced via `public.user_has_permission()`:
+
+| Code | Grants |
+|------|--------|
+| `org.roles.manage` | Create/update/delete roles; grant or revoke role_permissions |
+| `org.members.manage` | Add/remove members; change a member's role (never their own) |
+| `org.branches.manage` | Grant or revoke a member's branch access (`organization_member_branch_access`) |
+
+A new organization's first role (default name "Owner") is granted all three, plus
+every other active permission, by `create_organization_with_owner()` -- the only
+supported path to bootstrap a new tenant. See GOV-003 DEC-031.
+
+Note: existing example permission codes elsewhere in this document use underscores
+(e.g. `publish_schedule`); the enforced `permissions.code` format
+(`chk_permissions_code_format`, migration 002) only allows lowercase letters, digits,
+and dot-separated segments -- no underscores. The three codes above follow the
+enforced format.
+
 # 15. Summary
 
 The ShiftOS Permission Matrix is the authoritative specification for platform authorization.

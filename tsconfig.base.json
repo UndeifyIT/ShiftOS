@@ -14,12 +14,12 @@
     "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
-      "@shiftos/*": ["packages/*/src"],
-      "@shiftos/config": ["packages/config/src"],
-      "@shiftos/constants": ["packages/constants/src"],
-      "@shiftos/types": ["packages/types/src"],
-      "@shiftos/ui": ["packages/ui/src"],
-      "@shiftos/utils": ["packages/utils/src"]
+      "@shiftos/*": ["packages/*/dist", "packages/*/src"],
+      "@shiftos/config": ["packages/config/dist", "packages/config/src"],
+      "@shiftos/constants": ["packages/constants/dist", "packages/constants/src"],
+      "@shiftos/types": ["packages/types/dist", "packages/types/src"],
+      "@shiftos/ui": ["packages/ui/dist", "packages/ui/src"],
+      "@shiftos/utils": ["packages/utils/dist", "packages/utils/src"]
     }
   },
   "include": ["apps", "packages", "docs", "scripts"],

@@ -20,7 +20,11 @@
 
 # 1. Purpose
 
-This document defines the 27 authoritative database tables used within the ShiftOS platform.
+This document defines the 28 authoritative database tables used within the ShiftOS platform.
+
+> **2026-08-09:** Updated from 27 to 28 tables with the addition of
+> `organization_member_branch_access` (migration 021), implementing PER-018 branch
+> isolation. See GOV-003 DEC-031/DEC-032 for the architectural rationale.
 
 ---
 
@@ -34,7 +38,7 @@ ShiftOS tables follow these principles:
 
 ---
 
-# 3. Core Table Definitions (Inventory of All 27 Tables)
+# 3. Core Table Definitions (Inventory of All 28 Tables)
 
 ## 1. organizations
 Stores tenant organizations using the ShiftOS platform.
@@ -56,6 +60,9 @@ Stores system-wide access permissions.
 
 ## 7. role_permissions
 Junction table mapping permissions to roles.
+
+## 7a. organization_member_branch_access
+Explicit grants of branch access to an organization membership (authorization identity, not workforce identity). A member may hold multiple grants; organization-wide roles (`roles.grants_org_wide_branch_access`) do not require rows here. Implements PER-018 branch isolation. See DEC-032.
 
 ## 8. employees
 Stores employee workforce records.

@@ -1046,3 +1046,129 @@ Examples:
 - SEC-005
 - PER-004
 - PER-006
+
+---
+
+## DEC-031 — Database Remediation: Tenant-Safe Authorization, Branch Access, and Audit Immutability
+
+**Date:** 2026-08-09
+
+**Status:** Approved
+
+**Category:** Security / Architecture / Database
+
+### Decision
+
+Migrations 018-024 corrected six confirmed production blockers found by the ShiftOS
+Enterprise Database Readiness Audit, without rewriting any historical migration
+(001-017 remain immutable):
+
+- **018** restored validation/calculation logic silently dropped by migration 017
+  (tasks/attendance_records optimistic-locking version increments, attendance
+  worked_minutes calculation, leave_requests post-decision immutability).
+- **019** made `organization_memberships.role_id` tenant-safe via a composite
+  `(role_id, organization_id)` foreign key, closing a gap that allowed a membership
+  to reference another organization's role.
+- **020-021** established the branch-authorization model per DEC-032 below.
+- **022** added branch-scoped RLS to every table with its own `branch_id` plus
+  `shift_assignments`/`task_assignments` (derived via their parent shift/task).
+- **023** closed a self-service privilege-escalation path: `roles`, `role_permissions`,
+  and `organization_memberships` writes now require `org.roles.manage` /
+  `org.members.manage`; a trigger separately blocks a member from changing their own
+  `role_id` regardless of permission level; a `create_organization_with_owner()`
+  bootstrap function provides the only path to seed a new tenant's first role and
+  membership now that ordinary writes are permission-gated.
+- **024** made `audit_logs`/`security_events` genuinely append-only: no UPDATE/DELETE
+  RLS policy exists for either table (default-deny), backed by a trigger that blocks
+  mutation unconditionally, independent of RLS bypass.
+
+All seven migrations were applied to and verified against the live Supabase project,
+including transactional (rollback-safe) tests simulating cross-organization access,
+branch-scoped access, self-escalation attempts, and audit tampering attempts.
+
+### Rationale
+
+RLS enforced organization isolation correctly but had no role/permission gate on
+who could modify roles, permissions, or memberships, and no branch concept at all --
+contradicting PER-018 (Approved) and SEC-004's own requirement that database access
+"respect organization, branch, and role boundaries."
+
+### Alternatives Considered
+
+- Rewriting migrations 011/012/017 in place -- rejected: already-applied migrations
+  are treated as immutable history per DB-012's migration philosophy.
+- Gating access at the application layer only -- rejected: Supabase exposes tables
+  directly over PostgREST, so RLS is the only enforcement boundary that actually
+  exists until the application layer (packages/backend, /authorization,
+  /repositories) is implemented.
+
+### Impact
+
+- New table `organization_member_branch_access` and `roles.grants_org_wide_branch_access`
+  column (see DEC-032).
+- New permission codes `org.roles.manage`, `org.members.manage`, `org.branches.manage`
+  (PER-002).
+- New onboarding requirement: organizations must now be created via
+  `create_organization_with_owner()`, not a direct client INSERT into `organizations`.
+- Application-layer authorization (packages/authorization) should call the same
+  `user_has_permission()` / `user_accessible_branches()` helpers the database uses,
+  rather than re-implementing the rule set, per DEC-018's separation of authorization
+  from authentication.
+
+### Related Specifications
+
+- SEC-004, SEC-005, SEC-006, PER-002, PER-018, DB-005, DB-012
+
+---
+
+## DEC-032 — Branch Access Is Granted To Organization Membership, Not Derived From Employee Records
+
+**Date:** 2026-08-09
+
+**Status:** Approved
+
+**Category:** Architecture / Database / Security
+
+### Decision
+
+Branch-level authorization (PER-018) is resolved from `organization_memberships` --
+the platform-access/authorization identity -- not from `employees` -- the workforce
+identity. A member's accessible branches are the union of:
+
+1. Every branch in the organization, if their role has
+   `roles.grants_org_wide_branch_access = true` (organization-wide roles, e.g. Manager).
+2. Explicit grants in `organization_member_branch_access`, a member-to-branch table
+   supporting multiple simultaneous branch grants per member.
+
+An organization owner/administrator therefore never needs an `employees` row merely
+to hold administrative or branch-scoped access.
+
+### Rationale
+
+EMP-003 and PER-018 both describe employees as having exactly one *primary* branch
+for workforce purposes (scheduling, attendance), which is a different concept from
+*authorization* to access branch-scoped data as an acting user. Deriving
+authorization from the employee record would force every administrator to also be
+modeled as an employee, and would conflate "where do you work" with "what can you
+see" -- the latter must hold even for organization-wide roles with no fixed branch
+and for members who access multiple branches.
+
+### Alternatives Considered
+
+- Deriving branch RLS scope from `employees.branch_id` directly, requiring an
+  `employees.user_id` link -- rejected: forces every authorized user to have an
+  employee record, and does not support multi-branch access without further schema
+  changes.
+- A branch-membership table keyed to `employees` instead of
+  `organization_memberships` -- rejected for the same reason.
+
+### Impact
+
+`organization_member_branch_access` and `public.user_accessible_branches()` (021)
+are the canonical branch-authorization mechanism. `employees.branch_id` remains the
+workforce *primary branch* used by scheduling/attendance defaults (EMP-003) and is
+not used for RLS.
+
+### Related Specifications
+
+- PER-018, EMP-003, DEC-016, DEC-026

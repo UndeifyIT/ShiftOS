@@ -1,0 +1,23 @@
+{
+  "name": "@shiftos/backend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@shiftos/auth": "workspace:*",
+    "@shiftos/authorization": "workspace:*",
+    "@shiftos/config": "workspace:*",
+    "@shiftos/constants": "workspace:*",
+    "@shiftos/database": "workspace:*",
+    "@shiftos/errors": "workspace:*",
+    "@shiftos/repositories": "workspace:*",
+    "@shiftos/types": "workspace:*",
+    "@shiftos/validation": "workspace:*",
+    "@shiftos/utils": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}
