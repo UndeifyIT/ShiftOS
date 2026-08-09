@@ -16,6 +16,8 @@
     { "path": "../database" },
     { "path": "../errors" },
     { "path": "../repositories" },
+    { "path": "../services" },
+    { "path": "../api" },
     { "path": "../types" },
     { "path": "../validation" },
     { "path": "../utils" }

@@ -5,6 +5,8 @@ export * from '@shiftos/constants';
 export * from '@shiftos/database';
 export * from '@shiftos/errors';
 export * from '@shiftos/repositories';
+export * from '@shiftos/services';
+export * from '@shiftos/api';
 export * from '@shiftos/types';
 export * from '@shiftos/validation';
 export * from '@shiftos/utils';

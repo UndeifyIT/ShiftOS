@@ -5,6 +5,11 @@
     "version": "0.1.0",
     "sdkVersion": "57.0.0",
     "platforms": ["ios", "android", "web"],
-    "jsEngine": "hermes"
+    "jsEngine": "hermes",
+    "extra": {
+      "supabaseUrl": "https://your-project-ref.supabase.co",
+      "supabaseAnonKey": "your-supabase-anon-key",
+      "apiUrl": "http://localhost:8787"
+    }
   }
 }

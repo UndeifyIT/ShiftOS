@@ -1,12 +1,21 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { App } from './App.js';
+import { SessionProvider } from './auth/SessionProvider.js';
+import { queryClient } from './lib/queryClient.js';
+import './styles/global.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <React.StrictMode>
-    <div>
-      <h1>ShiftOS Web</h1>
-      <p>Engineering foundation only.</p>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <SessionProvider>
+          <App />
+        </SessionProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   </React.StrictMode>
 );

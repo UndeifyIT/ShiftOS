@@ -13,11 +13,19 @@
     "@shiftos/database": "workspace:*",
     "@shiftos/errors": "workspace:*",
     "@shiftos/repositories": "workspace:*",
+    "@shiftos/services": "workspace:*",
+    "@shiftos/api": "workspace:*",
     "@shiftos/types": "workspace:*",
     "@shiftos/validation": "workspace:*",
-    "@shiftos/utils": "workspace:*"
+    "@shiftos/utils": "workspace:*",
+    "@supabase/supabase-js": "^2.35.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.1"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js"
   }
 }
