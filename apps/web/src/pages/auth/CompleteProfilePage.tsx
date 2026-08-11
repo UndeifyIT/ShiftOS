@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, FormField, InlineError, Input } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { AuthLayout } from './AuthLayout.js';
+
+const PENDING_NAME_KEY = 'shiftos.pendingName';
 
 /**
  * Not a numbered screen in FD-4 on its own — it's the concrete UI for the
@@ -16,6 +18,21 @@ export default function CompleteProfilePage(): React.ReactElement {
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // SignUpPage stashes the name the person typed there so they don't have
+  // to retype it here — best-effort only, cleared immediately after use.
+  useEffect(() => {
+    const pending = window.sessionStorage.getItem(PENDING_NAME_KEY);
+    if (!pending) return;
+    window.sessionStorage.removeItem(PENDING_NAME_KEY);
+    try {
+      const parsed = JSON.parse(pending) as { firstName?: string; lastName?: string };
+      if (parsed.firstName) setFirstName(parsed.firstName);
+      if (parsed.lastName) setLastName(parsed.lastName);
+    } catch {
+      // Malformed sessionStorage value — ignore, the form just starts blank.
+    }
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();

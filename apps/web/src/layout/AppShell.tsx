@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar.js';
 import { TopBar } from './TopBar.js';
+import { Shifty } from '../components/shifty/Shifty.js';
 
 /**
  * UI-003 §5 Application Shell + UI-010 §6 navigation adaptation: a
@@ -32,6 +33,8 @@ export function AppShell(): React.ReactElement {
           <Outlet />
         </main>
       </div>
+
+      <Shifty suggestedPrompts={['How do I create a schedule?', 'How do I add an employee?', 'How do invitations work?']} />
     </div>
   );
 }

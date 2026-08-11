@@ -11,10 +11,10 @@ export interface Employee {
 
 export type ShiftStatus = 'draft' | 'published' | 'scheduled' | 'active' | 'completed' | 'cancelled' | 'archived';
 
+/** No schedule_id column exists on shifts — matched to a schedule by branch_id + shift_date instead (see docs/backend/API-012-SCHEDULING-WORKFLOW.md §4.2). */
 export interface Shift {
   id: string;
   branch_id: string;
-  schedule_id: string;
   title: string;
   shift_date: string;
   start_time: string;

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Card, ContentSection, FormField, InlineError, Input, PageContainer, PageHeader } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
-import { useRpcQuery } from '../../lib/useRpc.js';
-import { supabase } from '../../lib/supabase.js';
+import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
+import { uploadUserAvatar } from '../../lib/avatars.js';
+import { AvatarUpload } from '../../components/AvatarUpload.js';
 import type { Employee } from '../../types/domain.js';
 
 /**
@@ -13,7 +14,7 @@ import type { Employee } from '../../types/domain.js';
  * organization admin, not an error.
  */
 export default function ProfilePage(): React.ReactElement {
-  const { profile, refresh } = useSession();
+  const { profile, authUser, refresh } = useSession();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -32,6 +33,10 @@ export default function ProfilePage(): React.ReactElement {
   const { data: employees } = useRpcQuery<Employee[]>('list_employees');
   const myEmployeeRecord = employees?.find((e) => e.email && profile?.email && e.email.toLowerCase() === profile.email.toLowerCase());
 
+  const updateProfileMutation = useRpcMutation<{ id: string }, { firstName?: string; lastName?: string; phone?: string | null; avatarUrl?: string | null }>(
+    'update_profile'
+  );
+
   const handleSubmit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
     if (!profile) return;
@@ -42,22 +47,34 @@ export default function ProfilePage(): React.ReactElement {
     setSaving(true);
     setError(null);
     setSaved(false);
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({ first_name: firstName.trim(), last_name: lastName.trim(), phone: phone.trim() || null })
-      .eq('id', profile.id);
-    setSaving(false);
-    if (updateError) {
+    try {
+      await updateProfileMutation.mutateAsync({ firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim() || null });
+      setSaved(true);
+      await refresh();
+    } catch {
       setError('Could not save your changes. Please try again.');
-      return;
+    } finally {
+      setSaving(false);
     }
-    setSaved(true);
+  };
+
+  const updateAvatar = async (newPath: string | null): Promise<void> => {
+    if (!profile) return;
+    await updateProfileMutation.mutateAsync({ avatarUrl: newPath });
     await refresh();
   };
 
   return (
     <PageContainer>
       <PageHeader title="My Profile" />
+      <Card className="mb-4 max-w-xl">
+        <AvatarUpload
+          name={`${firstName} ${lastName}`.trim() || profile?.email || 'Me'}
+          path={profile?.avatar_url ?? null}
+          onUpload={(file) => uploadUserAvatar(authUser!.id, file)}
+          onChange={(path) => void updateAvatar(path)}
+        />
+      </Card>
       <Card className="max-w-xl">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormField label="First name" htmlFor="firstName" required>

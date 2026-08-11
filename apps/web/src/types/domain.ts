@@ -44,6 +44,8 @@ export interface Employee {
   hire_date: string;
   employment_status: EmploymentStatus;
   notes: string | null;
+  /** Storage object path under the private `avatars` bucket, not a public URL — resolve with lib/avatars.ts's useSignedAvatarUrl. */
+  avatar_url: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -86,11 +88,11 @@ export interface ScheduleVersion {
 
 export type ShiftStatus = 'draft' | 'published' | 'scheduled' | 'active' | 'completed' | 'cancelled' | 'archived';
 
+/** No schedule_id column exists on shifts — a shift belongs to a schedule by branch_id + shift_date falling within the schedule's date range (see docs/backend/API-012-SCHEDULING-WORKFLOW.md §4.2). Don't add one here; it would silently be undefined at runtime. */
 export interface Shift {
   id: string;
   organization_id: string;
   branch_id: string;
-  schedule_id: string;
   template_id: string | null;
   title: string;
   description: string | null;
@@ -102,6 +104,35 @@ export interface Shift {
   status: ShiftStatus;
   published_at: string | null;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface Role {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  is_system: boolean;
+  is_active: boolean;
+  grants_org_wide_branch_access: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface Member {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role_id: string;
+  joined_at: string;
+  is_active: boolean;
+  user_email: string;
+  user_first_name: string;
+  user_last_name: string;
+  role_name: string;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

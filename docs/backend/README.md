@@ -16,11 +16,14 @@ This volume contains the specifications for the backend domain of ShiftOS.
 - API-008-LOGGING.md
 - API-009-RATE-LIMITING.md
 - API-010-API-VERSIONING.md
+- API-011-REPOSITORY-ARCHITECTURE.md
+- API-012-SCHEDULING-WORKFLOW.md
+- API-013-APPLICATION-SERVICE-LAYER.md
 
 ## Status
 
-Draft
+Draft (API-001–API-010); API-011–API-013 Approved (implemented, see individual documents)
 
 ## Last Updated
 
-TBD
+2026-08-09

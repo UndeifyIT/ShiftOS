@@ -105,6 +105,14 @@ export const listShiftsForSchedule = defineRpc('list_shifts_for_schedule', async
   return new SchedulingService(context).listShiftsForSchedule(requiredStringField(input, 'scheduleId'));
 });
 
+export const listShiftsForEmployeeInSchedule = defineRpc('list_shifts_for_employee_in_schedule', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).listShiftsForEmployeeInSchedule(
+    requiredStringField(input, 'scheduleId'),
+    requiredStringField(input, 'employeeId')
+  );
+});
+
 // ---- Shift assignments ----
 
 export const assignEmployee = defineRpc('assign_employee', async (context, rawInput: unknown) => {
@@ -149,7 +157,7 @@ export const publishSchedule = defineRpc('publish_schedule', async (context, raw
 export const schedulingOperations = [
   createSchedule, getSchedule, updateSchedule, archiveSchedule, listSchedules,
   listScheduleVersions, getLatestScheduleVersion,
-  createShift, getShift, updateShift, cancelShift, archiveShift, listShiftsForSchedule,
+  createShift, getShift, updateShift, cancelShift, archiveShift, listShiftsForSchedule, listShiftsForEmployeeInSchedule,
   assignEmployee, updateAssignmentStatus, removeAssignment, listAssignmentsForShift,
   publishSchedule
 ];

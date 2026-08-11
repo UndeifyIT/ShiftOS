@@ -6,6 +6,7 @@ This volume contains the specifications for the frontend domain of ShiftOS.
 
 ## Specifications Contained Within
 
+- SHIFTOS-FRONTEND-FOUNDATION.md (FD-1–FD-5: product/UI audit, role & permission mapping, information architecture, screen inventory, workflow specifications — read this first; it is the canonical product/UX foundation the UI-* documents below sit on top of)
 - UI-001-DESIGN-SYSTEM.md
 - UI-002-NAVIGATION.md
 - UI-003-LAYOUT-SYSTEM.md
@@ -21,8 +22,8 @@ This volume contains the specifications for the frontend domain of ShiftOS.
 
 ## Status
 
-Draft
+Approved (SHIFTOS-FRONTEND-FOUNDATION.md, UI-001–012); everything else in this volume (screen/component-level designs) is Future
 
 ## Last Updated
 
-TBD
+2026-08-09

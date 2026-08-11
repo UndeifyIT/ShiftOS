@@ -97,3 +97,16 @@ never from a client-supplied `organization_id`. `organization_memberships.role_i
 tenant-bound via a composite `(role_id, organization_id)` foreign key (019), closing
 a gap that previously allowed a membership to reference another organization's role.
 Verified live via transactional cross-organization access tests (2026-08-09).
+
+**2026-08-09 — Application-layer enforcement point (Milestone 4/5):** the backend's
+domain services (`packages/services`) connect to Postgres over a direct `pg.Pool`
+connection (`DATABASE_URL`), which does **not** go through PostgREST/`auth.uid()` and
+therefore does not receive the RLS enforcement described above for free. For that
+connection path, `ApplicationContext.organizationId` (resolved once per request by
+`resolveAuthorizationContext`, see API-011) is the real tenant boundary: every domain
+repository call is scoped by it explicitly, and every service method operates on
+`context.organizationId`, never a client-supplied one. RLS remains the enforcement
+boundary for any direct-from-client Supabase access (PostgREST, client SDKs); the
+`ApplicationContext` path is the equivalent boundary for the backend's own direct-SQL
+path. See API-013-APPLICATION-SERVICE-LAYER.md §4 for the full request flow and the
+cross-tenant rejection test evidence.

@@ -2,6 +2,8 @@ import React from 'react';
 
 export interface AvatarProps {
   name: string;
+  /** Signed/public image URL. Falls back to initials when absent — never render a broken image. */
+  src?: string | null;
   size?: number;
   className?: string;
 }
@@ -13,7 +15,21 @@ function initialsFor(name: string): string {
   return `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase();
 }
 
-export function Avatar({ name, size = 36, className = '' }: AvatarProps): React.ReactElement {
+export function Avatar({ name, src, size = 36, className = '' }: AvatarProps): React.ReactElement {
+  const [imageFailed, setImageFailed] = React.useState(false);
+
+  if (src && !imageFailed) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        onError={() => setImageFailed(true)}
+        className={['inline-block shrink-0 rounded-full object-cover', className].join(' ')}
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+
   return (
     <span
       role="img"

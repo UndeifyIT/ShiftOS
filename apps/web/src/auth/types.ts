@@ -13,6 +13,7 @@ export interface OrganizationSummary {
   id: string;
   name: string;
   slug: string;
+  metadata: Record<string, unknown>;
 }
 
 export interface BranchAccess {

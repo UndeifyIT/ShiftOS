@@ -33,7 +33,8 @@ export const updateEmployee = defineRpc('update_employee', async (context, rawIn
     email: stringField(input, 'email'),
     phone: stringField(input, 'phone'),
     employmentStatus: employmentStatus as 'active' | 'inactive' | 'terminated' | 'on_leave' | undefined,
-    notes: stringField(input, 'notes')
+    notes: stringField(input, 'notes'),
+    avatarUrl: stringField(input, 'avatarUrl') ?? (input.avatarUrl === null ? null : undefined)
   });
 });
 

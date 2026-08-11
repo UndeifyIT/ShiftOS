@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, IconButton } from '@shiftos/ui';
 import { useSession } from '../auth/SessionProvider.js';
+import { useSignedAvatarUrl } from '../lib/avatars.js';
 
 /**
  * Houses the two low-frequency identity affordances the frontend foundation
@@ -18,6 +19,7 @@ export function TopBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }): Re
 
   const activeOrg = organizations.find((org) => org.id === myContext?.organizationId);
   const fullName = profile ? `${profile.first_name} ${profile.last_name}` : '';
+  const avatarUrl = useSignedAvatarUrl(profile?.avatar_url);
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-4 sm:px-6">
@@ -71,7 +73,7 @@ export function TopBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }): Re
           onClick={() => setMenuOpen((open) => !open)}
           className="flex items-center gap-2 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
         >
-          <Avatar name={fullName || 'User'} size={32} />
+          <Avatar name={fullName || 'User'} src={avatarUrl} size={32} />
         </button>
         {menuOpen ? (
           <div role="menu" className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-neutral-200 bg-white p-1 shadow-md">

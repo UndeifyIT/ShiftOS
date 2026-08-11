@@ -24,7 +24,10 @@ export const color = {
     600: '#e13d0f',
     700: '#ba2c0d',
     800: '#942512',
-    900: '#782112'
+    900: '#782112',
+    /** Reconciled with the Lovable prototype's `--primary-soft`/`--primary-deep` OKLCH tokens (shift-app-hero/src/styles.css) — same warm-orange family, aliased onto the existing scale rather than a second palette. */
+    soft: '#ffe6d5',
+    deep: '#ba2c0d'
   },
   neutral: {
     0: '#ffffff',
@@ -39,8 +42,8 @@ export const color = {
     800: '#2b2620',
     900: '#1a1714' // primary text
   },
-  success: { 50: '#eefcf3', 500: '#1fa864', 600: '#178a51', text: '#0f6b3f' },
-  warning: { 50: '#fff8e8', 500: '#d69a1f', 600: '#b17f16', text: '#7a5a10' },
+  success: { 50: '#eefcf3', soft: '#dff7e8', 500: '#1fa864', 600: '#178a51', text: '#0f6b3f' },
+  warning: { 50: '#fff8e8', soft: '#fdedc7', 500: '#d69a1f', 600: '#b17f16', text: '#7a5a10' },
   error: { 50: '#fdeeec', 500: '#d43d2c', 600: '#b32e1f', text: '#8f2517' },
   info: { 50: '#eef4fd', 500: '#2f6fd6', 600: '#255cb3', text: '#1d4788' }
 } as const;

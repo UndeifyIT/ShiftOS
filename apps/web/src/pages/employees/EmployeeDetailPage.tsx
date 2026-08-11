@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
+  Avatar,
   Badge,
   Button,
   Card,
@@ -15,6 +16,7 @@ import {
 } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
+import { useSignedAvatarUrl } from '../../lib/avatars.js';
 import type { Branch, Employee, EmployeeHistoryEntry, EmploymentStatus } from '../../types/domain.js';
 
 const STATUS_TONE: Record<EmploymentStatus, 'success' | 'neutral' | 'error' | 'warning'> = {
@@ -74,6 +76,9 @@ export default function EmployeeDetailPage(): React.ReactElement {
 
   return (
     <PageContainer>
+      <div className="mb-2 flex items-center gap-4">
+        <EmployeeAvatar employee={employee} />
+      </div>
       <PageHeader
         title={`${employee.first_name} ${employee.last_name}`}
         description={`Employee #${employee.employee_number} · ${branchName}`}
@@ -144,6 +149,11 @@ export default function EmployeeDetailPage(): React.ReactElement {
       />
     </PageContainer>
   );
+}
+
+function EmployeeAvatar({ employee }: { employee: Employee }): React.ReactElement {
+  const signedUrl = useSignedAvatarUrl(employee.avatar_url);
+  return <Avatar name={`${employee.first_name} ${employee.last_name}`} src={signedUrl} size={56} />;
 }
 
 function Field({ label, value }: { label: string; value: string }): React.ReactElement {

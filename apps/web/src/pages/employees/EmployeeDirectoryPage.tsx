@@ -1,9 +1,24 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Button, DataTable, Input, PageContainer, PageHeader, PermissionDenied } from '@shiftos/ui';
+import { Avatar, Badge, Button, DataTable, Input, PageContainer, PageHeader, PermissionDenied } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcQuery } from '../../lib/useRpc.js';
+import { useSignedAvatarUrl } from '../../lib/avatars.js';
 import type { Branch, Employee, EmploymentStatus } from '../../types/domain.js';
+
+function EmployeeNameCell({ employee }: { employee: Employee }): React.ReactElement {
+  const name = `${employee.first_name} ${employee.last_name}`;
+  const signedUrl = useSignedAvatarUrl(employee.avatar_url);
+  return (
+    <div className="flex items-center gap-3">
+      <Avatar name={name} src={signedUrl} size={32} />
+      <div>
+        <p className="font-medium text-neutral-900">{name}</p>
+        <p className="text-xs text-neutral-500">{employee.employee_number}</p>
+      </div>
+    </div>
+  );
+}
 
 const STATUS_TONE: Record<EmploymentStatus, 'success' | 'neutral' | 'error' | 'warning'> = {
   active: 'success',
@@ -60,8 +75,7 @@ export default function EmployeeDirectoryPage(): React.ReactElement {
       </div>
       <DataTable<Employee>
         columns={[
-          { key: 'name', header: 'Name', primary: true, render: (e) => `${e.first_name} ${e.last_name}` },
-          { key: 'number', header: 'Employee #', render: (e) => e.employee_number },
+          { key: 'name', header: 'Name', primary: true, render: (e) => <EmployeeNameCell employee={e} /> },
           { key: 'branch', header: 'Branch', render: (e) => branchNameById.get(e.branch_id) ?? '—' },
           { key: 'status', header: 'Status', render: (e) => <Badge tone={STATUS_TONE[e.employment_status]}>{STATUS_LABEL[e.employment_status]}</Badge> }
         ]}

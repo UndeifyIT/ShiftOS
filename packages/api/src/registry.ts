@@ -1,12 +1,14 @@
 import { RpcRegistry } from './rpc.js';
 import { getMyContext } from './operations/context.js';
+import { updateProfile } from './operations/user.js';
+import { listMembers, listRoles } from './operations/membership.js';
 import { getOrganization, updateOrganization, listAccessibleOrganizations } from './operations/organization.js';
 import { createBranch, updateBranch, archiveBranch, getBranch, listBranches } from './operations/branch.js';
 import { createEmployee, getEmployee, updateEmployee, archiveEmployee, listEmployees, getEmployeeHistory } from './operations/employee.js';
 import {
   createSchedule, getSchedule, updateSchedule, archiveSchedule, listSchedules,
   listScheduleVersions, getLatestScheduleVersion,
-  createShift, getShift, updateShift, cancelShift, archiveShift, listShiftsForSchedule,
+  createShift, getShift, updateShift, cancelShift, archiveShift, listShiftsForSchedule, listShiftsForEmployeeInSchedule,
   assignEmployee, updateAssignmentStatus, removeAssignment, listAssignmentsForShift,
   publishSchedule
 } from './operations/scheduling.js';
@@ -23,6 +25,9 @@ export function createDefaultRegistry(): RpcRegistry {
   const registry = new RpcRegistry();
 
   registry.register(getMyContext);
+  registry.register(updateProfile);
+  registry.register(listMembers);
+  registry.register(listRoles);
 
   registry.register(getOrganization);
   registry.register(updateOrganization);
@@ -54,6 +59,7 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(cancelShift);
   registry.register(archiveShift);
   registry.register(listShiftsForSchedule);
+  registry.register(listShiftsForEmployeeInSchedule);
   registry.register(assignEmployee);
   registry.register(updateAssignmentStatus);
   registry.register(removeAssignment);

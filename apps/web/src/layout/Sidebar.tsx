@@ -16,6 +16,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/schedules', label: 'Scheduling', requiresPermission: 'schedules.read' },
   { to: '/employees', label: 'Employees', requiresPermission: 'employees.read' },
   { to: '/branches', label: 'Branches', requiresPermission: 'branches.read', orgWideOnly: true },
+  { to: '/members', label: 'Members & Roles', requiresPermission: 'org.members.manage', orgWideOnly: true },
+  { to: '/invitations', label: 'Invitations', requiresPermission: 'org.members.manage', orgWideOnly: true },
   { to: '/organization', label: 'Organization', requiresPermission: 'organizations.read', orgWideOnly: true }
 ];
 

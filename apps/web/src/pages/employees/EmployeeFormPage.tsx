@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Card, FormField, InlineError, Input, PageContainer, PageHeader, PermissionDenied, Select, Textarea, SkeletonRows } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
+import { uploadEmployeeAvatar } from '../../lib/avatars.js';
+import { AvatarUpload } from '../../components/AvatarUpload.js';
 import type { Branch, Employee, EmploymentStatus } from '../../types/domain.js';
 
 const STATUS_OPTIONS: { value: EmploymentStatus; label: string }[] = [
@@ -17,7 +19,7 @@ export default function EmployeeFormPage(): React.ReactElement {
   const { employeeId } = useParams<{ employeeId: string }>();
   const isCreate = !employeeId;
   const navigate = useNavigate();
-  const { hasPermission } = useSession();
+  const { hasPermission, myContext } = useSession();
   const canCreate = hasPermission('employees.create');
   const canUpdate = hasPermission('employees.update');
 
@@ -35,6 +37,7 @@ export default function EmployeeFormPage(): React.ReactElement {
   const [hireDate, setHireDate] = useState('');
   const [employmentStatus, setEmploymentStatus] = useState<EmploymentStatus>('active');
   const [notes, setNotes] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,6 +51,7 @@ export default function EmployeeFormPage(): React.ReactElement {
       setHireDate(employee.hire_date);
       setEmploymentStatus(employee.employment_status);
       setNotes(employee.notes ?? '');
+      setAvatarUrl(employee.avatar_url);
     } else if (isCreate && branches && branches.length === 1) {
       setBranchId(branches[0]!.id);
     }
@@ -108,14 +112,34 @@ export default function EmployeeFormPage(): React.ReactElement {
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
         employmentStatus,
-        notes: notes.trim() || undefined
+        notes: notes.trim() || undefined,
+        avatarUrl
       });
+    }
+  };
+
+  const updateAvatar = (newPath: string | null): void => {
+    setAvatarUrl(newPath);
+    if (!isCreate && employeeId) {
+      updateMutation.mutate({ employeeId, avatarUrl: newPath });
     }
   };
 
   return (
     <PageContainer>
       <PageHeader title={isCreate ? 'Add Employee' : `Edit ${employee?.first_name ?? ''} ${employee?.last_name ?? ''}`} />
+      <Card className="mb-4 max-w-2xl">
+        {isCreate ? (
+          <p className="text-sm text-neutral-500">A profile photo can be added once the employee is created.</p>
+        ) : (
+          <AvatarUpload
+            name={`${firstName} ${lastName}`}
+            path={avatarUrl}
+            onUpload={(file) => uploadEmployeeAvatar(myContext!.organizationId, employeeId!, file)}
+            onChange={updateAvatar}
+          />
+        )}
+      </Card>
       <Card className="max-w-2xl">
         <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Branch" htmlFor="branchId" required>

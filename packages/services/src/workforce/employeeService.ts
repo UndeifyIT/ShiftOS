@@ -34,6 +34,7 @@ export interface UpdateEmployeeInput {
   phone?: string | null;
   employmentStatus?: EmploymentStatus;
   notes?: string | null;
+  avatarUrl?: string | null;
 }
 
 export class EmployeeService {
@@ -107,6 +108,7 @@ export class EmployeeService {
     if (input.phone !== undefined) changes.phone = input.phone;
     if (input.employmentStatus !== undefined) changes.employment_status = input.employmentStatus;
     if (input.notes !== undefined) changes.notes = input.notes;
+    if (input.avatarUrl !== undefined) changes.avatar_url = input.avatarUrl;
 
     if (Object.keys(changes).length === 0) {
       throw new ValidationError('No changes supplied');

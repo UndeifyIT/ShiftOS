@@ -23,6 +23,8 @@ interface SessionContextValue extends SessionState {
   switchOrganization: (organizationId: string) => Promise<void>;
   refresh: () => Promise<void>;
   hasPermission: (permissionCode: string) => boolean;
+  /** The organization myContext currently resolves to, including metadata (e.g. onboarding progress) — undefined until 'ready'. */
+  activeOrganization: OrganizationSummary | null;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -72,7 +74,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }): Re
 
     const { data: organizations, error: orgError } = await supabase
       .from('organizations')
-      .select('id, name, slug')
+      .select('id, name, slug, metadata')
       .order('name', { ascending: true });
 
     if (orgError) {
@@ -171,9 +173,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }): Re
     state.myContext
   ]);
 
+  const activeOrganization = useMemo(
+    () => state.organizations.find((org) => org.id === state.myContext?.organizationId) ?? null,
+    [state.organizations, state.myContext]
+  );
+
   const value = useMemo<SessionContextValue>(
-    () => ({ ...state, signIn, signOut, completeProfile, switchOrganization, refresh: bootstrap, hasPermission }),
-    [state, signIn, signOut, completeProfile, switchOrganization, bootstrap, hasPermission]
+    () => ({ ...state, signIn, signOut, completeProfile, switchOrganization, refresh: bootstrap, hasPermission, activeOrganization }),
+    [state, signIn, signOut, completeProfile, switchOrganization, bootstrap, hasPermission, activeOrganization]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

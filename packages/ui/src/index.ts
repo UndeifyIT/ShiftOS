@@ -15,3 +15,8 @@ export * from './components/Modal.js';
 export * from './components/Tabs.js';
 export * from './components/DataTable.js';
 export * from './components/Page.js';
+export * from './components/Panel.js';
+export * from './components/StatCard.js';
+export * from './components/Pill.js';
+export * from './components/Pagination.js';
+export * from './components/QuickAction.js';

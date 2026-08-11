@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'fs';
+import { dirname, join } from 'path';
 import { ConfigError } from '@shiftos/errors';
 
 export interface AppConfig {
@@ -11,12 +12,37 @@ export interface AppConfig {
 
 const requiredVariables = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'DATABASE_URL'] as const;
 
+/**
+ * Walks up from the current working directory to find `.env`, bounded to 6
+ * levels — plain `existsSync('.env')` only finds it when the process happens
+ * to be launched from the repo root, which `pnpm --filter <pkg> <script>`
+ * does NOT guarantee (it runs with cwd set to that package's directory).
+ * Every consumer of loadConfig() should find the one repo-root `.env`
+ * regardless of which package's script launched the process.
+ */
+function findDotenvPath(): string | null {
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    const candidate = join(dir, '.env');
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      break;
+    }
+    dir = parent;
+  }
+  return null;
+}
+
 function parseDotenv(): void {
-  if (!existsSync('.env')) {
+  const dotenvPath = findDotenvPath();
+  if (!dotenvPath) {
     return;
   }
 
-  const contents = readFileSync('.env', 'utf8');
+  const contents = readFileSync(dotenvPath, 'utf8');
   for (const rawLine of contents.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line || line.startsWith('#')) {

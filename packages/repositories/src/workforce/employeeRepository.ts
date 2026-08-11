@@ -14,6 +14,8 @@ export interface Employee extends BranchEntity {
   hire_date: string;
   employment_status: EmploymentStatus;
   notes: string | null;
+  /** Storage object path under the private `avatars` bucket (employees/{organizationId}/{employeeId}/{filename}), not a public URL. Optional. */
+  avatar_url: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

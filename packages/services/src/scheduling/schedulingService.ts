@@ -294,6 +294,33 @@ export class SchedulingService {
     return this.shifts.findByBranchAndDateRange(this.context.organizationId, schedule.branch_id, schedule.start_date, schedule.end_date);
   }
 
+  /**
+   * Same shifts as listShiftsForSchedule(), narrowed to the ones `employeeId`
+   * is actively assigned to — batching the assignment lookup across every
+   * shift in a single query (ShiftAssignmentRepository.listForShifts, which
+   * already existed for exactly this shape) instead of one query per shift.
+   * Replaces the N+1 composition the mobile "my schedule" screen previously
+   * had to do client-side across two separate RPC calls.
+   */
+  async listShiftsForEmployeeInSchedule(scheduleId: string, employeeId: string): Promise<Shift[]> {
+    assertUuid(scheduleId, 'scheduleId');
+    assertUuid(employeeId, 'employeeId');
+    await this.context.requirePermission('shifts.read');
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+
+    const shifts = await this.shifts.findByBranchAndDateRange(this.context.organizationId, schedule.branch_id, schedule.start_date, schedule.end_date);
+    if (shifts.length === 0) return [];
+
+    const assignments = await this.assignments.listForShifts(this.context.organizationId, shifts.map((shift) => shift.id));
+    const assignedShiftIds = new Set(
+      assignments
+        .filter((a) => a.employee_id === employeeId && a.assignment_status !== 'cancelled' && a.assignment_status !== 'declined')
+        .map((a) => a.shift_id)
+    );
+    return shifts.filter((shift) => assignedShiftIds.has(shift.id));
+  }
+
   // ==================== Shift assignments ====================
 
   async assignEmployee(shiftId: string, employeeId: string): Promise<ShiftAssignment> {
