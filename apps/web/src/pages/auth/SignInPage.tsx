@@ -82,7 +82,7 @@ export default function SignInPage(): React.ReactElement {
         <>
           Welcome Back
           <br />
-          Access Your Branch <span className="text-brand-500">Account</span>
+          Access Your Branch <span className="text-brand-700">Account</span>
         </>
       }
       description="Log in to continue managing schedules, staff, and operations from one secure platform."

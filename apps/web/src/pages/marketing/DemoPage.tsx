@@ -159,8 +159,8 @@ export default function DemoPage(): React.ReactElement {
             <Eyebrow>
               <CalendarDays size={14} aria-hidden="true" /> 30-minute live demo
             </Eyebrow>
-            <h1 className="mt-5 text-4xl font-bold leading-[1.06] tracking-tight text-neutral-900 sm:text-5xl">
-              See ShiftOS in Action, Built for <span className="text-brand-500">Shift Teams</span>
+            <h1 className="mt-5 font-display text-4xl font-semibold leading-[1.06] tracking-tight text-neutral-900 sm:text-5xl">
+              See ShiftOS in Action, Built for <span className="text-brand-700">Shift Teams</span>
             </h1>
             <p className="mt-4 text-base leading-relaxed text-neutral-500">
               Book a free, personalized demo and see how ShiftOS can simplify scheduling, attendance, tasks and team communication
@@ -180,7 +180,7 @@ export default function DemoPage(): React.ReactElement {
                 </li>
               ))}
             </ul>
-            <div className="mt-8 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-2 shadow-card">
+            <div className="mt-8 overflow-hidden rounded-lg border border-neutral-200 bg-white p-2 shadow-card">
               <img
                 src={dashboardMock}
                 alt="ShiftOS dashboard preview"
@@ -192,7 +192,7 @@ export default function DemoPage(): React.ReactElement {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-lift sm:p-8">
+          <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-lift sm:p-8">
             {submitted ? (
               <div className="py-10 text-center">
                 <IconCircle tone="info" size={64}>
@@ -370,7 +370,7 @@ export default function DemoPage(): React.ReactElement {
 
                   <p className="text-center text-xs text-neutral-500">
                     We respect your privacy. Read our{' '}
-                    <Link to="/privacy" className="font-semibold text-brand-500 hover:underline">
+                    <Link to="/privacy" className="font-semibold text-brand-700 hover:underline">
                       Privacy Policy
                     </Link>
                     .

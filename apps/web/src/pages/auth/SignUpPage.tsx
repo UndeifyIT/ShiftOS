@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Check, CreditCard, Headset, ShieldCheck, RefreshCw, Building2, UserPlus, Users2 } from 'lucide-react';
-import { Button, FormField, InlineError, Input, Select } from '@shiftos/ui';
+import { Button, FormField, InlineError, Input } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { AuthMarketingLayout } from './AuthMarketingLayout.js';
 import { PasswordInput } from './PasswordInput.js';
@@ -22,34 +22,28 @@ const STEPS = {
 };
 
 const TRUST_ITEMS = [
-  { icon: ShieldCheck, label: 'Already trusted by retail managers and supervisors across Nigeria' },
   { icon: Calendar, label: '30-Day Free Trial' },
   { icon: CreditCard, label: 'No Credit Card' },
   { icon: RefreshCw, label: 'Cancel Anytime' }
 ];
 
-const ROLE_OPTIONS = [
-  { value: 'manager', label: 'Manager' },
-  { value: 'supervisor', label: 'Supervisor' },
-  { value: 'staff', label: 'Staff' }
-];
-
 /**
  * Not a screen in FD-4's numbered inventory — self-service signup is new
  * scope beyond the invitation-only model the frontend foundation doc
- * describes (DEC-017). Wired to real `supabase.auth.signUp()`; the "Role"
- * field is stored as auth user_metadata only — there is no backend concept
- * of assigning a role at signup (the first person to sign up always becomes
- * the org "Owner" via WEB-001's create_organization_with_owner, and real
- * role assignment only happens through invitations, which aren't
- * self-service yet). After signup, the existing bootstrap chain
- * (CompleteProfilePage -> OrganizationSetupPage) takes over unchanged.
+ * describes (DEC-017). Wired to real `supabase.auth.signUp()`. The person
+ * who signs up here always becomes the org "Owner" via WEB-001's
+ * create_organization_with_owner during onboarding — there is no
+ * backend concept of choosing a different role at signup (031: real role
+ * assignment for anyone else happens exclusively through invitations,
+ * MembershipService.inviteMember). A "Role" selector here was removed —
+ * it had no effect on anything and only implied a choice that didn't exist.
+ * After signup, the existing bootstrap chain (CompleteProfilePage ->
+ * OrganizationSetupPage) takes over unchanged.
  */
 export default function SignUpPage(): React.ReactElement {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  const [role, setRole] = useState('manager');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -71,7 +65,7 @@ export default function SignUpPage(): React.ReactElement {
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName.trim(), whatsapp, intended_role: role } }
+      options: { data: { full_name: fullName.trim(), whatsapp } }
     });
     setSubmitting(false);
 
@@ -103,7 +97,7 @@ export default function SignUpPage(): React.ReactElement {
         <>
           Run Your Branch Without Spreadsheets
           <br />
-          or <span className="text-brand-500">WhatsApp Chaos</span>
+          or <span className="text-brand-700">WhatsApp Chaos</span>
         </>
       }
       description="Create your branch workspace in minutes. Build schedules, keep staff informed, and manage operations from one platform."
@@ -145,9 +139,6 @@ export default function SignUpPage(): React.ReactElement {
                   <Input {...fieldProps} className="rounded-l-none" placeholder="Enter your WhatsApp number" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
                 </div>
               )}
-            </FormField>
-            <FormField label="Role" htmlFor="role" hint="Not enforced yet — real role assignment happens through invitations.">
-              {(fieldProps) => <Select {...fieldProps} value={role} onChange={(e) => setRole(e.target.value)} options={ROLE_OPTIONS} />}
             </FormField>
             <FormField label="Password" htmlFor="password" required>
               {(fieldProps) => (

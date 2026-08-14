@@ -1,5 +1,6 @@
 import type { DatabaseClient } from '@shiftos/database';
 import type { ApiResponse } from '@shiftos/types';
+import type { AuthenticationProvider } from '@shiftos/auth';
 import { buildApiResponse, buildErrorApiResponse } from '@shiftos/utils';
 import { NotFoundError } from '@shiftos/errors';
 import { createApplicationContext, type ApplicationContext } from '@shiftos/services';
@@ -72,14 +73,19 @@ export class RpcRegistry {
    * buildErrorApiResponse(error), so a transport adapter never has to
    * catch anything itself.
    */
-  async execute(client: DatabaseClient, operationName: string, request: RpcRequest): Promise<ApiResponse<unknown>> {
+  async execute(
+    client: DatabaseClient,
+    operationName: string,
+    request: RpcRequest,
+    authProvider?: AuthenticationProvider
+  ): Promise<ApiResponse<unknown>> {
     const operation = this.operations.get(operationName);
     if (!operation) {
       return buildErrorApiResponse(new NotFoundError(`Unknown operation: ${operationName}`));
     }
 
     try {
-      const context = await createApplicationContext(client, request.authUserId, request.organizationId);
+      const context = await createApplicationContext(client, request.authUserId, request.organizationId, authProvider);
       const result = await operation.handler(context, request.input);
       return buildApiResponse(result);
     } catch (error) {

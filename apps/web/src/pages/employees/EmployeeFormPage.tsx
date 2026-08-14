@@ -1,11 +1,73 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Card, FormField, InlineError, Input, PageContainer, PageHeader, PermissionDenied, Select, Textarea, SkeletonRows } from '@shiftos/ui';
+import { Avatar, Button, Card, FormField, InlineError, Input, PageContainer, PageHeader, PermissionDenied, Select, Textarea, SkeletonRows } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import { uploadEmployeeAvatar } from '../../lib/avatars.js';
 import { AvatarUpload } from '../../components/AvatarUpload.js';
 import type { Branch, Employee, EmploymentStatus } from '../../types/domain.js';
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+
+/** Optional photo picker for the create flow — storage paths are keyed by employee id (migration 030), which doesn't exist until create_employee succeeds, so the file is held locally and uploaded right after creation. */
+function PendingAvatarPicker({
+  name,
+  previewUrl,
+  onSelect,
+  onClear
+}: {
+  name: string;
+  previewUrl: string | null;
+  onSelect: (file: File) => void;
+  onClear: () => void;
+}): React.ReactElement {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFile = (file: File): void => {
+    if (!file.type.startsWith('image/')) {
+      setError('Please choose an image file.');
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setError('Images must be 5MB or smaller.');
+      return;
+    }
+    setError(null);
+    onSelect(file);
+  };
+
+  return (
+    <div className="flex items-center gap-4">
+      <Avatar name={name || '?'} src={previewUrl} size={64} />
+      <div className="flex flex-col gap-1">
+        <div className="flex gap-2">
+          <Button type="button" variant="secondary" size="sm" onClick={() => inputRef.current?.click()}>
+            {previewUrl ? 'Replace photo' : 'Add photo'}
+          </Button>
+          {previewUrl ? (
+            <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+              Remove
+            </Button>
+          ) : null}
+        </div>
+        <p className="text-xs text-neutral-500">Optional. JPG or PNG, up to 5MB.</p>
+        {error ? <p className="text-xs text-error-text">{error}</p> : null}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (file) handleFile(file);
+        }}
+      />
+    </div>
+  );
+}
 
 const STATUS_OPTIONS: { value: EmploymentStatus; label: string }[] = [
   { value: 'active', label: 'Active' },
@@ -38,7 +100,15 @@ export default function EmployeeFormPage(): React.ReactElement {
   const [employmentStatus, setEmploymentStatus] = useState<EmploymentStatus>('active');
   const [notes, setNotes] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pendingAvatarPreview) URL.revokeObjectURL(pendingAvatarPreview);
+    };
+  }, [pendingAvatarPreview]);
 
   useEffect(() => {
     if (employee) {
@@ -58,9 +128,7 @@ export default function EmployeeFormPage(): React.ReactElement {
   }, [employee, isCreate, branches]);
 
   const createMutation = useRpcMutation<Employee, Record<string, unknown>>('create_employee', {
-    invalidates: ['list_employees'],
-    onSuccess: (created) => navigate(`/employees/${created.id}`, { replace: true }),
-    onError: (err) => setError(err.message)
+    invalidates: ['list_employees']
   });
 
   const updateMutation = useRpcMutation<Employee, Record<string, unknown>>('update_employee', {
@@ -85,7 +153,7 @@ export default function EmployeeFormPage(): React.ReactElement {
     );
   }
 
-  const handleSubmit = (event: React.FormEvent): void => {
+  const handleSubmit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
     if (!branchId || !employeeNumber.trim() || !firstName.trim() || !lastName.trim() || (isCreate && !hireDate)) {
       setError('Please fill in all required fields.');
@@ -93,15 +161,30 @@ export default function EmployeeFormPage(): React.ReactElement {
     }
     setError(null);
     if (isCreate) {
-      createMutation.mutate({
-        branchId,
-        employeeNumber: employeeNumber.trim(),
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
-        hireDate
-      });
+      try {
+        const created = await createMutation.mutateAsync({
+          branchId,
+          employeeNumber: employeeNumber.trim(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim() || undefined,
+          phone: phone.trim() || undefined,
+          hireDate
+        });
+        // The employee record is the primary success — a failed photo upload
+        // (optional, best-effort) never blocks it or gets reported as a save error.
+        if (pendingAvatarFile && myContext) {
+          try {
+            const path = await uploadEmployeeAvatar(myContext.organizationId, created.id, pendingAvatarFile);
+            await updateMutation.mutateAsync({ employeeId: created.id, avatarUrl: path });
+          } catch {
+            // Photo can be added later from the employee's profile — not fatal.
+          }
+        }
+        navigate(`/employees/${created.id}`, { replace: true });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not create employee.');
+      }
     } else {
       updateMutation.mutate({
         employeeId,
@@ -130,7 +213,24 @@ export default function EmployeeFormPage(): React.ReactElement {
       <PageHeader title={isCreate ? 'Add Employee' : `Edit ${employee?.first_name ?? ''} ${employee?.last_name ?? ''}`} />
       <Card className="mb-4 max-w-2xl">
         {isCreate ? (
-          <p className="text-sm text-neutral-500">A profile photo can be added once the employee is created.</p>
+          <PendingAvatarPicker
+            name={`${firstName} ${lastName}`}
+            previewUrl={pendingAvatarPreview}
+            onSelect={(file) => {
+              setPendingAvatarFile(file);
+              setPendingAvatarPreview((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                return URL.createObjectURL(file);
+              });
+            }}
+            onClear={() => {
+              setPendingAvatarFile(null);
+              setPendingAvatarPreview((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                return null;
+              });
+            }}
+          />
         ) : (
           <AvatarUpload
             name={`${firstName} ${lastName}`}

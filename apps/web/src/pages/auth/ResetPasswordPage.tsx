@@ -121,7 +121,7 @@ export default function ResetPasswordPage(): React.ReactElement {
           <p className="mt-2 text-sm text-neutral-500">Your password has been changed and all other devices have been signed out.</p>
           <Link
             to="/sign-in"
-            className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-brand-500 px-5 text-sm font-semibold text-white hover:bg-brand-600"
+            className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-brand-700 px-5 text-sm font-semibold text-white hover:bg-brand-800"
           >
             Continue to Sign In →
           </Link>
@@ -175,7 +175,7 @@ export default function ResetPasswordPage(): React.ReactElement {
                 type="checkbox"
                 checked={signOutOthers}
                 onChange={(e) => setSignOutOthers(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-brand-500"
+                className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-brand-700"
               />
               <span>
                 Sign out all other devices

@@ -7,13 +7,14 @@ import { AuthLayout } from './AuthLayout.js';
  * SHARED-005 — Accept Invitation / Account Setup (WF-002). The invite email
  * link (packages/auth's inviteUser) establishes a session the same way a
  * password-recovery link does; this screen's job is only to let the invitee
- * set their password. Organization membership itself is created by
- * create_organization_with_owner only for a brand-new organization — there
- * is no invitation-acceptance service yet that turns an accepted invite into
- * an organization_memberships row (frontend foundation §H, a documented,
- * not-yet-built gap). After this step the normal session bootstrap runs; if
- * no membership exists yet, the "no organization" screen explains that
- * next step rather than failing silently.
+ * set their password. Turning that into real organization membership +
+ * role + branch access is handled by accept_invitation() (031), called from
+ * SessionProvider's bootstrap once the auth session updates after this form
+ * submits — this page deliberately stays unaware of membership/role/branch
+ * assignment, matching the separation already used for the brand-new-org
+ * case (create_organization_with_owner). If no matching pending invitation
+ * exists (expired, already used, or none), bootstrap falls through to the
+ * normal "no organization" screen rather than failing silently here.
  */
 export default function AcceptInvitationPage(): React.ReactElement {
   const [password, setPassword] = useState('');

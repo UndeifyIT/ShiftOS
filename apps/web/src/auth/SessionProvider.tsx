@@ -72,6 +72,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }): Re
       return;
     }
 
+    // Opportunistically turn a matching pending invitation (031) into a real
+    // organization_memberships row before resolving which organizations this
+    // identity belongs to. Safe to call on every bootstrap: accept_invitation()
+    // returns an expected, ignorable error for the common case of no pending
+    // invitation existing for this account's email (Supabase RPC calls report
+    // failures via `error`, not a thrown exception — same convention as
+    // create_organization_with_owner in OrganizationSetupPage.tsx). This is
+    // what makes AcceptInvitationPage's "set your password" step actually
+    // result in a usable Supervisor/Employee account, without that page
+    // needing to know anything about membership/role/branch assignment itself.
+    await supabase.rpc('accept_invitation');
+
     const { data: organizations, error: orgError } = await supabase
       .from('organizations')
       .select('id, name, slug, metadata')

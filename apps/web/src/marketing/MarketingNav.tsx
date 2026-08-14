@@ -37,7 +37,7 @@ export function MarketingNav(): React.ReactElement {
                     to={item.to}
                     className={[
                       'inline-flex items-center gap-1 rounded-md text-sm font-semibold transition-colors',
-                      active ? 'text-brand-500' : 'text-neutral-500 hover:text-neutral-900'
+                      active ? 'text-brand-700' : 'text-neutral-500 hover:text-neutral-900'
                     ].join(' ')}
                   >
                     {item.label}

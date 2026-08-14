@@ -138,6 +138,29 @@ export interface Member {
   deleted_at: string | null;
 }
 
+export type InvitationStatus = 'pending' | 'accepted' | 'revoked';
+
+export interface Invitation {
+  id: string;
+  organization_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role_id: string;
+  role_name: string;
+  status: InvitationStatus;
+  invited_by: string;
+  invited_by_first_name: string;
+  invited_by_last_name: string;
+  accepted_by: string | null;
+  accepted_at: string | null;
+  revoked_by: string | null;
+  revoked_at: string | null;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export type AssignmentStatus = 'assigned' | 'confirmed' | 'declined' | 'completed' | 'cancelled';
 
 export interface ShiftAssignment {

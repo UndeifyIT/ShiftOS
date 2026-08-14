@@ -11,17 +11,25 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   fullWidth?: boolean;
 }
 
+/*
+ * Contrast note: brand-500 (#14b8a6, the approved logo/accent teal) only
+ * reaches ~2.5:1 against white — well under WCAG AA's 4.5:1 for normal text.
+ * brand-500 stays the literal accent everywhere it isn't load-bearing text
+ * (logo, active-nav border, icons, links on white); solid fills carrying
+ * white button label text use brand-700 (#0f766e, ~5.5:1) instead so every
+ * primary CTA in the app is actually readable.
+ */
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 disabled:bg-neutral-200 disabled:text-neutral-400',
+  primary: 'bg-brand-700 text-white hover:bg-brand-800 active:bg-brand-900 disabled:bg-neutral-200 disabled:text-neutral-400',
   secondary:
     'bg-white text-neutral-800 border border-neutral-300 hover:bg-neutral-50 active:bg-neutral-100 disabled:text-neutral-400 disabled:bg-neutral-50',
   destructive: 'bg-error-500 text-white hover:bg-error-600 active:bg-error-600 disabled:bg-neutral-200 disabled:text-neutral-400',
   ghost: 'bg-transparent text-neutral-700 hover:bg-neutral-100 active:bg-neutral-200 disabled:text-neutral-400',
   /* Ported from shift-app-hero's components/ui/button.tsx `hero`/`heroOutline`/`soft`
      variants (Lovable design system) — used for marketing/auth CTAs. */
-  hero: 'bg-brand-500 text-white shadow-brand hover:bg-brand-deep hover:-translate-y-0.5 disabled:bg-neutral-200 disabled:text-neutral-400 disabled:shadow-none disabled:translate-y-0',
+  hero: 'bg-brand-700 text-white shadow-brand hover:bg-brand-800 hover:-translate-y-0.5 disabled:bg-neutral-200 disabled:text-neutral-400 disabled:shadow-none disabled:translate-y-0',
   heroOutline:
-    'border border-brand-500/40 bg-white text-brand-500 hover:bg-brand-soft hover:border-brand-500 disabled:border-neutral-200 disabled:text-neutral-400',
+    'border border-brand-500/40 bg-white text-brand-700 hover:bg-brand-soft hover:border-brand-500 disabled:border-neutral-200 disabled:text-neutral-400',
   soft: 'bg-brand-soft text-brand-deep hover:bg-brand-100 disabled:bg-neutral-100 disabled:text-neutral-400'
 };
 
@@ -55,7 +63,7 @@ export function buttonClasses({
 } = {}): string {
   return [
     'inline-flex items-center justify-center rounded-lg font-semibold transition-all duration-150',
-    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
+    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600',
     'disabled:cursor-not-allowed',
     variantClasses[variant],
     sizeClasses[size],

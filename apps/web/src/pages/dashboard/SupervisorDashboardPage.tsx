@@ -21,24 +21,34 @@ function EmployeeRow({ employee, onClick }: { employee: Employee; onClick: () =>
   );
 }
 
+function branchesDescription(branches: Branch[] | undefined): string {
+  if (!branches || branches.length === 0) return 'Here is what is happening at your branch today.';
+  if (branches.length === 1) return `Here's what's happening at ${branches[0]!.name} today.`;
+  return `Here's what's happening across your ${branches.length} branches today: ${branches.map((b) => b.name).join(', ')}.`;
+}
+
 /**
  * WEB-018/WEB-026 — Supervisor dashboard: branch-scoped "my branch" hub.
- * Queries only the caller's accessible branch, not the organization.
+ * A Supervisor may be granted more than one branch (organization_member_branch_access
+ * supports multiple grants per membership) — every query here omits branchId
+ * so the backend's resolveBranchScope() returns the caller's full accessible
+ * set, not just the first grant. Previously only fetched/displayed a single
+ * branch (myContext.branchAccess.branchIds[0]) despite employees/schedules
+ * already being correctly multi-branch-scoped server-side — this widens the
+ * dashboard to match what the backend already returns.
  */
 export default function SupervisorDashboardPage(): React.ReactElement {
-  const { profile, myContext, hasPermission } = useSession();
+  const { profile, hasPermission } = useSession();
   const navigate = useNavigate();
-  const branchId = myContext?.branchAccess.branchIds[0];
   const canReadEmployees = hasPermission('employees.read');
   const canReadSchedules = hasPermission('schedules.read');
+  const canReadBranches = hasPermission('branches.read');
   const canCreateSchedule = hasPermission('schedules.create');
   const canCreateEmployee = hasPermission('employees.create');
 
-  const { data: branch } = useRpcQuery<Branch>('get_branch', branchId ? { branchId } : undefined, { enabled: Boolean(branchId) });
+  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canReadBranches });
   const { data: employees, isLoading: employeesLoading } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canReadEmployees });
-  const { data: schedules, isLoading: schedulesLoading } = useRpcQuery<Schedule[]>('list_schedules', branchId ? { branchId } : undefined, {
-    enabled: canReadSchedules
-  });
+  const { data: schedules, isLoading: schedulesLoading } = useRpcQuery<Schedule[]>('list_schedules', undefined, { enabled: canReadSchedules });
 
   const branchEmployees = (employees ?? []).filter((e) => e.is_active);
   const upcomingSchedules = (schedules ?? []).filter((s) => s.status !== 'archived').slice(0, 5);
@@ -47,7 +57,7 @@ export default function SupervisorDashboardPage(): React.ReactElement {
     <PageContainer>
       <PageHeader
         title={`Welcome back${profile ? `, ${profile.first_name}` : ''}`}
-        description={branch ? `Here's what's happening at ${branch.name} today.` : 'Here is what is happening at your branch today.'}
+        description={branchesDescription(branches)}
         actions={canCreateSchedule ? <Button onClick={() => navigate('/schedules/new')}>Create Schedule</Button> : undefined}
       />
 

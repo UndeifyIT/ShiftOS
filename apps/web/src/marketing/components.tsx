@@ -72,8 +72,8 @@ export function SectionHeading({
   return (
     <div className={['max-w-2xl', align === 'center' ? 'mx-auto text-center' : ''].filter(Boolean).join(' ')}>
       {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
-      <h2 className="mt-4 text-3xl leading-[1.1] text-neutral-900 sm:text-4xl">
-        {title} {highlight ? <span className="text-brand-500">{highlight}</span> : null}
+      <h2 className="mt-4 font-display text-3xl font-semibold leading-[1.1] text-neutral-900 sm:text-4xl">
+        {title} {highlight ? <span className="text-brand-700">{highlight}</span> : null}
       </h2>
       {description ? <p className="mt-4 text-base leading-relaxed text-neutral-500">{description}</p> : null}
     </div>

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App.js';
 import { SessionProvider } from './auth/SessionProvider.js';
+import { BrandReveal } from './components/BrandReveal.js';
 import { queryClient } from './lib/queryClient.js';
 import './styles/global.css';
 
@@ -13,7 +14,9 @@ root.render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <SessionProvider>
-          <App />
+          <BrandReveal>
+            <App />
+          </BrandReveal>
         </SessionProvider>
       </BrowserRouter>
     </QueryClientProvider>

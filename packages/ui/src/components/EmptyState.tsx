@@ -31,7 +31,7 @@ export function EmptyState({
   return (
     <div className={['flex flex-col items-center gap-3 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-6 py-12 text-center', className].join(' ')}>
       {icon ? (
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-500" aria-hidden="true">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-700" aria-hidden="true">
           {icon}
         </div>
       ) : null}

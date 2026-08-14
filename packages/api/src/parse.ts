@@ -41,3 +41,13 @@ export function recordField(record: Record<string, unknown>, field: string): Rec
   const value = record[field];
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
 }
+
+/** Defaults to an empty array when absent — most callers treat "no branches selected" and "field omitted" the same way. */
+export function stringArrayField(record: Record<string, unknown>, field: string): string[] {
+  const value = record[field];
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) {
+    throw new ValidationError(`${field} must be an array of strings`);
+  }
+  return value;
+}

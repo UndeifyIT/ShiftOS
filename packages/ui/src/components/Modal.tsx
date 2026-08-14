@@ -120,7 +120,10 @@ export function ConfirmationDialog({
             aria-busy={loading || undefined}
             className={[
               'inline-flex h-10 items-center justify-center rounded-lg px-4 text-[0.9375rem] font-medium text-white disabled:opacity-60',
-              destructive ? 'bg-error-500 hover:bg-error-600' : 'bg-brand-500 hover:bg-brand-600'
+              // brand-500 only reaches ~2.5:1 contrast for white text (fails WCAG
+              // AA) — brand-700 matches the fix already applied to Button.tsx's
+              // primary variant. See that file's contrast note for the full rationale.
+              destructive ? 'bg-error-500 hover:bg-error-600' : 'bg-brand-700 hover:bg-brand-800'
             ].join(' ')}
           >
             {confirmLabel}

@@ -71,7 +71,7 @@ export function TopBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }): Re
           aria-expanded={menuOpen}
           aria-label={`Account menu for ${fullName}`}
           onClick={() => setMenuOpen((open) => !open)}
-          className="flex items-center gap-2 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+          className="flex items-center gap-2 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
         >
           <Avatar name={fullName || 'User'} src={avatarUrl} size={32} />
         </button>

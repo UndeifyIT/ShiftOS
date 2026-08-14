@@ -139,6 +139,9 @@ importers:
 
   packages/api:
     dependencies:
+      '@shiftos/auth':
+        specifier: workspace:*
+        version: link:../auth
       '@shiftos/database':
         specifier: workspace:*
         version: link:../database
@@ -282,6 +285,9 @@ importers:
 
   packages/services:
     dependencies:
+      '@shiftos/auth':
+        specifier: workspace:*
+        version: link:../auth
       '@shiftos/authorization':
         specifier: workspace:*
         version: link:../authorization

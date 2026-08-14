@@ -9,6 +9,7 @@
     "noEmit": false
   },
   "references": [
+    { "path": "../auth" },
     { "path": "../database" },
     { "path": "../errors" },
     { "path": "../repositories" },

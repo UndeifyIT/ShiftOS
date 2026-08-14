@@ -8,6 +8,15 @@ export interface AppConfig {
   DATABASE_URL: string;
   NODE_ENV: 'development' | 'production' | 'test';
   LOG_LEVEL: 'debug' | 'info' | 'warn' | 'error';
+  /**
+   * Optional on purpose: not every environment needs admin-level Supabase Auth
+   * operations (member invitations). Only ever read here, in this Node-only
+   * server process — never bundled into apps/web (Vite only exposes VITE_-
+   * prefixed vars to the client, and this module is never imported there).
+   * Consumers must fail closed when it's absent (see packages/auth's
+   * createAdminClient), not silently degrade.
+   */
+  SUPABASE_SERVICE_ROLE_KEY?: string;
 }
 
 const requiredVariables = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'DATABASE_URL'] as const;
@@ -77,7 +86,8 @@ export function loadConfig(): AppConfig {
     SUPABASE_ANON_KEY: requireEnv('SUPABASE_ANON_KEY'),
     DATABASE_URL: requireEnv('DATABASE_URL'),
     NODE_ENV: (process.env.NODE_ENV as AppConfig['NODE_ENV']) ?? 'development',
-    LOG_LEVEL: (process.env.LOG_LEVEL as AppConfig['LOG_LEVEL']) ?? 'info'
+    LOG_LEVEL: (process.env.LOG_LEVEL as AppConfig['LOG_LEVEL']) ?? 'info',
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || undefined
   };
 
   return config;

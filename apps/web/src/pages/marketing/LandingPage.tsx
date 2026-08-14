@@ -31,12 +31,6 @@ import phoneMock from '../../assets/phone-mock.png';
  * Tailwind config (see apps/web/tailwind.config.cjs, packages/ui/src/tokens.ts).
  */
 
-const heroStats = [
-  { value: '1,200+', label: 'Shifts scheduled weekly' },
-  { value: '92%', label: 'Announcements read in 2h' },
-  { value: '4 min', label: 'To publish a full week' }
-];
-
 const roles = [
   {
     role: 'Manager',
@@ -47,13 +41,13 @@ const roles = [
   {
     role: 'Supervisor',
     icon: Users,
-    tone: 'amber' as const,
+    tone: 'graphite' as const,
     points: ['Create schedules', 'Approve swaps and leave', 'Assign daily operations']
   },
   {
     role: 'Staff',
     icon: Store,
-    tone: 'green' as const,
+    tone: 'graphiteSoft' as const,
     points: ['View schedules anywhere', 'Receive announcements', 'Request swaps and leave']
   }
 ];
@@ -67,8 +61,6 @@ const features = [
   { icon: ShieldCheck, title: 'Role-Based Access', body: 'Set permissions so every role sees only what it needs.' }
 ];
 
-const brands = ["KFC", 'SPAR', 'Shoprite', "Domino's Pizza", 'Chicken Republic', 'Justrite'];
-
 export default function LandingPage(): React.ReactElement {
   return (
     <MarketingLayout>
@@ -80,7 +72,7 @@ export default function LandingPage(): React.ReactElement {
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -bottom-56 -left-40 size-[520px] rounded-full bg-warning-500/20 blur-[130px]"
+          className="pointer-events-none absolute -bottom-56 -left-40 size-[520px] rounded-full bg-neutral-900/10 blur-[130px]"
         />
         <span
           aria-hidden="true"
@@ -95,11 +87,11 @@ export default function LandingPage(): React.ReactElement {
               <span className="size-1.5 rounded-full bg-brand-500" />
               Built for retail &middot; Made for people
             </span>
-            <h1 className="mt-6 text-[2.6rem] font-extrabold leading-[0.98] tracking-[-0.03em] text-neutral-900 sm:text-6xl lg:text-[4.25rem]">
+            <h1 className="mt-6 font-display text-[2.6rem] font-semibold leading-[0.98] tracking-[-0.02em] text-neutral-900 sm:text-6xl lg:text-[4.25rem]">
               Run every shift
               <br />
               like clockwork
-              <span className="text-brand-500">.</span>
+              <span className="text-brand-700">.</span>
             </h1>
             <p className="mt-6 max-w-lg text-base leading-relaxed text-neutral-500 sm:text-lg">
               ShiftOS replaces the spreadsheets and WhatsApp groups your store runs on &mdash; schedules, attendance, tasks and
@@ -116,31 +108,10 @@ export default function LandingPage(): React.ReactElement {
             </div>
 
             <div className="mt-9 flex flex-wrap items-center gap-x-8 gap-y-5">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center">
-                  {['AO', 'TB', 'KE'].map((initials, i) => (
-                    <span
-                      key={initials}
-                      className="flex size-9 items-center justify-center rounded-full border-2 border-neutral-50 bg-brand-soft text-[11px] font-extrabold text-brand-deep"
-                      style={{ marginLeft: i === 0 ? 0 : '-0.6rem' }}
-                    >
-                      {initials}
-                    </span>
-                  ))}
-                  <span className="-ml-2.5 flex size-9 items-center justify-center rounded-full border-2 border-neutral-50 bg-brand-500 text-[11px] font-extrabold text-white">
-                    +1k
-                  </span>
-                </div>
-                <p className="text-xs font-semibold leading-snug text-neutral-500">
-                  Trusted by retail managers
-                  <br />
-                  across Nigeria
-                </p>
-              </div>
               <ul className="grid gap-2">
-                {['No spreadsheets', 'No missed updates'].map((point) => (
+                {['No spreadsheets', 'No missed updates', 'Built for retail teams in Nigeria'].map((point) => (
                   <li key={point} className="flex items-center gap-2 text-sm font-semibold">
-                    <CheckCircle2 className="size-4 shrink-0 text-brand-500" aria-hidden="true" />
+                    <CheckCircle2 className="size-4 shrink-0 text-brand-700" aria-hidden="true" />
                     <span className="text-neutral-500">{point}</span>
                   </li>
                 ))}
@@ -162,7 +133,7 @@ export default function LandingPage(): React.ReactElement {
               className="relative w-full max-w-[540px] object-contain drop-shadow-2xl lg:max-w-[620px]"
             />
 
-            <div className="absolute left-0 top-6 flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white/95 px-4 py-3 shadow-lift backdrop-blur sm:left-2">
+            <div className="absolute left-0 top-6 flex items-center gap-3 rounded-lg border border-neutral-200 bg-white/95 px-4 py-3 shadow-lift backdrop-blur sm:left-2">
               <span className="flex size-9 items-center justify-center rounded-xl bg-success-soft text-success-600">
                 <CheckCircle2 className="size-4" aria-hidden="true" />
               </span>
@@ -172,7 +143,7 @@ export default function LandingPage(): React.ReactElement {
               </div>
             </div>
 
-            <div className="absolute right-0 top-1/3 flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white/95 px-4 py-3 shadow-lift backdrop-blur">
+            <div className="absolute right-0 top-1/3 flex items-center gap-3 rounded-lg border border-neutral-200 bg-white/95 px-4 py-3 shadow-lift backdrop-blur">
               <span className="flex size-9 items-center justify-center rounded-xl bg-brand-soft text-brand-deep">
                 <CalendarDays className="size-4" aria-hidden="true" />
               </span>
@@ -182,8 +153,8 @@ export default function LandingPage(): React.ReactElement {
               </div>
             </div>
 
-            <div className="absolute bottom-6 left-4 flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white/95 px-4 py-3 shadow-lift backdrop-blur sm:left-10">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-warning-soft text-brand-deep">
+            <div className="absolute bottom-6 left-4 flex items-center gap-3 rounded-lg border border-neutral-200 bg-white/95 px-4 py-3 shadow-lift backdrop-blur sm:left-10">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-neutral-100 text-neutral-700">
                 <MessageCircle className="size-4" aria-hidden="true" />
               </span>
               <div>
@@ -194,19 +165,6 @@ export default function LandingPage(): React.ReactElement {
           </div>
         </div>
 
-        <div className="relative mx-auto max-w-7xl px-4 pb-14 sm:px-6">
-          <dl className="grid gap-4 rounded-3xl border border-neutral-200 bg-white/80 p-6 shadow-card backdrop-blur sm:grid-cols-3">
-            {heroStats.map((s) => (
-              <div key={s.label} className="text-center sm:text-left">
-                <dt className="sr-only">{s.label}</dt>
-                <dd>
-                  <span className="block text-3xl font-extrabold tracking-tight text-brand-500">{s.value}</span>
-                  <span className="mt-1 block text-xs font-semibold text-neutral-500">{s.label}</span>
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
       </section>
 
       {/* Roles */}
@@ -214,8 +172,8 @@ export default function LandingPage(): React.ReactElement {
         <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div>
             <span className="eyebrow">One platform &middot; Every role</span>
-            <h2 className="mt-4 text-3xl leading-[1.1] text-neutral-900 sm:text-4xl">
-              One Platform. <span className="text-brand-500">Everyone In Sync.</span>
+            <h2 className="mt-4 font-display text-3xl font-semibold leading-[1.1] text-neutral-900 sm:text-4xl">
+              One Platform. <span className="text-brand-700">Everyone In Sync.</span>
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-neutral-500">
               ShiftOS brings your team, schedules and communication together &mdash; so your store runs smoother every day.
@@ -224,14 +182,14 @@ export default function LandingPage(): React.ReactElement {
           <div className="grid items-stretch gap-3 sm:grid-cols-[1fr_auto_1fr_auto_1fr]">
             {roles.map((r, i) => (
               <div key={r.role} className="contents">
-                <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card">
+                <div className="rounded-lg border border-neutral-200 bg-white p-5 shadow-card">
                   <span
                     className={
                       r.tone === 'primary'
-                        ? 'flex size-10 items-center justify-center rounded-xl bg-brand-500 text-white'
-                        : r.tone === 'amber'
-                          ? 'flex size-10 items-center justify-center rounded-xl bg-warning-soft text-brand-deep'
-                          : 'flex size-10 items-center justify-center rounded-xl bg-success-soft text-success-600'
+                        ? 'flex size-10 items-center justify-center rounded-xl bg-brand-700 text-white'
+                        : r.tone === 'graphite'
+                          ? 'flex size-10 items-center justify-center rounded-xl bg-neutral-900 text-white'
+                          : 'flex size-10 items-center justify-center rounded-xl bg-neutral-100 text-neutral-700'
                     }
                   >
                     <r.icon className="size-5" aria-hidden="true" />
@@ -240,7 +198,7 @@ export default function LandingPage(): React.ReactElement {
                   <ul className="mt-2.5 space-y-1.5">
                     {r.points.map((p) => (
                       <li key={p} className="flex items-start gap-1.5 text-xs text-neutral-500">
-                        <CheckCircle2 className="mt-0.5 size-3 shrink-0 text-brand-500" aria-hidden="true" />
+                        <CheckCircle2 className="mt-0.5 size-3 shrink-0 text-brand-700" aria-hidden="true" />
                         {p}
                       </li>
                     ))}
@@ -262,8 +220,8 @@ export default function LandingPage(): React.ReactElement {
         <div className="grid items-center gap-10 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <span className="eyebrow">Complete visibility</span>
-            <h2 className="mt-4 text-3xl leading-[1.1] text-neutral-900 sm:text-4xl">
-              See Everything. <span className="text-brand-500">Manage Anything.</span>
+            <h2 className="mt-4 font-display text-3xl font-semibold leading-[1.1] text-neutral-900 sm:text-4xl">
+              See Everything. <span className="text-brand-700">Manage Anything.</span>
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-neutral-500">
               From schedules to attendance and tasks, everything your branch runs on lives in one place &mdash; not across four
@@ -277,7 +235,7 @@ export default function LandingPage(): React.ReactElement {
                 { icon: CalendarDays, label: 'Gaps in coverage before the day starts' }
               ].map((item) => (
                 <li key={item.label} className="flex items-center gap-3 text-sm">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-500">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-700">
                     <item.icon className="size-4" aria-hidden="true" />
                   </span>
                   <span className="text-neutral-500">{item.label}</span>
@@ -285,7 +243,7 @@ export default function LandingPage(): React.ReactElement {
               ))}
             </ul>
           </div>
-          <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-2 shadow-lift">
+          <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-2 shadow-lift">
             <img
               src={dashboardMock}
               alt="Weekly shift schedule with attendance summary in ShiftOS"
@@ -313,8 +271,8 @@ export default function LandingPage(): React.ReactElement {
           </div>
           <div>
             <span className="eyebrow">Staff stay updated</span>
-            <h2 className="mt-4 text-3xl leading-[1.1] text-neutral-900 sm:text-4xl">
-              Staff Stay Updated, <span className="text-brand-500">Anytime, Anywhere.</span>
+            <h2 className="mt-4 font-display text-3xl font-semibold leading-[1.1] text-neutral-900 sm:text-4xl">
+              Staff Stay Updated, <span className="text-brand-700">Anytime, Anywhere.</span>
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-neutral-500">
               Schedules, announcements and important updates &mdash; delivered to Email and WhatsApp.
@@ -327,14 +285,14 @@ export default function LandingPage(): React.ReactElement {
                 'Stay informed on branch announcements'
               ].map((label) => (
                 <li key={label} className="flex items-start gap-2.5 text-sm">
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-500" aria-hidden="true" />
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-700" aria-hidden="true" />
                   <span className="text-neutral-500">{label}</span>
                 </li>
               ))}
             </ul>
             <div className="mt-6 flex flex-wrap gap-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-xs font-bold text-neutral-900">
-                <Mail className="size-4 text-brand-500" aria-hidden="true" /> Email
+                <Mail className="size-4 text-brand-700" aria-hidden="true" /> Email
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-xs font-bold text-neutral-900">
                 <MessageCircle className="size-4 text-success-600" aria-hidden="true" /> WhatsApp
@@ -346,13 +304,13 @@ export default function LandingPage(): React.ReactElement {
 
       {/* Feature grid */}
       <Section wash className="py-14 sm:py-16">
-        <h2 className="text-center text-3xl leading-[1.1] text-neutral-900 sm:text-4xl">
-          Everything You Need to <span className="text-brand-500">Run Your Store</span>
+        <h2 className="text-center font-display text-3xl font-semibold leading-[1.1] text-neutral-900 sm:text-4xl">
+          Everything You Need to <span className="text-brand-700">Run Your Store</span>
         </h2>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
           {features.map((f) => (
-            <div key={f.title} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-card transition-shadow hover:shadow-lift">
-              <f.icon className="size-6 text-brand-500" aria-hidden="true" />
+            <div key={f.title} className="rounded-lg border border-neutral-200 bg-white p-5 shadow-card transition-shadow hover:shadow-lift">
+              <f.icon className="size-6 text-brand-700" aria-hidden="true" />
               <h3 className="mt-3 text-sm font-extrabold text-neutral-900">{f.title}</h3>
               <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">{f.body}</p>
             </div>
@@ -365,27 +323,16 @@ export default function LandingPage(): React.ReactElement {
         </div>
       </Section>
 
-      {/* Social proof */}
-      <section className="border-y border-neutral-200 bg-white py-9">
-        <ul className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-10 gap-y-4 px-4 sm:px-6">
-          {brands.map((b) => (
-            <li key={b} className="text-base font-extrabold tracking-tight text-neutral-400/80">
-              {b}
-            </li>
-          ))}
-        </ul>
-      </section>
-
       {/* Final CTA */}
       <section className="bg-white py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex flex-col items-start gap-8 rounded-3xl bg-neutral-900 px-6 py-10 text-white sm:px-10 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col items-start gap-8 rounded-xl bg-neutral-900 px-6 py-10 text-white sm:px-10 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-5">
               <span className="hidden size-14 shrink-0 items-center justify-center rounded-full bg-brand-500/15 text-brand-400 ring-1 ring-brand-500/30 sm:flex">
                 <Store className="size-6" aria-hidden="true" />
               </span>
               <div>
-                <h2 className="text-2xl leading-[1.15] sm:text-[1.75rem]">
+                <h2 className="font-display text-2xl font-semibold leading-[1.15] sm:text-[1.75rem]">
                   Stop juggling spreadsheets,
                   <br />
                   WhatsApp and paper schedules.
@@ -397,7 +344,7 @@ export default function LandingPage(): React.ReactElement {
             </div>
             <div className="flex w-full max-w-[280px] flex-col gap-3">
               <p className="text-xs font-semibold leading-snug text-white/70">
-                Join hundreds of retail teams already running smoother operations with ShiftOS.
+                30-day free trial. Set up your organization and first branch in minutes.
               </p>
               <Link to="/sign-up" className={buttonClasses({ variant: 'hero', size: 'lg', fullWidth: true })}>
                 Start Your Free Trial <ArrowRight className="size-4" />

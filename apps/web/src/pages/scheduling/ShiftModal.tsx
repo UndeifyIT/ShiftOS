@@ -10,6 +10,9 @@ export interface ShiftModalProps {
   scheduleId: string;
   shift: Shift | null;
   employees: Employee[];
+  /** Called instead of closing after a successful create, so the modal can flow straight into
+   * assignment for the new shift rather than forcing the user to reopen it (WEB-016). */
+  onCreated?: (shift: Shift) => void;
 }
 
 const ASSIGNMENT_TONE: Record<ShiftAssignment['assignment_status'], 'success' | 'warning' | 'error' | 'neutral'> = {
@@ -21,7 +24,7 @@ const ASSIGNMENT_TONE: Record<ShiftAssignment['assignment_status'], 'success' | 
 };
 
 /** WEB-015 (Shift Detail / Edit) + WEB-016 (Shift Assignment Panel) combined, contextual to the schedule builder (frontend foundation §D.5). */
-export function ShiftModal({ open, onClose, scheduleId, shift, employees }: ShiftModalProps): React.ReactElement {
+export function ShiftModal({ open, onClose, scheduleId, shift, employees, onCreated }: ShiftModalProps): React.ReactElement {
   const { hasPermission } = useSession();
   const canUpdate = hasPermission('shifts.update');
   const canAssign = hasPermission('assignments.create');
@@ -61,7 +64,7 @@ export function ShiftModal({ open, onClose, scheduleId, shift, employees }: Shif
 
   const createMutation = useRpcMutation<Shift, Record<string, unknown>>('create_shift', {
     invalidates: ['list_shifts_for_schedule'],
-    onSuccess: onClose,
+    onSuccess: (created) => (onCreated ? onCreated(created) : onClose()),
     onError: (err) => setError(err.message)
   });
   const updateMutation = useRpcMutation<Shift, Record<string, unknown>>('update_shift', {

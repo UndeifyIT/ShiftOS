@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Check, Sparkles } from 'lucide-react';
+import { Check, ChevronDown, Sparkles } from 'lucide-react';
 import shiftyWave from '../../assets/shifty-wave.png';
 import shiftyGuide from '../../assets/shifty-guide.png';
 import shiftySuccess from '../../assets/shifty-success.png';
@@ -54,6 +54,7 @@ export function ShiftyPanel({
   message,
   tips,
   tone = 'neutral',
+  pointing = false,
   className = ''
 }: {
   variant?: ShiftyVariant;
@@ -61,6 +62,8 @@ export function ShiftyPanel({
   message: React.ReactNode;
   tips?: { label: string; hint: string }[];
   tone?: 'neutral' | 'success' | 'warning';
+  /** Renders a small bouncing chevron beneath the panel, pointing at the form/control immediately below it. A directional cue, not a new mascot pose. */
+  pointing?: boolean;
   className?: string;
 }): React.ReactElement {
   const toneClass =
@@ -73,7 +76,7 @@ export function ShiftyPanel({
           <ShiftyMascot variant={variant} className="h-[86%] w-full" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-brand-600">
+          <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-brand-700">
             <Sparkles size={12} aria-hidden="true" /> {eyebrow}
           </p>
           <p className="mt-1.5 text-[13px] font-semibold leading-relaxed text-neutral-900">{message}</p>
@@ -84,7 +87,7 @@ export function ShiftyPanel({
         <ul className="mt-3.5 space-y-2 border-t border-neutral-200 pt-3.5">
           {tips.map((t) => (
             <li key={t.label} className="flex items-start gap-2">
-              <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600">
+              <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
                 <Check size={10} aria-hidden="true" />
               </span>
               <span className="min-w-0 text-[12px] leading-relaxed text-neutral-500">
@@ -93,6 +96,12 @@ export function ShiftyPanel({
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {pointing ? (
+        <div className="mt-1 flex justify-center motion-safe:animate-bounce" aria-hidden="true">
+          <ChevronDown size={16} className="text-brand-700" />
+        </div>
       ) : null}
     </section>
   );

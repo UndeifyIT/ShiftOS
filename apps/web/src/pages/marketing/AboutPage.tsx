@@ -121,7 +121,7 @@ export default function AboutPage(): React.ReactElement {
             <span className="inline-flex items-center gap-2 rounded-full bg-brand-500/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-brand-400">
               About us
             </span>
-            <h1 className="mt-6 text-[2.6rem] font-extrabold leading-[1.03] tracking-tight sm:text-6xl">
+            <h1 className="mt-6 font-display text-[2.6rem] font-semibold leading-[1.03] tracking-tight sm:text-6xl">
               Built for retail teams.
               <br />
               Rooted in <span className="text-brand-400">real problems.</span>
@@ -159,7 +159,7 @@ export default function AboutPage(): React.ReactElement {
           </div>
 
           <div className="relative">
-            <div className="overflow-hidden rounded-[2rem] border border-white/12 bg-white/[0.04] p-3 shadow-2xl backdrop-blur">
+            <div className="overflow-hidden rounded-[1.5rem] border border-white/12 bg-white/[0.04] p-3 shadow-2xl backdrop-blur">
               <img
                 src={illusAboutHero}
                 alt="ShiftOS 3D brand mark on stacked platforms"
@@ -168,7 +168,7 @@ export default function AboutPage(): React.ReactElement {
                 className="w-full rounded-[1.5rem] object-cover"
               />
             </div>
-            <div className="absolute -bottom-5 left-5 flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-lift">
+            <div className="absolute -bottom-5 left-5 flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-lift">
               <IconCircle size={36}>
                 <Store className="size-4" aria-hidden="true" />
               </IconCircle>
@@ -199,17 +199,17 @@ export default function AboutPage(): React.ReactElement {
           {missionVision.map((c) => (
             <article
               key={c.kicker}
-              className="group relative overflow-hidden rounded-3xl border border-neutral-200 bg-white p-8 shadow-card transition-shadow hover:shadow-lift"
+              className="group relative overflow-hidden rounded-xl border border-neutral-200 bg-white p-8 shadow-card transition-shadow hover:shadow-lift"
             >
               <span
                 aria-hidden="true"
                 className="absolute -right-16 -top-16 size-40 rounded-full bg-brand-soft transition-transform duration-500 group-hover:scale-125"
               />
-              <span className="relative flex size-12 items-center justify-center rounded-2xl bg-brand-500 text-white shadow-brand">
+              <span className="relative flex size-12 items-center justify-center rounded-lg bg-brand-700 text-white shadow-brand">
                 <c.icon className="size-5" aria-hidden="true" />
               </span>
-              <p className="relative mt-6 text-[11px] font-extrabold uppercase tracking-[0.16em] text-brand-500">{c.kicker}</p>
-              <h2 className="relative mt-2 text-2xl font-extrabold tracking-tight text-neutral-900">{c.title}</h2>
+              <p className="relative mt-6 text-[11px] font-extrabold uppercase tracking-[0.16em] text-brand-700">{c.kicker}</p>
+              <h2 className="relative mt-2 font-display text-2xl font-semibold tracking-tight text-neutral-900">{c.title}</h2>
               <p className="relative mt-3 text-sm leading-relaxed text-neutral-500">{c.body}</p>
             </article>
           ))}
@@ -221,15 +221,15 @@ export default function AboutPage(): React.ReactElement {
         <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr]">
           <div className="lg:sticky lg:top-28 lg:self-start">
             <Eyebrow>Our story</Eyebrow>
-            <h2 className="mt-4 text-3xl leading-[1.1] font-extrabold tracking-tight text-neutral-900 sm:text-4xl">
+            <h2 className="mt-4 font-display text-3xl leading-[1.1] font-semibold tracking-tight text-neutral-900 sm:text-4xl">
               We build what retail teams
               <br />
-              <span className="text-brand-500">actually need.</span>
+              <span className="text-brand-700">actually need.</span>
             </h2>
             <ul className="mt-8 space-y-3">
               {storyChecklist.map((t) => (
                 <li key={t} className="flex items-center gap-3">
-                  <CheckCircle2 className="size-5 shrink-0 text-brand-500" aria-hidden="true" />
+                  <CheckCircle2 className="size-5 shrink-0 text-brand-700" aria-hidden="true" />
                   <span className="text-sm font-bold text-neutral-900">{t}</span>
                 </li>
               ))}
@@ -239,7 +239,7 @@ export default function AboutPage(): React.ReactElement {
           <ol className="divide-y divide-neutral-200 border-y border-neutral-200">
             {story.map((s) => (
               <li key={s.step} className="grid gap-4 py-8 sm:grid-cols-[auto_1fr] sm:gap-8">
-                <span className="text-2xl font-extrabold tracking-tight text-brand-500/40">{s.step}</span>
+                <span className="text-2xl font-extrabold tracking-tight text-brand-700/40">{s.step}</span>
                 <div>
                   <h3 className="text-lg font-extrabold tracking-tight text-neutral-900">{s.title}</h3>
                   <p className="mt-2 max-w-xl text-sm leading-relaxed text-neutral-500">{s.body}</p>
@@ -254,18 +254,18 @@ export default function AboutPage(): React.ReactElement {
       <Section className="py-14 sm:py-20">
         <div className="max-w-2xl">
           <Eyebrow>Why ShiftOS exists</Eyebrow>
-          <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] tracking-tight text-neutral-900 sm:text-4xl">
-            Retail teams deserve <span className="text-brand-500">better tools</span>
+          <h2 className="mt-4 font-display text-3xl font-semibold leading-[1.1] tracking-tight text-neutral-900 sm:text-4xl">
+            Retail teams deserve <span className="text-brand-700">better tools</span>
           </h2>
           <p className="mt-4 text-base leading-relaxed text-neutral-500">
             Most workforce software assumes employees are on their phones all day. Retail doesn&rsquo;t work that way — so we
             designed around the people who actually run the floor.
           </p>
         </div>
-        <div className="mt-12 grid gap-px overflow-hidden rounded-3xl border border-neutral-200 bg-neutral-200 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-12 grid gap-px overflow-hidden rounded-xl border border-neutral-200 bg-neutral-200 sm:grid-cols-2 lg:grid-cols-4">
           {beliefs.map((b) => (
             <div key={b.title} className="group bg-white p-7 transition-colors hover:bg-brand-soft/60">
-              <span className="flex size-11 items-center justify-center rounded-xl bg-brand-soft text-brand-deep transition-colors group-hover:bg-brand-500 group-hover:text-white">
+              <span className="flex size-11 items-center justify-center rounded-xl bg-brand-soft text-brand-deep transition-colors group-hover:bg-brand-700 group-hover:text-white">
                 <b.icon className="size-5" aria-hidden="true" />
               </span>
               <h3 className="mt-6 text-base font-extrabold tracking-tight text-neutral-900">{b.title}</h3>
@@ -280,13 +280,13 @@ export default function AboutPage(): React.ReactElement {
         <Eyebrow>Meet the founding team</Eyebrow>
         <div className="mt-8 grid gap-5 md:grid-cols-2">
           {founders.map((p) => (
-            <article key={p.name} className="flex gap-5 rounded-3xl border border-neutral-200 bg-white p-7 shadow-card">
-              <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-brand-500 text-lg font-extrabold text-white shadow-brand">
+            <article key={p.name} className="flex gap-5 rounded-xl border border-neutral-200 bg-white p-7 shadow-card">
+              <span className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-brand-700 text-lg font-extrabold text-white shadow-brand">
                 {p.initials}
               </span>
               <div>
                 <h3 className="text-xl font-extrabold tracking-tight text-neutral-900">{p.name}</h3>
-                <p className="mt-0.5 text-sm font-bold text-brand-500">{p.role}</p>
+                <p className="mt-0.5 text-sm font-bold text-brand-700">{p.role}</p>
                 <p className="mt-3 text-sm leading-relaxed text-neutral-500">{p.body}</p>
               </div>
             </article>
@@ -294,7 +294,7 @@ export default function AboutPage(): React.ReactElement {
         </div>
 
         <figure className="mx-auto mt-12 max-w-3xl text-center">
-          <Quote className="mx-auto size-7 text-brand-500" aria-hidden="true" />
+          <Quote className="mx-auto size-7 text-brand-700" aria-hidden="true" />
           <blockquote className="mt-4 text-lg font-bold leading-relaxed tracking-tight text-neutral-900 sm:text-xl">
             &ldquo;ShiftOS was founded with one goal: build workforce software that reflects how retail teams actually operate
             — not how enterprise software assumes they operate.&rdquo;
@@ -305,12 +305,12 @@ export default function AboutPage(): React.ReactElement {
       {/* CTA */}
       <section className="pb-16 sm:pb-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="relative overflow-hidden rounded-[2rem] bg-neutral-900 px-6 py-12 text-center text-white sm:px-12">
+          <div className="relative overflow-hidden rounded-[1.5rem] bg-neutral-900 px-6 py-12 text-center text-white sm:px-12">
             <span
               aria-hidden="true"
               className="pointer-events-none absolute -left-24 -top-24 size-72 rounded-full bg-brand-500/25 blur-3xl"
             />
-            <h2 className="relative text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+            <h2 className="relative font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
               Ready to run your shifts the easy way?
             </h2>
             <p className="relative mx-auto mt-4 max-w-xl text-sm leading-relaxed text-white/70">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Facebook, Instagram, Linkedin, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { LogoMark } from './Logo.js';
 
 const COLUMNS: { title: string; links: { label: string; to: string }[] }[] = [
@@ -47,16 +47,6 @@ export function MarketingFooter(): React.ReactElement {
             <p className="mt-3 text-sm leading-relaxed text-neutral-500">
               Scheduling, communication and workforce management built for teams that run on shifts.
             </p>
-            <div className="mt-4 flex gap-2">
-              {[Linkedin, Instagram, Facebook, Mail].map((Icon, index) => (
-                <span
-                  key={index}
-                  className="inline-flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500"
-                >
-                  <Icon className="size-4" aria-hidden="true" />
-                </span>
-              ))}
-            </div>
           </div>
 
           {COLUMNS.map((column) => (
@@ -65,7 +55,7 @@ export function MarketingFooter(): React.ReactElement {
               <ul className="mt-4 space-y-2.5">
                 {column.links.map((link) => (
                   <li key={link.label}>
-                    <Link to={link.to} className="text-sm text-neutral-500 transition-colors hover:text-brand-500">
+                    <Link to={link.to} className="text-sm text-neutral-500 transition-colors hover:text-brand-700">
                       {link.label}
                     </Link>
                   </li>
@@ -75,43 +65,24 @@ export function MarketingFooter(): React.ReactElement {
           ))}
 
           <div>
-            <h3 className="text-sm font-extrabold text-neutral-900">Stay Updated</h3>
-            <p className="mt-4 text-sm text-neutral-500">Product updates and shift-planning tips, straight to your inbox.</p>
-            <form
-              className="mt-4 flex gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                (event.currentTarget as HTMLFormElement).reset();
-              }}
+            <h3 className="text-sm font-extrabold text-neutral-900">Get in Touch</h3>
+            <p className="mt-4 text-sm text-neutral-500">Questions about ShiftOS for your team? We reply directly, no ticket queue.</p>
+            <a
+              href="mailto:hello@shiftos.app"
+              className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
             >
-              <label htmlFor="footer-email" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="footer-email"
-                type="email"
-                required
-                placeholder="Enter your email"
-                className="h-10 w-full min-w-0 rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-              />
-              <button
-                type="submit"
-                aria-label="Subscribe"
-                className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-500 text-white hover:bg-brand-600"
-              >
-                <ArrowRight className="size-4" />
-              </button>
-            </form>
+              <Mail className="size-4" aria-hidden="true" /> hello@shiftos.app
+            </a>
           </div>
         </div>
 
         <div className="mt-12 flex flex-col gap-3 border-t border-neutral-200 pt-6 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
           <p>&copy; {new Date().getFullYear()} ShiftOS. All rights reserved.</p>
           <div className="flex gap-5">
-            <Link to="/privacy" className="hover:text-brand-500">
+            <Link to="/privacy" className="hover:text-brand-700">
               Privacy Policy
             </Link>
-            <Link to="/terms" className="hover:text-brand-500">
+            <Link to="/terms" className="hover:text-brand-700">
               Terms &amp; Conditions
             </Link>
           </div>

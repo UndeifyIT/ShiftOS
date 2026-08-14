@@ -9,66 +9,57 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          50: '#fff4ed',
-          100: '#ffe6d5',
-          200: '#ffc9a8',
-          300: '#ffa670',
-          400: '#ff7a38',
-          500: '#f4551c',
-          600: '#e13d0f',
-          700: '#ba2c0d',
-          800: '#942512',
-          900: '#782112',
-          soft: '#ffe6d5',
-          deep: '#ba2c0d'
+          50: '#f0fdfa',
+          100: '#ccfbf1',
+          200: '#99f6e4',
+          300: '#5eead4',
+          400: '#2dd4bf',
+          500: '#14b8a6',
+          600: '#0d9488',
+          700: '#0f766e',
+          800: '#115e59',
+          900: '#134e4a',
+          soft: '#ccfbf1',
+          deep: '#0f766e'
         },
         neutral: {
           0: '#ffffff',
-          50: '#fdf8f5',
-          100: '#f7efe9',
-          200: '#ece1d9',
-          300: '#dccdc0',
-          400: '#b6a696',
-          500: '#8a7a6b',
-          600: '#645749',
-          700: '#453b31',
-          800: '#2b2620',
-          900: '#1a1714'
+          50: '#fafafa',
+          100: '#f5f5f5',
+          200: '#e5e5e5',
+          300: '#d4d4d4',
+          400: '#a3a3a3',
+          500: '#737373',
+          600: '#525252',
+          700: '#404040',
+          800: '#262626',
+          900: '#111111'
         },
-        success: { 50: '#eefcf3', soft: '#dff7e8', 500: '#1fa864', 600: '#178a51', text: '#0f6b3f' },
-        warning: { 50: '#fff8e8', soft: '#fdedc7', 500: '#d69a1f', 600: '#b17f16', text: '#7a5a10' },
-        error: { 50: '#fdeeec', 500: '#d43d2c', 600: '#b32e1f', text: '#8f2517' },
-        info: { 50: '#eef4fd', 500: '#2f6fd6', 600: '#255cb3', text: '#1d4788' }
+        success: { 50: '#ecfdf5', soft: '#d1fae5', 500: '#10b981', 600: '#059669', text: '#065f46' },
+        warning: { 50: '#fffbeb', soft: '#fef3c7', 500: '#f59e0b', 600: '#d97706', text: '#92400e' },
+        error: { 50: '#fef2f2', soft: '#fee2e2', 500: '#ef4444', 600: '#dc2626', text: '#991b1b' },
+        info: { 50: '#eff6ff', soft: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', text: '#1e40af' }
       },
       fontFamily: {
-        sans: [
-          '"Plus Jakarta Sans"',
-          '-apple-system',
-          'BlinkMacSystemFont',
-          '"Segoe UI"',
-          'Inter',
-          'Roboto',
-          '"Helvetica Neue"',
-          'Arial',
-          'sans-serif'
-        ]
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        /** Marketing headlines + onboarding step titles only — never dashboards/tables. */
+        display: ['Newsreader', 'Georgia', '"Times New Roman"', 'serif']
       },
       borderRadius: {
-        sm: '6px',
-        md: '10px',
-        lg: '14px',
-        xl: '18px'
+        sm: '4px',
+        md: '8px',
+        lg: '12px',
+        xl: '16px'
       },
       boxShadow: {
-        sm: '0 1px 2px rgba(26, 23, 20, 0.06)',
-        md: '0 4px 12px rgba(26, 23, 20, 0.08)',
-        lg: '0 12px 32px rgba(26, 23, 20, 0.12)',
-        /* Lovable (shift-app-hero) design-system shadow tokens — kept under
-           the same brand-neutral rgba base as sm/md/lg above so both scales
-           can be used interchangeably across ported marketing/app pages. */
-        card: '0 1px 2px rgba(26, 23, 20, 0.04), 0 8px 24px -12px rgba(26, 23, 20, 0.10)',
-        lift: '0 2px 4px rgba(26, 23, 20, 0.05), 0 18px 40px -18px rgba(26, 23, 20, 0.16)',
-        brand: '0 10px 26px -10px rgba(244, 85, 28, 0.5)'
+        sm: '0 1px 2px rgba(17, 17, 17, 0.06)',
+        md: '0 2px 8px rgba(17, 17, 17, 0.08)',
+        lg: '0 8px 24px rgba(17, 17, 17, 0.10)',
+        /* Lovable-era card/lift/brand shadow tokens, re-based onto the graphite +
+           teal palette so pages still using these class names stay consistent. */
+        card: '0 1px 2px rgba(17, 17, 17, 0.04), 0 8px 24px -12px rgba(17, 17, 17, 0.10)',
+        lift: '0 2px 4px rgba(17, 17, 17, 0.05), 0 18px 40px -18px rgba(17, 17, 17, 0.16)',
+        brand: '0 10px 26px -10px rgba(20, 184, 166, 0.45)'
       }
     }
   },

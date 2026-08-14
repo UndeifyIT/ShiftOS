@@ -20,6 +20,7 @@ export * from './identity/roleRepository.js';
 export * from './identity/permissionRepository.js';
 export * from './identity/rolePermissionRepository.js';
 export * from './identity/organizationMemberBranchAccessRepository.js';
+export * from './identity/invitationRepository.js';
 
 // Workforce
 export * from './workforce/employeeRepository.js';

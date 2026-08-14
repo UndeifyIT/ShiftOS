@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useSession } from '../auth/SessionProvider.js';
+import { LogoMark } from '../marketing/Logo.js';
 
 interface NavItem {
   to: string;
@@ -32,10 +33,10 @@ export function Sidebar(): React.ReactElement {
   });
 
   return (
-    <nav aria-label="Primary" className="flex h-full w-60 shrink-0 flex-col gap-1 border-r border-neutral-200 bg-white p-4">
-      <div className="mb-4 flex items-center gap-2 px-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">S</span>
-        <span className="text-lg font-bold text-neutral-900">ShiftOS</span>
+    <nav aria-label="Primary" className="flex h-full w-60 shrink-0 flex-col gap-1 bg-neutral-900 p-4">
+      <div className="mb-5 flex items-center gap-2 px-2">
+        <LogoMark className="h-8 w-8" inverted />
+        <span className="font-display text-lg font-semibold tracking-tight text-white">ShiftOS</span>
       </div>
       {items.map((item) => (
         <NavLink
@@ -44,8 +45,10 @@ export function Sidebar(): React.ReactElement {
           end={item.to === '/'}
           className={({ isActive }) =>
             [
-              'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              isActive ? 'bg-brand-50 text-brand-700' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+              'rounded-lg border-l-2 px-3 py-2 text-sm font-medium transition-colors',
+              isActive
+                ? 'border-brand-400 bg-neutral-800 text-white'
+                : 'border-transparent text-neutral-400 hover:bg-neutral-800/60 hover:text-neutral-100'
             ].join(' ')
           }
         >

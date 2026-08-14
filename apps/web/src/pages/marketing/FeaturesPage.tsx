@@ -127,8 +127,8 @@ export default function FeaturesPage(): React.ReactElement {
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-20">
           <div className="max-w-3xl">
             <Eyebrow>Features</Eyebrow>
-            <h1 className="mt-5 text-4xl font-bold leading-[1.06] tracking-tight text-neutral-900 sm:text-5xl">
-              Everything a shift-based team needs, <span className="text-brand-500">nothing it doesn't.</span>
+            <h1 className="mt-5 font-display text-4xl font-semibold leading-[1.06] tracking-tight text-neutral-900 sm:text-5xl">
+              Everything a shift-based team needs, <span className="text-brand-700">nothing it doesn't.</span>
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-neutral-500">
               ShiftOS is built around how branches really operate: a manager planning the week, a supervisor running the
@@ -171,14 +171,14 @@ export default function FeaturesPage(): React.ReactElement {
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div className={p.reverse ? 'lg:order-2' : ''}>
               <Eyebrow>{p.eyebrow}</Eyebrow>
-              <h2 className="mt-4 text-3xl leading-[1.1] text-neutral-900 sm:text-4xl">
-                {p.title} <span className="text-brand-500">{p.accent}</span>
+              <h2 className="mt-4 font-display text-3xl font-semibold leading-[1.1] text-neutral-900 sm:text-4xl">
+                {p.title} <span className="text-brand-700">{p.accent}</span>
               </h2>
               <p className="mt-4 text-base leading-relaxed text-neutral-500">{p.body}</p>
               <ul className="mt-6 space-y-2.5">
                 {p.points.map((point) => (
                   <li key={point} className="flex items-start gap-2.5 text-sm">
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-500" aria-hidden="true" />
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-700" aria-hidden="true" />
                     <span className="text-neutral-500">{point}</span>
                   </li>
                 ))}
@@ -186,7 +186,7 @@ export default function FeaturesPage(): React.ReactElement {
             </div>
             <div className={p.reverse ? 'lg:order-1' : ''}>
               {p.framed ? (
-                <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-2 shadow-lift">
+                <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-2 shadow-lift">
                   <img
                     src={p.image}
                     alt={p.imageAlt}
@@ -229,7 +229,7 @@ export default function FeaturesPage(): React.ReactElement {
           {capabilities.map((c) => (
             <div
               key={c.title}
-              className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-card transition-shadow hover:shadow-lift"
+              className="rounded-lg border border-neutral-200 bg-white p-6 shadow-card transition-shadow hover:shadow-lift"
             >
               <span className="flex size-11 items-center justify-center rounded-xl bg-brand-soft text-brand-deep">
                 <c.icon className="size-5" aria-hidden="true" />
@@ -248,8 +248,8 @@ export default function FeaturesPage(): React.ReactElement {
             <span className="eyebrow inline-flex items-center gap-1.5">
               <Sparkles className="size-3.5" aria-hidden="true" /> Shifty
             </span>
-            <h2 className="mt-4 text-3xl leading-[1.1] text-neutral-900 sm:text-4xl">
-              Ask your operations <span className="text-brand-500">a question.</span>
+            <h2 className="mt-4 font-display text-3xl font-semibold leading-[1.1] text-neutral-900 sm:text-4xl">
+              Ask your operations <span className="text-brand-700">a question.</span>
             </h2>
             <p className="mt-4 text-base leading-relaxed text-neutral-500">
               Shifty is the ShiftOS assistant. Instead of digging through screens, ask about coverage, open shifts or
@@ -262,7 +262,7 @@ export default function FeaturesPage(): React.ReactElement {
                 'Available from every page in ShiftOS'
               ].map((t) => (
                 <li key={t} className="flex items-start gap-2.5 text-sm">
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-500" aria-hidden="true" />
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-700" aria-hidden="true" />
                   <span className="text-neutral-500">{t}</span>
                 </li>
               ))}
@@ -270,7 +270,7 @@ export default function FeaturesPage(): React.ReactElement {
             <p className="mt-5 text-xs text-neutral-500">Shifty responses shown here are illustrative.</p>
           </div>
 
-          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-lift">
+          <div className="rounded-lg border border-neutral-200 bg-white p-5 shadow-lift">
             <div className="flex items-center gap-2.5 border-b border-neutral-200 pb-3">
               <span className="flex size-9 items-center justify-center rounded-xl bg-brand-soft text-brand-deep">
                 <Sparkles className="size-4" aria-hidden="true" />
@@ -281,10 +281,10 @@ export default function FeaturesPage(): React.ReactElement {
               </div>
             </div>
             <div className="space-y-3 py-4">
-              <p className="ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-brand-500 px-3.5 py-2.5 text-sm text-white">
+              <p className="ml-auto max-w-[80%] rounded-lg rounded-br-md bg-brand-700 px-3.5 py-2.5 text-sm text-white">
                 Which shifts are unassigned?
               </p>
-              <p className="max-w-[85%] rounded-2xl rounded-bl-md bg-neutral-100 px-3.5 py-2.5 text-sm leading-relaxed text-neutral-900">
+              <p className="max-w-[85%] rounded-lg rounded-bl-md bg-neutral-100 px-3.5 py-2.5 text-sm leading-relaxed text-neutral-900">
                 2 shifts are unassigned this week: Saturday evening and Sunday morning. Want suggestions from the same
                 department?
               </p>
@@ -300,9 +300,9 @@ export default function FeaturesPage(): React.ReactElement {
       <section className="border-t border-neutral-200">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-6 px-4 py-12 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
-            <Building2 className="mt-1 size-6 shrink-0 text-brand-500" aria-hidden="true" />
+            <Building2 className="mt-1 size-6 shrink-0 text-brand-700" aria-hidden="true" />
             <div>
-              <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Set up your organization in minutes</h2>
+              <h2 className="font-display text-2xl font-semibold text-neutral-900 sm:text-3xl">Set up your organization in minutes</h2>
               <p className="mt-2 text-sm text-neutral-500">
                 Organization &rarr; Branch &rarr; Supervisor. Three steps to your first schedule.
               </p>

@@ -1,5 +1,6 @@
 import type { DatabaseClient } from '@shiftos/database';
 import { AuthorizationError } from '@shiftos/errors';
+import type { AuthenticationProvider } from '@shiftos/auth';
 import {
   resolveAuthorizationContext,
   listAccessibleOrganizationIds,
@@ -29,6 +30,14 @@ export interface ApplicationContext {
   readonly branchAccess: { isOrgWide: boolean; branchIds: string[] };
   /** Every organization this auth identity belongs to, not just the current one — for org-switcher style flows. */
   readonly accessibleOrganizationIds: string[];
+  /**
+   * Admin-capable auth operations (currently: inviting a member). Undefined
+   * when the server process has no service-role key configured — services
+   * using it MUST fail closed (throw AuthorizationError) rather than treat
+   * absence as "nothing to do". Never exposed to the frontend; this is a
+   * server-process-only capability threaded in from packages/backend.
+   */
+  readonly authProvider?: AuthenticationProvider;
 
   hasPermission(permission: string): Promise<boolean>;
   requirePermission(permission: string): Promise<void>;
@@ -54,7 +63,8 @@ class ApplicationContextImpl implements ApplicationContext {
     readonly client: DatabaseClient,
     readonly authUserId: string,
     private readonly resolved: ResolvedAuthorizationContext,
-    readonly accessibleOrganizationIds: string[]
+    readonly accessibleOrganizationIds: string[],
+    readonly authProvider?: AuthenticationProvider
   ) {
     this.permissions = new Set(resolved.user.permissions ?? []);
   }
@@ -105,9 +115,10 @@ class ApplicationContextImpl implements ApplicationContext {
 export async function createApplicationContext(
   client: DatabaseClient,
   authUserId: string,
-  organizationId: string
+  organizationId: string,
+  authProvider?: AuthenticationProvider
 ): Promise<ApplicationContext> {
   const resolved = await resolveAuthorizationContext(client, authUserId, organizationId);
   const accessibleOrganizationIds = await listAccessibleOrganizationIds(client, authUserId);
-  return new ApplicationContextImpl(client, authUserId, resolved, accessibleOrganizationIds);
+  return new ApplicationContextImpl(client, authUserId, resolved, accessibleOrganizationIds, authProvider);
 }

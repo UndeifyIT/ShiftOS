@@ -77,7 +77,7 @@ export default function ManagerDashboardPage(): React.ReactElement {
                 <button
                   key={branch.id}
                   onClick={() => navigate(`/branches/${branch.id}`)}
-                  className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-left hover:bg-neutral-50"
+                  className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left hover:bg-neutral-50"
                 >
                   <div>
                     <p className="text-sm font-semibold text-neutral-900">{branch.name}</p>

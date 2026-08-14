@@ -29,6 +29,16 @@ const STATUS_TONE: Record<ScheduleStatus, 'neutral' | 'success' | 'warning'> = {
   archived: 'neutral'
 };
 
+const SHIFT_STATUS_TONE: Record<Shift['status'], 'neutral' | 'success' | 'warning' | 'error' | 'info' | 'pending'> = {
+  draft: 'warning',
+  published: 'success',
+  scheduled: 'info',
+  active: 'pending',
+  completed: 'success',
+  cancelled: 'error',
+  archived: 'neutral'
+};
+
 function CreateScheduleForm(): React.ReactElement {
   const navigate = useNavigate();
   const { data: branches } = useRpcQuery<Branch[]>('list_branches');
@@ -193,7 +203,7 @@ export default function ScheduleBuilderPage(): React.ReactElement {
               { key: 'title', header: 'Title', primary: true, render: (s) => s.title },
               { key: 'date', header: 'Date', render: (s) => s.shift_date },
               { key: 'time', header: 'Time', render: (s) => `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}` },
-              { key: 'status', header: 'Status', render: (s) => <Badge tone={s.status === 'cancelled' ? 'error' : 'neutral'}>{s.status}</Badge> }
+              { key: 'status', header: 'Status', render: (s) => <Badge tone={SHIFT_STATUS_TONE[s.status]}>{s.status}</Badge> }
             ]}
             rows={shifts ?? []}
             rowKey={(s) => s.id}
@@ -229,6 +239,7 @@ export default function ScheduleBuilderPage(): React.ReactElement {
           scheduleId={scheduleId}
           shift={editingShift}
           employees={(employees ?? []).filter((e) => e.branch_id === schedule.branch_id)}
+          onCreated={(created) => setEditingShift(created)}
         />
       ) : null}
 

@@ -134,8 +134,8 @@ export default function ResourcesPage(): React.ReactElement {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="max-w-2xl">
             <Eyebrow>Resources</Eyebrow>
-            <h1 className="mt-5 text-4xl font-bold leading-[1.06] tracking-tight text-neutral-900 sm:text-5xl">
-              Practical guides for <span className="text-brand-500">running shifts well.</span>
+            <h1 className="mt-5 font-display text-4xl font-semibold leading-[1.06] tracking-tight text-neutral-900 sm:text-5xl">
+              Practical guides for <span className="text-brand-700">running shifts well.</span>
             </h1>
             <p className="mt-4 text-base leading-relaxed text-neutral-500">
               Setup checklists, scheduling guides and help documentation written for managers and supervisors — not
@@ -170,8 +170,8 @@ export default function ResourcesPage(): React.ReactElement {
                   className={[
                     'shrink-0 rounded-full border px-3.5 py-2 text-xs font-bold transition-colors',
                     category === c
-                      ? 'border-brand-500 bg-brand-500 text-white'
-                      : 'border-neutral-200 bg-white text-neutral-500 hover:border-brand-500 hover:text-brand-500'
+                      ? 'border-brand-700 bg-brand-700 text-white'
+                      : 'border-neutral-200 bg-white text-neutral-500 hover:border-brand-500 hover:text-brand-700'
                   ].join(' ')}
                 >
                   {c}
@@ -184,13 +184,13 @@ export default function ResourcesPage(): React.ReactElement {
 
       {/* Featured — static teaser, not a link: see file-level note on the missing /resources/:slug detail route */}
       <Section className="py-12">
-        <div className="grid gap-6 rounded-2xl border border-neutral-200 bg-white p-6 shadow-card sm:p-8 lg:grid-cols-[1.4fr_1fr] lg:items-center">
+        <div className="grid gap-6 rounded-lg border border-neutral-200 bg-white p-6 shadow-card sm:p-8 lg:grid-cols-[1.4fr_1fr] lg:items-center">
           <div>
             <Eyebrow>Featured &middot; {featured.category}</Eyebrow>
             <h2 className="mt-4 text-2xl leading-tight text-neutral-900 sm:text-3xl">{featured.title}</h2>
             <p className="mt-3 text-sm leading-relaxed text-neutral-500">{featured.summary}</p>
           </div>
-          <div className="rounded-2xl border border-neutral-200 p-6">
+          <div className="rounded-lg border border-neutral-200 p-6">
             <div className="rounded-xl bg-brand-soft/70 p-5">
               <IconCircle size={48}>
                 <BookOpen size={22} />
@@ -212,8 +212,8 @@ export default function ResourcesPage(): React.ReactElement {
         />
 
         {filtered.length === 0 ? (
-          <div className="mx-auto mt-12 max-w-md rounded-2xl border border-dashed border-neutral-300 bg-white p-10 text-center">
-            <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brand-soft text-brand-500">
+          <div className="mx-auto mt-12 max-w-md rounded-lg border border-dashed border-neutral-300 bg-white p-10 text-center">
+            <span className="mx-auto flex size-14 items-center justify-center rounded-lg bg-brand-soft text-brand-700">
               <SearchX className="size-6" aria-hidden="true" />
             </span>
             <h3 className="mt-4 text-lg font-semibold text-neutral-900">No resources found</h3>
@@ -236,11 +236,11 @@ export default function ResourcesPage(): React.ReactElement {
             {filtered.map((r) => {
               const Icon = TYPE_ICON[r.type];
               return (
-                <div key={r.title} className="flex flex-col rounded-2xl border border-neutral-200 bg-white p-6 shadow-card">
+                <div key={r.title} className="flex flex-col rounded-lg border border-neutral-200 bg-white p-6 shadow-card">
                   <IconCircle size={44}>
                     <Icon size={20} />
                   </IconCircle>
-                  <p className="mt-4 text-[11px] font-extrabold uppercase tracking-wider text-brand-500">
+                  <p className="mt-4 text-[11px] font-extrabold uppercase tracking-wider text-brand-700">
                     {r.category}
                   </p>
                   <h3 className="mt-2 text-base font-extrabold leading-snug text-neutral-900">{r.title}</h3>
@@ -259,7 +259,7 @@ export default function ResourcesPage(): React.ReactElement {
       <section className="border-t border-neutral-200">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-6 px-4 py-12 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-2xl text-neutral-900 sm:text-3xl">Can&apos;t find what you need?</h2>
+            <h2 className="font-display text-2xl font-semibold text-neutral-900 sm:text-3xl">Can&apos;t find what you need?</h2>
             <p className="mt-2 text-sm text-neutral-500">
               Book a walkthrough and we&apos;ll answer your questions directly.
             </p>

@@ -1,7 +1,7 @@
 import { RpcRegistry } from './rpc.js';
 import { getMyContext } from './operations/context.js';
 import { updateProfile } from './operations/user.js';
-import { listMembers, listRoles } from './operations/membership.js';
+import { listMembers, listRoles, listInvitableRoles, listInvitations, inviteMember, revokeInvitation } from './operations/membership.js';
 import { getOrganization, updateOrganization, listAccessibleOrganizations } from './operations/organization.js';
 import { createBranch, updateBranch, archiveBranch, getBranch, listBranches } from './operations/branch.js';
 import { createEmployee, getEmployee, updateEmployee, archiveEmployee, listEmployees, getEmployeeHistory } from './operations/employee.js';
@@ -28,6 +28,10 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(updateProfile);
   registry.register(listMembers);
   registry.register(listRoles);
+  registry.register(listInvitableRoles);
+  registry.register(listInvitations);
+  registry.register(inviteMember);
+  registry.register(revokeInvitation);
 
   registry.register(getOrganization);
   registry.register(updateOrganization);

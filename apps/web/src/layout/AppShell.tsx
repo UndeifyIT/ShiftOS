@@ -2,12 +2,17 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar.js';
 import { TopBar } from './TopBar.js';
-import { Shifty } from '../components/shifty/Shifty.js';
 
 /**
  * UI-003 §5 Application Shell + UI-010 §6 navigation adaptation: a
  * persistent sidebar on desktop, collapsed behind a slide-over panel below
  * `md` rather than a resized/cramped sidebar.
+ *
+ * Shifty deliberately does NOT render here. It previously floated on every
+ * authenticated page for the lifetime of the account, which ran against the
+ * product requirement that it appear "primarily where onboarding/help
+ * actually benefits" — not as permanent chrome. Shifty now only appears in
+ * OnboardingWizard, where its per-step guidance is genuinely contextual.
  */
 export function AppShell(): React.ReactElement {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -33,8 +38,6 @@ export function AppShell(): React.ReactElement {
           <Outlet />
         </main>
       </div>
-
-      <Shifty suggestedPrompts={['How do I create a schedule?', 'How do I add an employee?', 'How do invitations work?']} />
     </div>
   );
 }

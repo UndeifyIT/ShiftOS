@@ -128,8 +128,8 @@ export default function PricingPage(): React.ReactElement {
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:py-16">
           <div className="max-w-xl">
             <Eyebrow>Simple pricing</Eyebrow>
-            <h1 className="mt-5 text-4xl font-bold leading-[1.06] tracking-tight text-neutral-900 sm:text-5xl">
-              Simple Pricing for Every <span className="text-brand-500">Shift-Based Business</span>
+            <h1 className="mt-5 font-display text-4xl font-semibold leading-[1.06] tracking-tight text-neutral-900 sm:text-5xl">
+              Simple Pricing for Every <span className="text-brand-700">Shift-Based Business</span>
             </h1>
             <p className="mt-4 text-base leading-relaxed text-neutral-500">
               No hidden charges. Start free today and upgrade only when your business grows.
@@ -145,12 +145,12 @@ export default function PricingPage(): React.ReactElement {
             <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs font-semibold text-neutral-500">
               {['30-Day Free Trial', 'No Credit Card', 'Cancel Anytime'].map((t) => (
                 <span key={t} className="inline-flex items-center gap-1.5">
-                  <Check size={14} className="text-brand-500" aria-hidden="true" /> {t}
+                  <Check size={14} className="text-brand-700" aria-hidden="true" /> {t}
                 </span>
               ))}
             </div>
           </div>
-          <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white p-2 shadow-lift">
+          <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-2 shadow-lift">
             <img
               src={dashboardMock}
               alt="ShiftOS dashboard overview"
@@ -178,14 +178,14 @@ export default function PricingPage(): React.ReactElement {
                 onClick={() => setYearly(opt.value)}
                 className={[
                   'rounded-full px-5 py-2 text-sm font-bold transition-colors',
-                  yearly === opt.value ? 'bg-brand-500 text-white' : 'text-neutral-500 hover:text-neutral-900'
+                  yearly === opt.value ? 'bg-brand-700 text-white' : 'text-neutral-500 hover:text-neutral-900'
                 ].join(' ')}
               >
                 {opt.label}
               </button>
             ))}
           </div>
-          <p className="text-xs font-bold text-brand-500">Save 20% with yearly billing</p>
+          <p className="text-xs font-bold text-brand-700">Save 20% with yearly billing</p>
         </div>
 
         {/* Plan cards */}
@@ -194,12 +194,12 @@ export default function PricingPage(): React.ReactElement {
             <div
               key={plan.name}
               className={[
-                'relative rounded-2xl border bg-white p-6 shadow-card',
+                'relative rounded-lg border bg-white p-6 shadow-card',
                 plan.featured ? 'border-brand-500 shadow-lift lg:-mt-4 lg:pb-8 lg:pt-9' : 'border-neutral-200'
               ].join(' ')}
             >
               {plan.featured ? (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-500 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-700 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white">
                   ★ Most Popular
                 </span>
               ) : null}
@@ -216,7 +216,7 @@ export default function PricingPage(): React.ReactElement {
                   <li key={f} className="flex items-start gap-2.5 text-sm">
                     <Check
                       size={16}
-                      className={['mt-0.5 shrink-0', plan.featured ? 'text-brand-500' : 'text-success-600'].join(' ')}
+                      className={['mt-0.5 shrink-0', plan.featured ? 'text-brand-700' : 'text-success-600'].join(' ')}
                       aria-hidden="true"
                     />
                     <span className="text-neutral-500">{f}</span>
@@ -234,7 +234,7 @@ export default function PricingPage(): React.ReactElement {
         </div>
 
         {/* Comparison */}
-        <div className="mt-14 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+        <div className="mt-14 overflow-hidden rounded-lg border border-neutral-200 bg-white">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <caption className="px-6 pt-6 text-left text-lg font-extrabold text-neutral-900">Compare Plans</caption>
@@ -283,18 +283,18 @@ export default function PricingPage(): React.ReactElement {
             <Eyebrow>
               <Sparkles size={14} aria-hidden="true" /> Questions
             </Eyebrow>
-            <h2 className="mt-4 text-3xl leading-[1.1] text-neutral-900 sm:text-4xl">
-              Frequently Asked <span className="text-brand-500">Questions</span>
+            <h2 className="mt-4 font-display text-3xl font-semibold leading-[1.1] text-neutral-900 sm:text-4xl">
+              Frequently Asked <span className="text-brand-700">Questions</span>
             </h2>
             <p className="mt-4 text-sm text-neutral-500">
               Still unsure which plan fits?{' '}
-              <Link to="/request-demo" className="font-semibold text-brand-500 hover:underline">
+              <Link to="/request-demo" className="font-semibold text-brand-700 hover:underline">
                 Book a demo
               </Link>{' '}
               and we&rsquo;ll walk through it with you.
             </p>
           </div>
-          <div className="rounded-2xl border border-neutral-200 bg-white px-5">
+          <div className="rounded-lg border border-neutral-200 bg-white px-5">
             {FAQS.map((f, index) => (
               <div key={f.q} className={index > 0 ? 'border-t border-neutral-200' : ''}>
                 <button
@@ -320,7 +320,7 @@ export default function PricingPage(): React.ReactElement {
       {/* Final CTA */}
       <section className="border-t border-neutral-200">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-6 px-4 py-12 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-          <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Ready to get your shifts organized?</h2>
+          <h2 className="font-display text-2xl font-semibold text-neutral-900 sm:text-3xl">Ready to get your shifts organized?</h2>
           <div className="flex flex-wrap gap-3">
             <Link to="/sign-up" className={buttonClasses({ variant: 'hero', size: 'xl' })}>
               Start Free Trial <ArrowRight size={16} />

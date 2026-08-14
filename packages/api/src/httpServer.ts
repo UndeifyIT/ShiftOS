@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import type { DatabaseClient } from '@shiftos/database';
+import type { AuthenticationProvider } from '@shiftos/auth';
 import { buildErrorApiResponse } from '@shiftos/utils';
 import { AuthorizationError, ValidationError } from '@shiftos/errors';
 import type { RpcRegistry } from './rpc.js';
@@ -31,6 +32,8 @@ export interface CreateHttpServerOptions {
   verifyAccessToken: VerifyAccessToken;
   /** Optional cap on request body size, in bytes. Defaults to 1 MiB. */
   maxBodyBytes?: number;
+  /** Admin-capable auth operations (member invitations). Undefined when no service-role key is configured — operations that need it must fail closed. */
+  authProvider?: AuthenticationProvider;
 }
 
 function readBody(req: IncomingMessage, maxBytes: number): Promise<string> {
@@ -58,7 +61,7 @@ async function respondJson(res: ServerResponse, body: unknown): Promise<void> {
 }
 
 export function createHttpServer(options: CreateHttpServerOptions): Server {
-  const { registry, client, verifyAccessToken, maxBodyBytes = 1024 * 1024 } = options;
+  const { registry, client, verifyAccessToken, maxBodyBytes = 1024 * 1024, authProvider } = options;
 
   return createServer((req, res) => {
     void (async () => {
@@ -99,11 +102,16 @@ export function createHttpServer(options: CreateHttpServerOptions): Server {
           return;
         }
 
-        const result = await registry.execute(client, operationName, {
-          authUserId,
-          organizationId,
-          input: parsedBody.input
-        });
+        const result = await registry.execute(
+          client,
+          operationName,
+          {
+            authUserId,
+            organizationId,
+            input: parsedBody.input
+          },
+          authProvider
+        );
         await respondJson(res, result);
       } catch (error) {
         // Anything that reached here escaped registry.execute()'s own

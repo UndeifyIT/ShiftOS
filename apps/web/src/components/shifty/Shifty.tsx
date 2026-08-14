@@ -45,7 +45,7 @@ export function Shifty({ step, suggestedPrompts = [] }: ShiftyProps): React.Reac
     <div className="fixed bottom-5 right-5 z-40">
       {open ? (
         <div className="mb-3 w-80 rounded-2xl border border-neutral-200 bg-white shadow-xl">
-          <div className="flex items-center justify-between rounded-t-2xl bg-brand-500 px-4 py-3 text-white">
+          <div className="flex items-center justify-between rounded-t-2xl bg-brand-700 px-4 py-3 text-white">
             <div className="flex items-center gap-2">
               <ShiftyAvatar online className="size-8 bg-white" />
               <span className="text-sm font-semibold">Shifty</span>
@@ -76,7 +76,7 @@ export function Shifty({ step, suggestedPrompts = [] }: ShiftyProps): React.Reac
                     key={index}
                     className={[
                       'max-w-[85%] rounded-xl px-3 py-2 text-sm',
-                      message.from === 'shifty' ? 'self-start bg-neutral-100 text-neutral-800' : 'self-end bg-brand-500 text-white'
+                      message.from === 'shifty' ? 'self-start bg-neutral-100 text-neutral-800' : 'self-end bg-brand-700 text-white'
                     ].join(' ')}
                   >
                     {message.text}

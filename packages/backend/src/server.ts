@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { loadConfig } from '@shiftos/config';
 import { createDatabaseClient } from '@shiftos/database';
 import { createDefaultRegistry, createHttpServer, type VerifyAccessToken } from '@shiftos/api';
+import { SupabaseAuthProvider } from '@shiftos/auth';
 
 /**
  * Local/production entrypoint for the RPC HTTP transport (packages/api's
@@ -35,7 +36,19 @@ function main(): void {
   const client = createDatabaseClient({ connectionString: config.DATABASE_URL });
   const registry = createDefaultRegistry();
 
-  const server = createHttpServer({ registry, client, verifyAccessToken });
+  // Only constructed when a service-role key is actually configured — admin
+  // operations (member invitations) fail closed via AuthorizationError when
+  // this is undefined, rather than this process silently pretending to have
+  // a capability it doesn't.
+  const authProvider = config.SUPABASE_SERVICE_ROLE_KEY
+    ? new SupabaseAuthProvider({
+        supabaseUrl: config.SUPABASE_URL,
+        supabaseAnonKey: config.SUPABASE_ANON_KEY,
+        supabaseServiceRoleKey: config.SUPABASE_SERVICE_ROLE_KEY
+      })
+    : undefined;
+
+  const server = createHttpServer({ registry, client, verifyAccessToken, authProvider });
 
   server.listen(port, () => {
     // eslint-disable-next-line no-console

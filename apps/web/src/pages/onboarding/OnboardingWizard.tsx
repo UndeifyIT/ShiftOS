@@ -1,21 +1,30 @@
 import React, { useState } from 'react';
 import { Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button, Card, FormField, InlineError, Input, SkeletonRows } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import { Shifty } from '../../components/shifty/Shifty.js';
 import { ShiftyMascot, ShiftyPanel } from '../../components/shifty/mascot.js';
-import type { Branch, Employee, Organization } from '../../types/domain.js';
+import { LogoMark } from '../../marketing/Logo.js';
+import type { Branch, Invitation, Organization, Role } from '../../types/domain.js';
 
 const STEPS = ['branch', 'supervisor', 'departments', 'finish'] as const;
 type Step = (typeof STEPS)[number];
 
-const STEP_GUIDANCE: Record<Step, { title: string; message: string; variant: 'wave' | 'guide' | 'success' }> = {
-  branch: { title: 'Set up your branch', message: 'Branches are how ShiftOS organizes locations, schedules, and staff. You can add more later.', variant: 'wave' },
+/** `pointing`: true when Shifty should visually point at the form immediately below the panel (a directional cue, not a new mascot pose). */
+const STEP_GUIDANCE: Record<Step, { title: string; message: string; variant: 'wave' | 'guide' | 'success'; pointing?: boolean }> = {
+  branch: {
+    title: 'Set up your branch',
+    message: 'Branches are how ShiftOS organizes locations, schedules, and staff. Fill in the field below to get started — you can add more later.',
+    variant: 'wave',
+    pointing: true
+  },
   supervisor: {
     title: 'Add a supervisor',
-    message: "You can add your first supervisor as a team member now. Giving them their own sign-in requires invitations, which aren't available yet.",
-    variant: 'guide'
+    message: "Send a real invitation — they'll set their own password and sign in with their own Supervisor account, scoped to this branch.",
+    variant: 'guide',
+    pointing: true
   },
   departments: { title: 'Departments', message: "Department support isn't built yet — for now, ShiftOS organizes your team by branch.", variant: 'guide' },
   finish: { title: "You're almost done", message: 'Once you finish, you will land on your real dashboard with live data.', variant: 'success' }
@@ -37,8 +46,8 @@ export default function OnboardingWizard(): React.ReactElement {
     <div className="min-h-screen bg-neutral-50 px-4 py-10">
       <div className="mx-auto max-w-2xl">
         <div className="mb-8 flex items-center justify-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-base font-bold text-white">S</span>
-          <span className="text-xl font-bold text-neutral-900">ShiftOS</span>
+          <LogoMark className="h-9 w-9" />
+          <span className="font-display text-xl font-semibold tracking-tight text-neutral-900">ShiftOS</span>
         </div>
 
         <div className="mb-8 flex items-center justify-center gap-2">
@@ -47,7 +56,7 @@ export default function OnboardingWizard(): React.ReactElement {
               <div
                 className={[
                   'flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold',
-                  index < stepIndex ? 'bg-success-500 text-white' : index === stepIndex ? 'bg-brand-500 text-white' : 'bg-neutral-200 text-neutral-500'
+                  index < stepIndex ? 'bg-success-500 text-white' : index === stepIndex ? 'bg-brand-700 text-white' : 'bg-neutral-200 text-neutral-500'
                 ].join(' ')}
               >
                 {index < stepIndex ? <Check size={14} /> : index + 1}
@@ -60,7 +69,12 @@ export default function OnboardingWizard(): React.ReactElement {
         </div>
 
         <Card className="p-8">
-          <ShiftyPanel variant={STEP_GUIDANCE[step].variant} message={STEP_GUIDANCE[step].message} className="mb-6" />
+          <ShiftyPanel
+            variant={STEP_GUIDANCE[step].variant}
+            message={STEP_GUIDANCE[step].message}
+            pointing={STEP_GUIDANCE[step].pointing}
+            className="mb-6"
+          />
           {step === 'branch' ? <BranchStep onNext={() => setStep('supervisor')} /> : null}
           {step === 'supervisor' ? <SupervisorStep onNext={() => setStep('departments')} onBack={() => setStep('branch')} /> : null}
           {step === 'departments' ? <DepartmentsStep onNext={() => setStep('finish')} onBack={() => setStep('supervisor')} /> : null}
@@ -93,7 +107,7 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
     return (
       <div className="flex flex-col gap-4">
         <div>
-          <h2 className="text-xl font-bold text-neutral-900">Your first branch is set up</h2>
+          <h2 className="font-display text-xl font-semibold text-neutral-900">Your first branch is set up</h2>
           <p className="mt-1 text-sm text-neutral-500">{branches[0]!.name} is ready to go.</p>
         </div>
         <Button className="self-start" onClick={onNext}>
@@ -117,7 +131,7 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
       className="flex flex-col gap-4"
     >
       <div>
-        <h2 className="text-xl font-bold text-neutral-900">Set up your first branch</h2>
+        <h2 className="font-display text-xl font-semibold text-neutral-900">Set up your first branch</h2>
         <p className="mt-1 text-sm text-neutral-500">Branches let you organize schedules and staff by location.</p>
       </div>
       <FormField label="Branch name" htmlFor="branchName" required>
@@ -137,31 +151,35 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
 function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }): React.ReactElement {
   const { data: branches } = useRpcQuery<Branch[]>('list_branches');
   const branchId = branches?.[0]?.id;
+  const { data: invitableRoles } = useRpcQuery<Role[]>('list_invitable_roles');
+  const supervisorRole = invitableRoles?.find((r) => r.name.toLowerCase() === 'supervisor');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [added, setAdded] = useState(false);
+  const [invited, setInvited] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createMutation = useRpcMutation<Employee, Record<string, unknown>>('create_employee', {
-    invalidates: ['list_employees'],
-    onSuccess: () => setAdded(true),
+  const inviteMutation = useRpcMutation<
+    Invitation,
+    { email: string; firstName: string; lastName: string; roleId: string; branchIds: string[] }
+  >('invite_member', {
+    invalidates: ['list_invitations'],
+    onSuccess: () => setInvited(true),
     onError: (err) => setError(err.message)
   });
 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-xl font-bold text-neutral-900">Add your first supervisor</h2>
+        <h2 className="font-display text-xl font-semibold text-neutral-900">Add your first supervisor</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          Add them as a team member now. Inviting them to sign in themselves isn&rsquo;t available yet — account invitations are a backend
-          capability still being built.
+          Send them a real invitation by email. They&rsquo;ll set their own password and sign in as a Supervisor scoped to this branch.
         </p>
       </div>
 
-      {added ? (
+      {invited ? (
         <div className="rounded-xl bg-success-50 p-4 text-sm text-success-text">
-          {firstName} {lastName} has been added to your team.
+          An invitation has been sent to {email}. {firstName} will become a Supervisor once they accept it.
         </div>
       ) : (
         <form
@@ -171,18 +189,21 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
               setError('Create a branch first.');
               return;
             }
-            if (!firstName.trim() || !lastName.trim()) {
-              setError('First and last name are required.');
+            if (!supervisorRole) {
+              setError('The Supervisor role is not set up for this organization yet.');
+              return;
+            }
+            if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+              setError('First name, last name, and email are required.');
               return;
             }
             setError(null);
-            createMutation.mutate({
-              branchId,
-              employeeNumber: `EMP-${Date.now().toString().slice(-6)}`,
+            inviteMutation.mutate({
+              email: email.trim(),
               firstName: firstName.trim(),
               lastName: lastName.trim(),
-              email: email.trim() || undefined,
-              hireDate: new Date().toISOString().slice(0, 10)
+              roleId: supervisorRole.id,
+              branchIds: [branchId]
             });
           }}
           className="flex flex-col gap-4"
@@ -193,12 +214,12 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
           <FormField label="Last name" htmlFor="supLastName" required>
             {(fieldProps) => <Input {...fieldProps} value={lastName} onChange={(e) => setLastName(e.target.value)} />}
           </FormField>
-          <FormField label="Email" htmlFor="supEmail" hint="For your records — account invitations aren't available yet.">
+          <FormField label="Email" htmlFor="supEmail" required hint="We'll send a real invitation to this address.">
             {(fieldProps) => <Input {...fieldProps} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
           </FormField>
           {error ? <InlineError message={error} /> : null}
-          <Button type="submit" loading={createMutation.isPending} className="self-start">
-            Add supervisor
+          <Button type="submit" loading={inviteMutation.isPending} className="self-start">
+            Send invitation
           </Button>
         </form>
       )}
@@ -207,8 +228,8 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
         <button type="button" onClick={onBack} className="text-sm font-medium text-neutral-500 hover:text-neutral-700">
           Back
         </button>
-        <Button variant={added ? 'primary' : 'ghost'} onClick={onNext}>
-          {added ? 'Continue' : 'Skip for now'}
+        <Button variant={invited ? 'primary' : 'ghost'} onClick={onNext}>
+          {invited ? 'Continue' : 'Skip for now'}
         </Button>
       </div>
     </div>
@@ -219,7 +240,7 @@ function DepartmentsStep({ onNext, onBack }: { onNext: () => void; onBack: () =>
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-xl font-bold text-neutral-900">Departments</h2>
+        <h2 className="font-display text-xl font-semibold text-neutral-900">Departments</h2>
         <p className="mt-1 text-sm text-neutral-500">
           Organizing staff into departments isn&rsquo;t available yet — today, ShiftOS organizes your team by branch. Department support is
           planned for a future update.
@@ -250,7 +271,7 @@ function FinishStep({ onFinish }: { onFinish: () => void }): React.ReactElement 
       <span className="flex size-20 items-end justify-center overflow-hidden rounded-2xl bg-success-50">
         <ShiftyMascot variant="success" className="h-[88%] w-full" />
       </span>
-      <h2 className="text-xl font-bold text-neutral-900">You&rsquo;re all set!</h2>
+      <h2 className="font-display text-xl font-semibold text-neutral-900">You&rsquo;re all set!</h2>
       <p className="text-sm text-neutral-500">
         {activeOrganization?.name ?? 'Your organization'} is ready. You can add more team members and refine settings anytime from your
         dashboard.
@@ -266,6 +287,24 @@ function FinishStep({ onFinish }: { onFinish: () => void }): React.ReactElement 
       >
         Go to dashboard
       </Button>
+
+      <div className="mt-2 w-full border-t border-neutral-200 pt-4 text-left">
+        <p className="mb-2 text-center text-xs font-semibold uppercase tracking-[0.1em] text-neutral-500">Good next steps</p>
+        <div className="flex flex-col gap-2">
+          <Link
+            to="/schedules"
+            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
+          >
+            Create your first schedule
+          </Link>
+          <Link
+            to="/employees"
+            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
+          >
+            Add your first employee
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

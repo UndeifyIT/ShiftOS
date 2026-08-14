@@ -5,7 +5,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 const baseClasses =
-  'h-10 w-full rounded-md border bg-white px-3 text-[0.9375rem] text-neutral-900 placeholder:text-neutral-400 transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400';
+  'h-10 w-full rounded-md border bg-white px-3 text-[0.9375rem] text-neutral-900 placeholder:text-neutral-400 transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400';
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   { invalid = false, className = '', ...rest },
@@ -26,7 +26,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttrib
       <textarea
         ref={ref}
         className={[
-          'min-h-[6rem] w-full rounded-md border bg-white px-3 py-2 text-[0.9375rem] text-neutral-900 placeholder:text-neutral-400 transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400',
+          'min-h-[6rem] w-full rounded-md border bg-white px-3 py-2 text-[0.9375rem] text-neutral-900 placeholder:text-neutral-400 transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400',
           invalid ? 'border-error-500' : 'border-neutral-300',
           className
         ].join(' ')}
@@ -82,7 +82,7 @@ export const Checkbox = forwardRef<HTMLInputElement, React.InputHTMLAttributes<H
       ref={ref}
       type="checkbox"
       className={[
-        'h-4 w-4 rounded border-neutral-300 text-brand-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500',
+        'h-4 w-4 rounded border-neutral-300 text-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600',
         className
       ].join(' ')}
       {...rest}

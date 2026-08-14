@@ -27,12 +27,34 @@ body {
 /* Visible keyboard focus everywhere (UI-011 §8) — never suppressed with
    outline: none without an equivalent replacement. */
 :focus-visible {
-  outline: 2px solid theme('colors.brand.500');
+  /* brand-600, not brand-500: WCAG 1.4.11 non-text contrast needs 3:1 against
+     the adjacent background and brand-500 only reaches ~2.5:1 on white. */
+  outline: 2px solid theme('colors.brand.600');
   outline-offset: 2px;
 }
 
 ::selection {
   background-color: theme('colors.brand.100');
+}
+
+/* First-load brand reveal (BrandReveal.tsx) — scale/fade the mark in, never
+   more than once per session. Reduced-motion users never mount this at all
+   (gated in JS), but the media query is kept here too as defense in depth. */
+@keyframes shiftos-reveal {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[shiftos-reveal_0\.6s_ease-out\] {
+    animation: none;
+  }
 }
 
 h1,
@@ -48,8 +70,8 @@ h4 {
    utilities so pages can use the same class names as the source design. */
 @layer utilities {
   .bg-brand-wash {
-    background-image: radial-gradient(60rem 40rem at 105% -10%, rgba(255, 198, 156, 0.55), transparent 60%),
-      radial-gradient(45rem 35rem at -10% 110%, rgba(255, 210, 173, 0.5), transparent 60%);
+    background-image: radial-gradient(60rem 40rem at 105% -10%, rgba(204, 251, 241, 0.6), transparent 60%),
+      radial-gradient(45rem 35rem at -10% 110%, rgba(240, 253, 250, 0.7), transparent 60%);
     background-color: theme('colors.neutral.50');
   }
 

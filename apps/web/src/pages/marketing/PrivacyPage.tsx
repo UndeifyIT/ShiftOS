@@ -51,7 +51,7 @@ export default function PrivacyPage(): React.ReactElement {
       <Section>
         <div className="mx-auto max-w-3xl space-y-6">
           {sections.map((s) => (
-            <section key={s.title} className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-card">
+            <section key={s.title} className="rounded-lg border border-neutral-200 bg-white p-6 shadow-card">
               <h2 className="text-lg font-bold text-neutral-900">{s.title}</h2>
               <p className="mt-2 text-sm leading-relaxed text-neutral-500">{s.body}</p>
             </section>
@@ -59,7 +59,7 @@ export default function PrivacyPage(): React.ReactElement {
         </div>
         <p className="mx-auto mt-8 max-w-3xl text-center text-xs text-neutral-500">
           For specific questions about how your data is handled, reach us at{' '}
-          <a href="mailto:hello@shiftos.app" className="font-semibold text-brand-500 hover:text-brand-600">
+          <a href="mailto:hello@shiftos.app" className="font-semibold text-brand-700 hover:text-brand-600">
             hello@shiftos.app
           </a>
           .
