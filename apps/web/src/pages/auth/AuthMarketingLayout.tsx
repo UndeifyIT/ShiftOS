@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
 import { Logo, LogoMark } from '../../marketing/Logo.js';
 
 export interface AuthFeatureItem {
@@ -58,9 +57,7 @@ export function AuthMarketingLayout({
       <div className="pointer-events-none absolute -bottom-40 -left-24 h-80 w-80 rounded-full bg-brand-100 opacity-70" aria-hidden="true" />
 
       <div className="relative mx-auto flex max-w-7xl items-center justify-between px-4 py-6 sm:px-6 lg:px-8">
-        <Link to="/" aria-label="ShiftOS home">
-          <Logo />
-        </Link>
+        <Logo />
         <p className="text-sm text-neutral-500">
           {topRightPrompt}{' '}
           <Link to={topRightLinkTo} className="font-semibold text-brand-600 hover:text-brand-700">
@@ -154,7 +151,3 @@ export function AuthMarketingLayout({
     </div>
   );
 }
-
-export const DEFAULT_TRUST_ITEMS: AuthTrustItem[] = [
-  { icon: ShieldCheck, label: 'Trusted by retail leaders across Nigeria' }
-];
