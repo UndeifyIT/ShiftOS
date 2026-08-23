@@ -5,6 +5,7 @@ export interface UserProfile {
   last_name: string;
   email: string;
   phone: string | null;
+  job_title: string | null;
   avatar_url: string | null;
   is_active: boolean;
 }

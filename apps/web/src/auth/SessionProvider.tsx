@@ -19,7 +19,7 @@ interface SessionState {
 interface SessionContextValue extends SessionState {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
-  completeProfile: (input: { firstName: string; lastName: string; phone?: string }) => Promise<{ error: string | null }>;
+  completeProfile: (input: { firstName: string; lastName: string; phone?: string; jobTitle?: string; avatarUrl?: string }) => Promise<{ error: string | null }>;
   switchOrganization: (organizationId: string) => Promise<void>;
   refresh: () => Promise<void>;
   hasPermission: (permissionCode: string) => boolean;
@@ -59,7 +59,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }): Re
 
     const { data: profile, error: profileError } = await supabase
       .from('users')
-      .select('id, auth_user_id, first_name, last_name, email, phone, avatar_url, is_active')
+      .select('id, auth_user_id, first_name, last_name, email, phone, job_title, avatar_url, is_active')
       .eq('auth_user_id', authUser.id)
       .maybeSingle();
 
@@ -148,7 +148,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }): Re
   }, []);
 
   const completeProfile = useCallback(
-    async (input: { firstName: string; lastName: string; phone?: string }): Promise<{ error: string | null }> => {
+    async (input: {
+      firstName: string;
+      lastName: string;
+      phone?: string;
+      jobTitle?: string;
+      avatarUrl?: string;
+    }): Promise<{ error: string | null }> => {
       if (!state.authUser) {
         return { error: 'Your session has expired. Please sign in again.' };
       }
@@ -157,7 +163,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }): Re
         first_name: input.firstName,
         last_name: input.lastName,
         email: state.authUser.email,
-        phone: input.phone ?? null
+        phone: input.phone ?? null,
+        job_title: input.jobTitle ?? null,
+        avatar_url: input.avatarUrl ?? null
       });
       if (error) {
         return { error: error.message };
