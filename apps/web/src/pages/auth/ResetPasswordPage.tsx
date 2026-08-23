@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Check, CheckCircle2, Clock, Lock, RotateCw, ShieldCheck, Users, X } from 'lucide-react';
 import { Button, FormField, InlineError } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
+import { checklistFor, strengthFor } from '../../lib/password.js';
 import { AuthMarketingLayout } from './AuthMarketingLayout.js';
 import { PasswordInput } from './PasswordInput.js';
 
@@ -11,27 +12,6 @@ const FEATURES = [
   { icon: Users, title: "You're in Control", description: 'Only you can access your account with your new password.' },
   { icon: ShieldCheck, title: 'Peace of Mind', description: "We'll also sign you out of all other devices for your security." }
 ];
-
-interface PasswordCheck {
-  label: string;
-  passed: boolean;
-}
-
-function checklistFor(password: string): PasswordCheck[] {
-  return [
-    { label: 'At least 8 characters', passed: password.length >= 8 },
-    { label: 'One uppercase letter', passed: /[A-Z]/.test(password) },
-    { label: 'One lowercase letter', passed: /[a-z]/.test(password) },
-    { label: 'One number', passed: /[0-9]/.test(password) }
-  ];
-}
-
-function strengthFor(checks: PasswordCheck[]): { label: string; color: string; ratio: number } {
-  const passed = checks.filter((c) => c.passed).length;
-  if (passed <= 1) return { label: 'Weak', color: 'bg-error-500', ratio: 0.33 };
-  if (passed <= 3) return { label: 'Fair', color: 'bg-warning-500', ratio: 0.66 };
-  return { label: 'Strong', color: 'bg-success-500', ratio: 1 };
-}
 
 type View = 'checking' | 'form' | 'expired' | 'success';
 
