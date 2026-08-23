@@ -633,7 +633,7 @@ export default function SignUpPage(): React.ReactElement {
 
   const handleSubmit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
-    if (!fullName.trim() || !email || checks.some((c) => !c.passed)) {
+    if (!fullName.trim() || !email || !whatsapp.trim() || checks.some((c) => !c.passed)) {
       setError('Please fill in all required fields. Password must meet every requirement below.');
       return;
     }
