@@ -1,44 +1,36 @@
-import React, { useState } from 'react';
-import { Calendar, Check, CreditCard, Headset, ShieldCheck, RefreshCw, Building2, UserPlus, Users2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Building2, Calendar, Lock, Mail, MessageSquare, ShieldCheck, Users } from 'lucide-react';
 import { Button, FormField, InlineError, Input } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
-import { AuthMarketingLayout } from './AuthMarketingLayout.js';
+import { checklistFor, strengthFor } from '../../lib/password.js';
+import { isNetworkError } from '../../lib/authErrors.js';
+import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
 import { PasswordInput } from './PasswordInput.js';
+import { PasswordStrengthMeter } from './PasswordStrengthMeter.js';
 
-const FEATURES = [
-  { icon: Calendar, title: '30-Day Free Trial', description: 'Explore all features for 30 days.' },
-  { icon: CreditCard, title: 'No Credit Card Required', description: 'Start your trial instantly. No hidden fees.' },
-  { icon: Users2, title: 'Built For Retail Teams', description: 'Designed for managers and supervisors.' },
-  { icon: Headset, title: 'Response & Support Included', description: "We're here to help you succeed." }
-];
-
-const STEPS = {
-  heading: 'How It Works',
-  items: [
-    { icon: UserPlus, title: 'Create Your Account', description: 'Sign up in less than 2 minutes to get started.' },
-    { icon: Building2, title: 'Set Up Your Branch', description: 'Add your branch details and customize settings.' },
-    { icon: Calendar, title: 'Create Your First Schedule', description: 'Build shifts and invite your team.' }
-  ]
+const HIGHLIGHT: AuthHighlight = {
+  icon: Building2,
+  title: 'One account. One organization workspace.',
+  body: "Invite supervisors and staff once your branches are set up."
 };
 
-const TRUST_ITEMS = [
-  { icon: Calendar, label: '30-Day Free Trial' },
-  { icon: CreditCard, label: 'No Credit Card' },
-  { icon: RefreshCw, label: 'Cancel Anytime' }
+const BENEFITS: AuthBenefit[] = [
+  { icon: Calendar, title: '30-day free trial', body: 'Explore every feature for 30 days.' },
+  { icon: Lock, title: 'No credit card', body: 'Start instantly. No hidden fees.' },
+  { icon: Users, title: 'Built for shift teams', body: 'Designed for managers and supervisors.' },
+  { icon: MessageSquare, title: 'Support included', body: "We're here to help you get set up." }
 ];
 
 /**
  * Not a screen in FD-4's numbered inventory — self-service signup is new
- * scope beyond the invitation-only model the frontend foundation doc
- * describes (DEC-017). Wired to real `supabase.auth.signUp()`. The person
- * who signs up here always becomes the org "Owner" via WEB-001's
- * create_organization_with_owner during onboarding — there is no
- * backend concept of choosing a different role at signup (031: real role
- * assignment for anyone else happens exclusively through invitations,
- * MembershipService.inviteMember). A "Role" selector here was removed —
- * it had no effect on anything and only implied a choice that didn't exist.
- * After signup, the existing bootstrap chain (CompleteProfilePage ->
- * OrganizationSetupPage) takes over unchanged.
+ * scope beyond the invitation-only model (DEC-017). Wired to real
+ * `supabase.auth.signUp()`. The person who signs up here always becomes the
+ * org "Owner" via WEB-001's create_organization_with_owner during onboarding
+ * — there is no backend concept of choosing a role at signup (031: real
+ * role assignment for anyone else happens exclusively through invitations).
+ * The design file's Sign Up screen shows a Role selector; it is deliberately
+ * omitted here (Auth phase design decision, 2026-08-23) since it has no
+ * effect on anything and would imply a choice that doesn't exist.
  */
 export default function SignUpPage(): React.ReactElement {
   const [fullName, setFullName] = useState('');
@@ -49,10 +41,13 @@ export default function SignUpPage(): React.ReactElement {
   const [submitting, setSubmitting] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
 
+  const checks = useMemo(() => checklistFor(password), [password]);
+  const strength = useMemo(() => strengthFor(checks), [checks]);
+
   const handleSubmit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
-    if (!fullName.trim() || !email || password.length < 8) {
-      setError('Please fill in all required fields. Password must be at least 8 characters.');
+    if (!fullName.trim() || !email || !whatsapp.trim() || checks.some((c) => !c.passed)) {
+      setError('Please fill in all required fields. Password must meet every requirement below.');
       return;
     }
     setSubmitting(true);
@@ -62,65 +57,63 @@ export default function SignUpPage(): React.ReactElement {
     const lastName = rest.join(' ') || firstName;
     window.sessionStorage.setItem('shiftos.pendingName', JSON.stringify({ firstName, lastName, phone: whatsapp || undefined }));
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName.trim(), whatsapp } }
-    });
-    setSubmitting(false);
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName.trim(), whatsapp } }
+      });
 
-    if (signUpError) {
-      const message = signUpError.message.toLowerCase();
-      if (message.includes('already registered') || message.includes('already exists')) {
-        setError('An account with this email already exists.');
+      if (signUpError) {
+        const message = signUpError.message.toLowerCase();
+        if (message.includes('already registered') || message.includes('already exists')) {
+          setError('An account with this email already exists.');
+        } else if (message.includes('rate limit') || message.includes('too many') || message.includes('email send')) {
+          setError('Too many sign-up attempts for this email right now. Please wait a few minutes and try again.');
+        } else {
+          setError('Something went wrong. Please try again.');
+        }
         return;
       }
-      if (message.includes('rate limit') || message.includes('too many') || message.includes('email send')) {
-        setError('Too many sign-up attempts for this email right now. Please wait a few minutes and try again.');
-        return;
+      if (!data.session) {
+        setCheckEmail(true);
       }
-      setError('Something went wrong. Please try again.');
-      return;
+      // If a session came back immediately (email confirmation disabled on
+      // this Supabase project), SessionProvider's onAuthStateChange listener
+      // picks it up and the app routes into CompleteProfilePage on its own.
+    } catch (err) {
+      setError(isNetworkError(err) ? "Couldn't reach ShiftOS. Check your connection and try again." : 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
-    if (!data.session) {
-      setCheckEmail(true);
-    }
-    // If a session came back immediately (email confirmation disabled on
-    // this Supabase project), SessionProvider's onAuthStateChange listener
-    // picks it up and the app routes into CompleteProfilePage on its own.
   };
 
   return (
-    <AuthMarketingLayout
-      eyebrow="Create Your Account"
-      heading={
-        <>
-          Run Your Branch Without Spreadsheets
-          <br />
-          or <span className="text-brand-700">WhatsApp Chaos</span>
-        </>
-      }
-      description="Create your branch workspace in minutes. Build schedules, keep staff informed, and manage operations from one platform."
-      features={FEATURES}
-      steps={STEPS}
-      trustItems={TRUST_ITEMS}
+    <AuthShell
+      eyebrow="Create your account"
+      title="Run Your Shifts Without Spreadsheets"
+      accent="or Chat-App Chaos"
+      body="Create your organization workspace in minutes. Build schedules, keep staff informed and manage operations from one platform."
+      highlight={HIGHLIGHT}
+      benefits={BENEFITS}
       topRightPrompt="Already have an account?"
-      topRightLinkLabel="Sign In"
+      topRightLinkLabel="Sign in"
       topRightLinkTo="/sign-in"
     >
       {checkEmail ? (
         <div className="py-6 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success-50 text-success-600">
-            <Check size={24} />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft text-brand-deep">
+            <Mail size={26} />
           </div>
           <h2 className="mt-4 text-xl font-bold text-neutral-900">Check your email</h2>
           <p className="mt-2 text-sm text-neutral-500">
-            We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
+            We sent a verification link to <strong>{email}</strong>. Verify it to continue setting up your organization.
           </p>
+          <p className="mt-2 text-xs text-neutral-400">The link expires in 24 hours. You can request a new one at any time.</p>
         </div>
       ) : (
         <>
-          <h2 className="text-2xl font-bold text-neutral-900">Create Your Account</h2>
+          <h2 className="text-2xl font-bold text-neutral-900">Create your account</h2>
           <p className="mt-1 text-sm text-neutral-500">Start your 30-day free trial. Cancel anytime.</p>
 
           <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
@@ -132,22 +125,20 @@ export default function SignUpPage(): React.ReactElement {
                 <Input {...fieldProps} type="email" autoComplete="email" placeholder="Enter your work email" value={email} onChange={(e) => setEmail(e.target.value)} />
               )}
             </FormField>
-            <FormField label="WhatsApp Number" htmlFor="whatsapp">
+            <FormField label="WhatsApp Number" htmlFor="whatsapp" required>
               {(fieldProps) => (
                 <div className="flex">
                   <span className="flex items-center rounded-l-md border border-r-0 border-neutral-300 bg-neutral-50 px-3 text-sm text-neutral-600">+234</span>
-                  <Input {...fieldProps} className="rounded-l-none" placeholder="Enter your WhatsApp number" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
+                  <Input {...fieldProps} className="rounded-l-none" placeholder="801 234 5678" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
                 </div>
               )}
             </FormField>
             <FormField label="Password" htmlFor="password" required>
               {(fieldProps) => (
-                <PasswordInput {...fieldProps} autoComplete="new-password" placeholder="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <PasswordInput {...fieldProps} autoComplete="new-password" placeholder="Create your password" value={password} onChange={(e) => setPassword(e.target.value)} />
               )}
             </FormField>
-            <p className={['flex items-center gap-1.5 text-xs', password.length >= 8 ? 'text-success-600' : 'text-neutral-400'].join(' ')}>
-              <Check size={14} /> Password must be at least 8 characters long
-            </p>
+            {password ? <PasswordStrengthMeter checks={checks} strength={strength} /> : null}
 
             {error ? <InlineError message={error} /> : null}
             <Button type="submit" loading={submitting} fullWidth size="lg">
@@ -164,19 +155,17 @@ export default function SignUpPage(): React.ReactElement {
               variant="secondary"
               fullWidth
               size="lg"
-              onClick={() =>
-                void supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
-              }
+              onClick={() => void supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })}
             >
               Continue with Google
             </Button>
 
             <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
-              <ShieldCheck size={14} /> Your data is secure and protected.
+              <ShieldCheck size={14} /> By creating an account you agree to our Terms &amp; Conditions and Privacy Policy.
             </p>
           </form>
         </>
       )}
-    </AuthMarketingLayout>
+    </AuthShell>
   );
 }
