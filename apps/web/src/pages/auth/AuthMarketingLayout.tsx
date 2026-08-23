@@ -104,7 +104,7 @@ export function AuthMarketingLayout({
           <div className="relative mt-10 hidden justify-center lg:flex">
             <div className="absolute inset-0 bg-[radial-gradient(circle,_theme(colors.neutral.300)_1px,_transparent_1px)] bg-[length:16px_16px] opacity-40" aria-hidden="true" />
             <div className="relative flex h-32 w-32 items-center justify-center rounded-3xl bg-neutral-900 shadow-xl">
-              <LogoMark className="h-16 w-16" inverted />
+              <LogoMark className="h-16 w-16" />
             </div>
           </div>
         </div>

@@ -135,7 +135,7 @@ export default function ResourcesPage(): React.ReactElement {
           <div className="max-w-2xl">
             <Eyebrow>Resources</Eyebrow>
             <h1 className="mt-5 font-display text-4xl font-semibold leading-[1.06] tracking-tight text-neutral-900 sm:text-5xl">
-              Practical guides for <span className="text-brand-700">running shifts well.</span>
+              Learn to <span className="text-brand-700">run better shifts.</span>
             </h1>
             <p className="mt-4 text-base leading-relaxed text-neutral-500">
               Setup checklists, scheduling guides and help documentation written for managers and supervisors — not

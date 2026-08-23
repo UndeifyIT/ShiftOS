@@ -9,6 +9,7 @@ import type { Branch } from './types/domain.js';
 
 const LandingPage = lazy(() => import('./pages/marketing/LandingPage.js'));
 const FeaturesPage = lazy(() => import('./pages/marketing/FeaturesPage.js'));
+const SolutionsPage = lazy(() => import('./pages/marketing/SolutionsPage.js'));
 const PricingPage = lazy(() => import('./pages/marketing/PricingPage.js'));
 const ResourcesPage = lazy(() => import('./pages/marketing/ResourcesPage.js'));
 const AboutPage = lazy(() => import('./pages/marketing/AboutPage.js'));
@@ -102,6 +103,7 @@ export function App(): React.ReactElement {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/solutions" element={<SolutionsPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/resources" element={<ResourcesPage />} />
           <Route path="/about" element={<AboutPage />} />

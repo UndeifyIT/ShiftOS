@@ -9,57 +9,57 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          50: '#f0fdfa',
-          100: '#ccfbf1',
-          200: '#99f6e4',
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#115e59',
-          900: '#134e4a',
-          soft: '#ccfbf1',
-          deep: '#0f766e'
+          50: '#FDF0E9',
+          100: '#FBE0D2',
+          200: '#F7C2A6',
+          300: '#F2A47A',
+          400: '#F17A48',
+          500: '#F04E17',
+          600: '#D8480E',
+          700: '#C6420E',
+          800: '#A3350B',
+          900: '#7A2808',
+          soft: '#FDF0E9',
+          deep: '#C6420E'
         },
         neutral: {
           0: '#ffffff',
-          50: '#fafafa',
-          100: '#f5f5f5',
-          200: '#e5e5e5',
-          300: '#d4d4d4',
-          400: '#a3a3a3',
-          500: '#737373',
-          600: '#525252',
-          700: '#404040',
-          800: '#262626',
-          900: '#111111'
+          50: '#FBFAF9',
+          100: '#F5F3F1',
+          200: '#EBE7E3',
+          300: '#DDD6D0',
+          400: '#A79C93',
+          500: '#857A72',
+          600: '#6B615A',
+          700: '#57504A',
+          800: '#453F3A',
+          900: '#38312B'
         },
-        success: { 50: '#ecfdf5', soft: '#d1fae5', 500: '#10b981', 600: '#059669', text: '#065f46' },
-        warning: { 50: '#fffbeb', soft: '#fef3c7', 500: '#f59e0b', 600: '#d97706', text: '#92400e' },
-        error: { 50: '#fef2f2', soft: '#fee2e2', 500: '#ef4444', 600: '#dc2626', text: '#991b1b' },
-        info: { 50: '#eff6ff', soft: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', text: '#1e40af' }
+        success: { 50: '#E9F7EF', soft: '#E9F7EF', 500: '#2E9E62', 600: '#268552', text: '#1D6B41' },
+        warning: { 50: '#FDF4E6', soft: '#FDF4E6', 500: '#B77714', 600: '#9C6410', text: '#7A4F0C' },
+        error: { 50: '#FCEDEA', soft: '#FCEDEA', 500: '#C93A22', 600: '#A92F1B', text: '#7A2314' },
+        info: { 50: '#EFF4FE', soft: '#EFF4FE', 500: '#2563EB', 600: '#1D4FC0', text: '#1E3A8A' }
       },
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
-        /** Marketing headlines + onboarding step titles only — never dashboards/tables. */
-        display: ['Newsreader', 'Georgia', '"Times New Roman"', 'serif']
+        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        /** Alias of `sans` — kept so existing `font-display` usages resolve unchanged. */
+        display: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif']
       },
       borderRadius: {
-        sm: '4px',
-        md: '8px',
-        lg: '12px',
-        xl: '16px'
+        sm: '9px',
+        md: '12px',
+        lg: '16px',
+        xl: '22px'
       },
       boxShadow: {
-        sm: '0 1px 2px rgba(17, 17, 17, 0.06)',
-        md: '0 2px 8px rgba(17, 17, 17, 0.08)',
-        lg: '0 8px 24px rgba(17, 17, 17, 0.10)',
-        /* Lovable-era card/lift/brand shadow tokens, re-based onto the graphite +
-           teal palette so pages still using these class names stay consistent. */
-        card: '0 1px 2px rgba(17, 17, 17, 0.04), 0 8px 24px -12px rgba(17, 17, 17, 0.10)',
-        lift: '0 2px 4px rgba(17, 17, 17, 0.05), 0 18px 40px -18px rgba(17, 17, 17, 0.16)',
-        brand: '0 10px 26px -10px rgba(20, 184, 166, 0.45)'
+        sm: '0 1px 2px rgba(56, 49, 43, 0.08)',
+        md: '0 8px 20px -8px rgba(56, 49, 43, 0.18)',
+        lg: '0 24px 60px -34px rgba(56, 49, 43, 0.4)',
+        /* card/lift/brand shadow tokens used across Lovable-ported pages, re-based
+           onto the warm-orange/ink palette so pages using these class names stay consistent. */
+        card: '0 1px 2px rgba(56, 49, 43, 0.05), 0 10px 26px -14px rgba(56, 49, 43, 0.16)',
+        lift: '0 2px 6px rgba(56, 49, 43, 0.06), 0 24px 60px -34px rgba(56, 49, 43, 0.4)',
+        brand: '0 10px 26px -10px rgba(240, 78, 23, 0.45)'
       }
     }
   },

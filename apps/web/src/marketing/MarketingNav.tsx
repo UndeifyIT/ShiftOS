@@ -6,7 +6,7 @@ import { Logo } from './Logo.js';
 
 const NAV_LINKS = [
   { label: 'Features', to: '/features', caret: true },
-  { label: 'Solutions', to: '/features', caret: true },
+  { label: 'Solutions', to: '/solutions', caret: true },
   { label: 'Pricing', to: '/pricing', caret: false },
   { label: 'Resources', to: '/resources', caret: true },
   { label: 'About Us', to: '/about', caret: false }

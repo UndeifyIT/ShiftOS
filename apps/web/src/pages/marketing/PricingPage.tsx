@@ -129,7 +129,7 @@ export default function PricingPage(): React.ReactElement {
           <div className="max-w-xl">
             <Eyebrow>Simple pricing</Eyebrow>
             <h1 className="mt-5 font-display text-4xl font-semibold leading-[1.06] tracking-tight text-neutral-900 sm:text-5xl">
-              Simple Pricing for Every <span className="text-brand-700">Shift-Based Business</span>
+              Simple pricing for every <span className="text-brand-700">retail business</span>
             </h1>
             <p className="mt-4 text-base leading-relaxed text-neutral-500">
               No hidden charges. Start free today and upgrade only when your business grows.

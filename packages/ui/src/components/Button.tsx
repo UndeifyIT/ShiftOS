@@ -12,11 +12,11 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 /*
- * Contrast note: brand-500 (#14b8a6, the approved logo/accent teal) only
- * reaches ~2.5:1 against white — well under WCAG AA's 4.5:1 for normal text.
+ * Contrast note: brand-500 (#F04E17, the approved logo/accent orange) only
+ * reaches ~3.6:1 against white — under WCAG AA's 4.5:1 for normal text.
  * brand-500 stays the literal accent everywhere it isn't load-bearing text
  * (logo, active-nav border, icons, links on white); solid fills carrying
- * white button label text use brand-700 (#0f766e, ~5.5:1) instead so every
+ * white button label text use brand-700 (#C6420E, ~5:1) instead so every
  * primary CTA in the app is actually readable.
  */
 const variantClasses: Record<ButtonVariant, string> = {

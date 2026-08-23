@@ -35,7 +35,7 @@ export function Sidebar(): React.ReactElement {
   return (
     <nav aria-label="Primary" className="flex h-full w-60 shrink-0 flex-col gap-1 bg-neutral-900 p-4">
       <div className="mb-5 flex items-center gap-2 px-2">
-        <LogoMark className="h-8 w-8" inverted />
+        <LogoMark className="h-8 w-8" />
         <span className="font-display text-lg font-semibold tracking-tight text-white">ShiftOS</span>
       </div>
       {items.map((item) => (

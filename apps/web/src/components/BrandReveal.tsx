@@ -56,7 +56,7 @@ export function BrandReveal({ children }: { children: React.ReactNode }): React.
             fading ? 'opacity-0' : 'opacity-100'
           ].join(' ')}
         >
-          <LogoMark className="h-14 w-14 animate-[shiftos-reveal_0.6s_ease-out]" inverted />
+          <LogoMark className="h-14 w-14 animate-[shiftos-reveal_0.6s_ease-out]" />
         </div>
       ) : null}
     </>

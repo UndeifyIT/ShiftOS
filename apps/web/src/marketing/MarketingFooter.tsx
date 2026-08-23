@@ -8,9 +8,9 @@ const COLUMNS: { title: string; links: { label: string; to: string }[] }[] = [
     title: 'Product',
     links: [
       { label: 'Features', to: '/features' },
+      { label: 'Solutions', to: '/solutions' },
       { label: 'Pricing', to: '/pricing' },
-      { label: 'Book a Demo', to: '/request-demo' },
-      { label: 'Shifty Assistant', to: '/features' }
+      { label: 'Book a Demo', to: '/request-demo' }
     ]
   },
   {

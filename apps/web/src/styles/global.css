@@ -70,8 +70,8 @@ h4 {
    utilities so pages can use the same class names as the source design. */
 @layer utilities {
   .bg-brand-wash {
-    background-image: radial-gradient(60rem 40rem at 105% -10%, rgba(204, 251, 241, 0.6), transparent 60%),
-      radial-gradient(45rem 35rem at -10% 110%, rgba(240, 253, 250, 0.7), transparent 60%);
+    background-image: radial-gradient(60rem 40rem at 105% -10%, rgba(253, 240, 233, 0.7), transparent 60%),
+      radial-gradient(45rem 35rem at -10% 110%, rgba(251, 224, 210, 0.5), transparent 60%);
     background-color: theme('colors.neutral.50');
   }
 

@@ -90,12 +90,11 @@ export default function LandingPage(): React.ReactElement {
             <h1 className="mt-6 font-display text-[2.6rem] font-semibold leading-[0.98] tracking-[-0.02em] text-neutral-900 sm:text-6xl lg:text-[4.25rem]">
               Run every shift
               <br />
-              like clockwork
-              <span className="text-brand-700">.</span>
+              from <span className="text-brand-700">one screen</span>.
             </h1>
             <p className="mt-6 max-w-lg text-base leading-relaxed text-neutral-500 sm:text-lg">
-              ShiftOS replaces the spreadsheets and WhatsApp groups your store runs on &mdash; schedules, attendance, tasks and
-              announcements in one place your whole team actually opens.
+              Scheduling, attendance, tasks and announcements for shift-based teams. Supervisors publish the week in
+              minutes, managers see every branch, staff always know where they stand.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -109,7 +108,12 @@ export default function LandingPage(): React.ReactElement {
 
             <div className="mt-9 flex flex-wrap items-center gap-x-8 gap-y-5">
               <ul className="grid gap-2">
-                {['No spreadsheets', 'No missed updates', 'Built for retail teams in Nigeria'].map((point) => (
+                {[
+                  'Supervisors create and publish schedules in minutes',
+                  'Managers see coverage across every branch',
+                  'Staff stay updated before and after their shift',
+                  'No spreadsheets, no missed shift changes'
+                ].map((point) => (
                   <li key={point} className="flex items-center gap-2 text-sm font-semibold">
                     <CheckCircle2 className="size-4 shrink-0 text-brand-700" aria-hidden="true" />
                     <span className="text-neutral-500">{point}</span>
