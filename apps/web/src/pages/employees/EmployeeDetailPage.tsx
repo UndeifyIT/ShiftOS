@@ -114,8 +114,8 @@ export default function EmployeeDetailPage(): React.ReactElement {
           <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Email" value={employee.email ?? '—'} />
             <Field label="Phone" value={employee.phone ?? '—'} />
-            <Field label="Hire date" value={employee.hire_date} />
-            <Field label="Date of birth" value={employee.date_of_birth ?? '—'} />
+            <Field label="Hire date" value={new Date(employee.hire_date).toLocaleDateString()} />
+            <Field label="Date of birth" value={employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString() : '—'} />
             <div className="sm:col-span-2">
               <Field label="Notes" value={employee.notes ?? '—'} />
             </div>

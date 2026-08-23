@@ -39,10 +39,31 @@ export function computeDuration(startTime: string, endTime: string, crossesMidni
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
 }
 
+/**
+ * `date`-typed columns come back from the `pg` driver as JS `Date` objects
+ * built from local calendar components (`new Date(year, month, day)`), not
+ * UTC ones. Comparing one of those against an ISO date *string* via
+ * `Date.parse` silently coerces the Date through `toString()` (local time)
+ * while the string parses as UTC midnight — a real, previously-unnoticed bug
+ * where a date exactly on a range boundary could be wrongly rejected,
+ * depending on the server's timezone offset. Normalizing everything to a
+ * plain YYYY-MM-DD string first (using local getters, matching how the
+ * driver built the Date) sidesteps the mismatch entirely.
+ */
+function toDateOnlyString(value: string | Date): string {
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return value.slice(0, 10);
+}
+
 /** True if `date` (YYYY-MM-DD) falls within [startDate, endDate] inclusive. */
-export function isDateWithinRange(date: string, startDate: string, endDate: string): boolean {
-  const target = Date.parse(date);
-  const start = Date.parse(startDate);
-  const end = Date.parse(endDate);
+export function isDateWithinRange(date: string, startDate: string | Date, endDate: string | Date): boolean {
+  const target = toDateOnlyString(date);
+  const start = toDateOnlyString(startDate);
+  const end = toDateOnlyString(endDate);
   return target >= start && target <= end;
 }

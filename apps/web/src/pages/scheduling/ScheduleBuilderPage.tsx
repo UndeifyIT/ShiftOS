@@ -162,7 +162,7 @@ export default function ScheduleBuilderPage(): React.ReactElement {
     <PageContainer>
       <PageHeader
         title={schedule.name}
-        description={`${schedule.start_date} – ${schedule.end_date}`}
+        description={`${new Date(schedule.start_date).toLocaleDateString()} – ${new Date(schedule.end_date).toLocaleDateString()}`}
         actions={
           <>
             <Badge tone={STATUS_TONE[schedule.status]}>{schedule.status}</Badge>
@@ -201,7 +201,7 @@ export default function ScheduleBuilderPage(): React.ReactElement {
           <DataTable<Shift>
             columns={[
               { key: 'title', header: 'Title', primary: true, render: (s) => s.title },
-              { key: 'date', header: 'Date', render: (s) => s.shift_date },
+              { key: 'date', header: 'Date', render: (s) => new Date(s.shift_date).toLocaleDateString() },
               { key: 'time', header: 'Time', render: (s) => `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}` },
               { key: 'status', header: 'Status', render: (s) => <Badge tone={SHIFT_STATUS_TONE[s.status]}>{s.status}</Badge> }
             ]}
@@ -220,9 +220,9 @@ export default function ScheduleBuilderPage(): React.ReactElement {
       ) : (
         <DataTable<ScheduleVersion>
           columns={[
-            { key: 'version', header: 'Version', primary: true, render: (v) => `v${v.version_number}` },
+            { key: 'version', header: 'Version', primary: true, render: (v) => `v${v.version}` },
             { key: 'summary', header: 'Changes', render: (v) => v.changes_summary ?? '—' },
-            { key: 'published_at', header: 'Published', render: (v) => new Date(v.created_at).toLocaleString() }
+            { key: 'published_at', header: 'Published', render: (v) => new Date(v.published_at).toLocaleString() }
           ]}
           rows={versions ?? []}
           rowKey={(v) => v.id}

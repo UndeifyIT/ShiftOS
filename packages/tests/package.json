@@ -1,0 +1,12 @@
+{
+  "name": "@shiftos/tests",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@shiftos/api": "workspace:*",
+    "@shiftos/database": "workspace:*",
+    "@shiftos/services": "workspace:*",
+    "@shiftos/errors": "workspace:*"
+  }
+}

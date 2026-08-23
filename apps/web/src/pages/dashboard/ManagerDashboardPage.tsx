@@ -111,7 +111,7 @@ export default function ManagerDashboardPage(): React.ReactElement {
                 >
                   <span className="text-sm font-medium text-neutral-900">{schedule.name}</span>
                   <span className="text-xs text-neutral-500">
-                    {schedule.start_date} – {schedule.end_date}
+                    {new Date(schedule.start_date).toLocaleDateString()} – {new Date(schedule.end_date).toLocaleDateString()}
                   </span>
                 </button>
               ))}

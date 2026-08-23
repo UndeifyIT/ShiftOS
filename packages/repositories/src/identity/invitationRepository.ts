@@ -26,6 +26,8 @@ export interface InvitationWithRole extends Invitation {
 }
 
 export class InvitationRepository extends TenantScopedRepository<Invitation> {
+  protected override hasSoftDelete = false;
+
   constructor(client: DatabaseClient) {
     super(client, 'invitations');
   }

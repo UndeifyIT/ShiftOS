@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useRef } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Spinner } from '@shiftos/ui';
 import { useSession } from './auth/SessionProvider.js';
@@ -60,11 +60,22 @@ function SuspenseRoute({ children }: { children: React.ReactNode }): React.React
  */
 function OnboardingGate(): React.ReactElement {
   const { data: branches, isLoading } = useRpcQuery<Branch[]>('list_branches');
+  // Decided once, on this gate's first successful load, and never
+  // re-evaluated after that: the wizard's own Branch step creates a branch
+  // as its very first action, which would otherwise make this check flip to
+  // true mid-wizard (list_branches becomes non-empty) and kick the user out
+  // to the dashboard before the Supervisor/Departments/Finish steps ever
+  // run. Completing the wizard exits through App's onboardingCompletedAt
+  // check instead, which unmounts this gate entirely.
+  const alreadySetUpRef = useRef<boolean | null>(null);
+  if (alreadySetUpRef.current === null && !isLoading && branches) {
+    alreadySetUpRef.current = branches.length > 0;
+  }
 
-  if (isLoading) {
+  if (isLoading || alreadySetUpRef.current === null) {
     return <FullPageSpinner />;
   }
-  if (branches && branches.length > 0) {
+  if (alreadySetUpRef.current) {
     return <AppShellRoutes />;
   }
   return <OnboardingWizard />;

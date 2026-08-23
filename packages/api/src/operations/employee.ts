@@ -12,7 +12,8 @@ export const createEmployee = defineRpc('create_employee', async (context, rawIn
     email: stringField(input, 'email') ?? null,
     phone: stringField(input, 'phone') ?? null,
     dateOfBirth: stringField(input, 'dateOfBirth') ?? null,
-    hireDate: requiredStringField(input, 'hireDate')
+    hireDate: requiredStringField(input, 'hireDate'),
+    departmentId: stringField(input, 'departmentId') ?? null
   });
 });
 
@@ -34,7 +35,8 @@ export const updateEmployee = defineRpc('update_employee', async (context, rawIn
     phone: stringField(input, 'phone'),
     employmentStatus: employmentStatus as 'active' | 'inactive' | 'terminated' | 'on_leave' | undefined,
     notes: stringField(input, 'notes'),
-    avatarUrl: stringField(input, 'avatarUrl') ?? (input.avatarUrl === null ? null : undefined)
+    avatarUrl: stringField(input, 'avatarUrl') ?? (input.avatarUrl === null ? null : undefined),
+    departmentId: stringField(input, 'departmentId') ?? (input.departmentId === null ? null : undefined)
   });
 });
 

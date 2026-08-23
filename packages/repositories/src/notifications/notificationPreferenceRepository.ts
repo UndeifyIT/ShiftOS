@@ -10,26 +10,32 @@ export interface NotificationPreference extends TenantEntity {
   updated_at: string;
 }
 
-/** No deleted_at column — a preference row is toggled (is_enabled), not soft-deleted. */
+/** notification_preferences (016) had a full schema but no repository, service, or API anywhere -- wired here for the first time. */
 export class NotificationPreferenceRepository extends TenantScopedRepository<NotificationPreference> {
   constructor(client: DatabaseClient) {
     super(client, 'notification_preferences');
     this.hasSoftDelete = false;
   }
 
-  async listForUser(organizationId: string, userId: string): Promise<NotificationPreference[]> {
+  async findForUser(organizationId: string, userId: string): Promise<NotificationPreference[]> {
     return this.list(organizationId, { filters: { user_id: userId } });
   }
 
-  async setEnabled(organizationId: string, id: string, isEnabled: boolean): Promise<NotificationPreference> {
-    return this.patch(organizationId, id, { is_enabled: isEnabled } as Partial<NotificationPreference>);
+  async findOne(organizationId: string, userId: string, channel: NotificationChannel): Promise<NotificationPreference | null> {
+    const matches = await this.list(organizationId, { filters: { user_id: userId, channel } });
+    return matches[0] ?? null;
   }
 
-  async upsertForUser(organizationId: string, userId: string, channel: NotificationChannel, isEnabled: boolean): Promise<NotificationPreference> {
-    const existing = await this.list(organizationId, { filters: { user_id: userId, channel } });
-    if (existing[0]) {
-      return this.setEnabled(organizationId, existing[0].id, isEnabled);
-    }
-    return this.insert(organizationId, { user_id: userId, channel, is_enabled: isEnabled });
+  /** Upserts on the (user_id, organization_id, channel) unique constraint -- a preference row is created lazily on first write, defaulting every other channel to enabled (the column default). */
+  async setEnabled(organizationId: string, userId: string, channel: NotificationChannel, isEnabled: boolean): Promise<NotificationPreference> {
+    const rows = await this.client.query<NotificationPreference & Record<string, unknown>>(
+      `INSERT INTO notification_preferences (organization_id, user_id, channel, is_enabled)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id, organization_id, channel)
+       DO UPDATE SET is_enabled = EXCLUDED.is_enabled, updated_at = now()
+       RETURNING *`,
+      [organizationId, userId, channel, isEnabled]
+    );
+    return rows[0];
   }
 }

@@ -42,4 +42,12 @@ export class NotificationRepository extends TenantScopedRepository<Notification>
   async markRead(organizationId: string, id: string): Promise<Notification> {
     return this.patch(organizationId, id, { read_at: new Date().toISOString() } as Partial<Notification>);
   }
+
+  async markAllReadForUser(organizationId: string, userId: string): Promise<number> {
+    const rows = await this.client.query(
+      'UPDATE notifications SET read_at = now() WHERE organization_id = $1 AND user_id = $2 AND read_at IS NULL RETURNING id',
+      [organizationId, userId]
+    );
+    return rows.length;
+  }
 }

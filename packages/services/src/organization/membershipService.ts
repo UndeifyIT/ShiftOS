@@ -125,11 +125,13 @@ export class MembershipService {
     if (!withRole) {
       throw new NotFoundError('Invitation was created but could not be re-read');
     }
+    await this.context.audit('invite_member', 'invitation', invitation.id, null, { email, role_id: role.id, branch_ids: branchIds });
     return withRole;
   }
 
   async revokeInvitation(invitationId: string): Promise<void> {
     await this.context.requirePermission('org.members.manage');
     await this.invitations.revoke(this.context.organizationId, invitationId, this.context.userId);
+    await this.context.audit('revoke_invitation', 'invitation', invitationId, null, null);
   }
 }

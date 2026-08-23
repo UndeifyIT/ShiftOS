@@ -107,7 +107,7 @@ export default function ProfilePage(): React.ReactElement {
               </div>
               <div>
                 <dt className="text-neutral-500">Hire date</dt>
-                <dd className="text-neutral-900">{myEmployeeRecord.hire_date}</dd>
+                <dd className="text-neutral-900">{new Date(myEmployeeRecord.hire_date).toLocaleDateString()}</dd>
               </div>
               <div>
                 <dt className="text-neutral-500">Status</dt>

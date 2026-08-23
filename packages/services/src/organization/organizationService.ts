@@ -38,7 +38,10 @@ export class OrganizationService {
       throw new ValidationError('No changes supplied');
     }
 
-    return this.organizations.update(this.context.organizationId, input as Partial<Organization>);
+    const before = await this.organizations.getByIdOrThrow(this.context.organizationId);
+    const updated = await this.organizations.update(this.context.organizationId, input as Partial<Organization>);
+    await this.context.audit('update_organization', 'organization', this.context.organizationId, before, updated);
+    return updated;
   }
 
   /** Every organization the authenticated identity belongs to — no permission check: this is "what can I even see", not an action on one organization. */

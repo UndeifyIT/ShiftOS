@@ -83,7 +83,7 @@ export default function EmployeeDashboardPage(): React.ReactElement {
                       <div>
                         <p className="text-sm font-medium text-neutral-900">{shift.title}</p>
                         <p className="text-xs text-neutral-500">
-                          {shift.shift_date} · {shift.start_time}–{shift.end_time}
+                          {new Date(shift.shift_date).toLocaleDateString()} · {shift.start_time}–{shift.end_time}
                         </p>
                       </div>
                     </div>

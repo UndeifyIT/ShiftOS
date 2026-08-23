@@ -33,6 +33,12 @@ export * from './scheduling/scheduleVersionRepository.js';
 export * from './scheduling/shiftRepository.js';
 export * from './scheduling/shiftAssignmentRepository.js';
 export * from './scheduling/publishScheduleWithVersion.js';
+export * from './scheduling/shiftNoteRepository.js';
+export * from './workforce/departmentRepository.js';
+export * from './scheduling/shiftSwapRequestRepository.js';
+export * from './reporting/reportingRepository.js';
+export * from './notifications/notificationPreferenceRepository.js';
+export * from './notifications/notificationDeliveryAttemptRepository.js';
 
 // Attendance
 export * from './attendance/attendanceRecordRepository.js';

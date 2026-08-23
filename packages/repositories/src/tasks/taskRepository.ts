@@ -49,7 +49,10 @@ export class TaskRepository extends BranchScopedRepository<Task> {
       task_status: 'assigned',
       assigned_supervisor_id: supervisorEmployeeId,
       assigned_by: assignedBy,
-      assigned_at: new Date().toISOString()
+      assigned_at: new Date().toISOString(),
+      // trg_tasks_validate raises on every UPDATE with a null updated_by; this
+      // was missing here, so assigning a task failed against the real schema.
+      updated_by: assignedBy
     } as Partial<Task>);
   }
 
@@ -63,14 +66,44 @@ export class TaskRepository extends BranchScopedRepository<Task> {
     } as Partial<Task>);
   }
 
+  /**
+   * Two DB check constraints (012_create_tasks.sql) shape this:
+   *   - chk_tasks_verification_consistency requires verified_at IS NULL
+   *     whenever task_status <> 'verified', so verified_at/verified_by can
+   *     only be set on the 'verified' outcome.
+   *   - chk_tasks_completion_consistency requires completed_at IS NULL
+   *     whenever task_status is 'draft'/'assigned'/'in_progress'. A rework
+   *     outcome moves the task back to 'in_progress', so the completion
+   *     record from the completeTask() call that preceded this verify() has
+   *     to be cleared too — the task is, in effect, reopened pending rework.
+   */
   async verify(organizationId: string, id: string, verifiedBy: string, verificationStatus: TaskVerificationStatus, verificationNotes: string | null): Promise<Task> {
+    const isVerified = verificationStatus === 'verified';
     return this.patch(organizationId, id, {
-      task_status: verificationStatus === 'verified' ? 'verified' : 'in_progress',
-      verified_by: verifiedBy,
-      verified_at: new Date().toISOString(),
+      task_status: isVerified ? 'verified' : 'in_progress',
+      verified_by: isVerified ? verifiedBy : null,
+      verified_at: isVerified ? new Date().toISOString() : null,
+      completed_at: isVerified ? undefined : null,
+      completed_by: isVerified ? undefined : null,
+      completion_notes: isVerified ? undefined : null,
       verification_status: verificationStatus,
       verification_notes: verificationNotes,
       updated_by: verifiedBy
+    } as Partial<Task>);
+  }
+
+  /**
+   * A distinctly-named method rather than an override of the inherited
+   * 2-argument archive() (TenantScopedRepository's own header comment
+   * documents why same-name overrides with a different signature are
+   * deliberately avoided here). tasks needs its own version because
+   * trg_tasks_validate raises on every UPDATE — soft-delete included — with a
+   * null updated_by, which the generic softDelete() path never sets.
+   */
+  async archiveWithActor(organizationId: string, id: string, updatedBy: string): Promise<Task> {
+    return this.patch(organizationId, id, {
+      deleted_at: new Date().toISOString(),
+      updated_by: updatedBy
     } as Partial<Task>);
   }
 }

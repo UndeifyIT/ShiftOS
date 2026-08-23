@@ -1,48 +1,45 @@
-import { BaseRepository, type DatabaseClient } from '@shiftos/database';
-import { AuthorizationError } from '@shiftos/errors';
+import type { DatabaseClient } from '@shiftos/database';
+import type { NotificationChannel } from './notificationRepository.js';
 
-export type DeliveryChannel = 'in_app' | 'push' | 'email' | 'sms';
-export type DeliveryStatus = 'pending' | 'delivered' | 'failed';
+export type NotificationDeliveryStatus = 'pending' | 'delivered' | 'failed';
 
 export interface NotificationDeliveryAttempt extends Record<string, unknown> {
   id: string;
   notification_id: string;
-  channel: DeliveryChannel;
-  status: DeliveryStatus;
+  channel: NotificationChannel;
+  status: NotificationDeliveryStatus;
   attempted_at: string;
   error_message: string | null;
 }
 
 /**
- * No organization_id column of its own (see supabase/migrations/016) —
- * tenant safety is enforced by joining to notifications and checking
- * notifications.organization_id, the same pattern RolePermissionRepository
- * uses for role_permissions.
+ * notification_delivery_attempts (016) had a full schema but no repository,
+ * service, or API anywhere -- wired here for the first time. No
+ * organization_id column of its own (scoped transitively through
+ * notification_id), so this does not extend TenantScopedRepository.
  */
-export class NotificationDeliveryAttemptRepository extends BaseRepository<NotificationDeliveryAttempt> {
-  constructor(client: DatabaseClient) {
-    super(client, 'notification_delivery_attempts');
+export class NotificationDeliveryAttemptRepository {
+  constructor(private readonly client: DatabaseClient) {}
+
+  async record(
+    notificationId: string,
+    channel: NotificationChannel,
+    status: NotificationDeliveryStatus,
+    errorMessage: string | null = null
+  ): Promise<NotificationDeliveryAttempt> {
+    const rows = await this.client.query<NotificationDeliveryAttempt>(
+      `INSERT INTO notification_delivery_attempts (notification_id, channel, status, error_message)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [notificationId, channel, status, errorMessage]
+    );
+    return rows[0];
   }
 
-  async listForNotification(organizationId: string, notificationId: string): Promise<NotificationDeliveryAttempt[]> {
+  async listForNotification(notificationId: string): Promise<NotificationDeliveryAttempt[]> {
     return this.client.query<NotificationDeliveryAttempt>(
-      `SELECT da.*
-         FROM notification_delivery_attempts da
-         JOIN notifications n ON n.id = da.notification_id
-        WHERE da.notification_id = $1 AND n.organization_id = $2
-        ORDER BY da.attempted_at DESC`,
-      [notificationId, organizationId]
+      'SELECT * FROM notification_delivery_attempts WHERE notification_id = $1 ORDER BY attempted_at DESC',
+      [notificationId]
     );
-  }
-
-  async record(organizationId: string, attempt: { notification_id: string; channel: DeliveryChannel; status: DeliveryStatus; error_message: string | null }): Promise<NotificationDeliveryAttempt> {
-    const owns = await this.client.query<{ id: string }>(
-      'SELECT id FROM notifications WHERE id = $1 AND organization_id = $2',
-      [attempt.notification_id, organizationId]
-    );
-    if (owns.length === 0) {
-      throw new AuthorizationError('Notification does not belong to this organization');
-    }
-    return this.create(attempt);
   }
 }

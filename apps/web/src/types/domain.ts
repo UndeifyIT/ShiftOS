@@ -80,8 +80,9 @@ export interface Schedule {
 export interface ScheduleVersion {
   id: string;
   schedule_id: string;
-  version_number: number;
+  version: number;
   changes_summary: string | null;
+  published_at: string;
   created_at: string;
   [key: string]: unknown;
 }

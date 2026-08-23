@@ -57,7 +57,10 @@ export class BranchService {
   async archiveBranch(branchId: string): Promise<Branch> {
     assertUuid(branchId, 'branchId');
     await this.context.requirePermission('branches.archive');
-    return this.branches.archive(this.context.organizationId, branchId);
+    const before = await this.branches.getByIdOrThrow(this.context.organizationId, branchId);
+    const archived = await this.branches.archive(this.context.organizationId, branchId);
+    await this.context.audit('archive_branch', 'branch', branchId, before, archived);
+    return archived;
   }
 
   /** Only returns a branch the caller is actually authorized to operate in — see ApplicationContext.requireBranchAccess. */

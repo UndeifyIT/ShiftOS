@@ -100,7 +100,14 @@ export abstract class BaseRepository<T extends Record<string, unknown>> {
   }
 
   async create(entity: Partial<T>): Promise<T> {
-    const columns = Object.keys(entity);
+    // Callers build partial payloads with helpers (e.g. packages/api/parse.ts's
+    // stringField) that return `undefined` for an omitted field, but the
+    // object literal that wraps them (`{ name: stringField(...) }`) still
+    // creates a real `name` key whose value is `undefined` — Object.keys()
+    // includes it. Filtering those out here lets the column's own DEFAULT
+    // apply instead of binding an explicit SQL NULL for a field the caller
+    // never actually supplied.
+    const columns = Object.keys(entity).filter((column) => (entity as Record<string, unknown>)[column] !== undefined);
     if (columns.length === 0) {
       throw new DatabaseError('Cannot create a record with no fields');
     }
@@ -119,7 +126,13 @@ export abstract class BaseRepository<T extends Record<string, unknown>> {
   }
 
   async update(id: string, changes: Partial<T>): Promise<T> {
-    const columns = Object.keys(changes);
+    // Same reasoning as create(): an `undefined`-valued key means "this field
+    // wasn't part of the update", not "set this column to NULL". Without this
+    // filter, a partial update that omits a NOT NULL column (e.g. updating
+    // only `metadata` on organizations, which also has a required `name`)
+    // would generate `SET name = $1` bound to NULL and fail the column's own
+    // constraint, even though the caller never touched `name`.
+    const columns = Object.keys(changes).filter((column) => (changes as Record<string, unknown>)[column] !== undefined);
     if (columns.length === 0) {
       throw new DatabaseError('Cannot update a record with no fields');
     }

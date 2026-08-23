@@ -23,6 +23,7 @@ export interface CreateEmployeeInput {
   phone?: string | null;
   dateOfBirth?: string | null;
   hireDate: string;
+  departmentId?: string | null;
 }
 
 export interface UpdateEmployeeInput {
@@ -35,6 +36,7 @@ export interface UpdateEmployeeInput {
   employmentStatus?: EmploymentStatus;
   notes?: string | null;
   avatarUrl?: string | null;
+  departmentId?: string | null;
 }
 
 export class EmployeeService {
@@ -71,7 +73,8 @@ export class EmployeeService {
       email: input.email ?? null,
       phone: input.phone ?? null,
       date_of_birth: input.dateOfBirth ?? null,
-      hire_date: input.hireDate
+      hire_date: input.hireDate,
+      department_id: input.departmentId ?? null
     } as Partial<Employee>);
   }
 
@@ -109,6 +112,7 @@ export class EmployeeService {
     if (input.employmentStatus !== undefined) changes.employment_status = input.employmentStatus;
     if (input.notes !== undefined) changes.notes = input.notes;
     if (input.avatarUrl !== undefined) changes.avatar_url = input.avatarUrl;
+    if (input.departmentId !== undefined) changes.department_id = input.departmentId;
 
     if (Object.keys(changes).length === 0) {
       throw new ValidationError('No changes supplied');
@@ -124,7 +128,9 @@ export class EmployeeService {
     await this.context.requirePermission('employees.archive');
     const before = await this.employees.getByIdOrThrow(this.context.organizationId, employeeId);
     this.context.requireBranchAccess(before.branch_id);
-    return this.employees.archive(this.context.organizationId, employeeId);
+    const archived = await this.employees.archive(this.context.organizationId, employeeId);
+    await this.context.audit('archive_employee', 'employee', employeeId, before, archived);
+    return archived;
   }
 
   /** requestedBranchId is verified against the caller's accessible branches (ApplicationContext.resolveBranchScope); omitting it lists every accessible branch's employees. */

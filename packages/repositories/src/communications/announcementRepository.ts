@@ -50,6 +50,24 @@ export class AnnouncementRepository extends TenantScopedRepository<Announcement>
     return this.client.query<Announcement>(sql, params);
   }
 
+  /** Every announcement (published or draft) an accessible-branches caller manages: organization-wide ones plus branch-specific ones for an accessible branch. Unlike listVisibleTo, does not filter by is_published/expires_at — for content managers, not the general audience view. */
+  async listManaged(organizationId: string, branchIds: string[], options?: { limit?: number; offset?: number }): Promise<Announcement[]> {
+    const params: unknown[] = [organizationId, branchIds];
+    let sql = `SELECT * FROM announcements
+                WHERE organization_id = $1 AND deleted_at IS NULL
+                  AND (branch_id IS NULL OR branch_id = ANY($2::uuid[]))
+                ORDER BY created_at DESC`;
+    if (typeof options?.limit === 'number') {
+      params.push(options.limit);
+      sql += ` LIMIT $${params.length}`;
+    }
+    if (typeof options?.offset === 'number') {
+      params.push(options.offset);
+      sql += ` OFFSET $${params.length}`;
+    }
+    return this.client.query<Announcement>(sql, params);
+  }
+
   async publish(organizationId: string, id: string): Promise<Announcement> {
     return this.patch(organizationId, id, { is_published: true, published_at: new Date().toISOString() } as Partial<Announcement>);
   }

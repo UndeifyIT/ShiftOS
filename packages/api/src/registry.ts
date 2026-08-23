@@ -12,6 +12,49 @@ import {
   assignEmployee, updateAssignmentStatus, removeAssignment, listAssignmentsForShift,
   publishSchedule
 } from './operations/scheduling.js';
+import {
+  createTask, getTask, updateTask, assignTask, completeTask, verifyTask, reopenTask, cancelTask, archiveTask, listTasks, getTaskHistory
+} from './operations/task.js';
+import {
+  createAnnouncement, updateAnnouncement, publishAnnouncement, archiveAnnouncement,
+  getAnnouncement, listAnnouncements, acknowledgeAnnouncement, hasAcknowledgedAnnouncement
+} from './operations/announcement.js';
+import { createShiftNote, listShiftNotesForShift, archiveShiftNote } from './operations/shiftNote.js';
+import {
+  createDepartment,
+  getDepartment,
+  updateDepartment,
+  archiveDepartment,
+  listDepartments,
+  countEmployeesInDepartment
+} from './operations/department.js';
+import {
+  requestShiftSwap,
+  respondToShiftSwap,
+  cancelShiftSwap,
+  approveShiftSwap,
+  rejectShiftSwap,
+  getShiftSwap,
+  listMyShiftSwaps,
+  listOpenShiftSwaps,
+  listPendingShiftSwapApprovals
+} from './operations/shiftSwap.js';
+import { getAttendanceSummaryReport, getTaskCompletionReport, getLeaveUsageReport } from './operations/reporting.js';
+import {
+  clockIn, clockOut, markAttendanceAbsent, getAttendanceRecord, listAttendanceForEmployee,
+  listMyAttendance, listAttendanceForBranchAndRange, recordAttendanceCorrection, listAttendanceCorrections
+} from './operations/attendance.js';
+import {
+  createLeaveRequest, approveLeaveRequest, rejectLeaveRequest, cancelLeaveRequest,
+  getLeaveRequest, listLeaveForEmployee, listMyLeave, listPendingLeave
+} from './operations/leave.js';
+import {
+  listMyNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  getMyNotificationPreferences,
+  setMyNotificationPreference
+} from './operations/notification.js';
 
 /**
  * The full set of ShiftOS RPC operations, registered explicitly one at a
@@ -69,6 +112,77 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(removeAssignment);
   registry.register(listAssignmentsForShift);
   registry.register(publishSchedule);
+
+  registry.register(createTask);
+  registry.register(getTask);
+  registry.register(updateTask);
+  registry.register(assignTask);
+  registry.register(completeTask);
+  registry.register(verifyTask);
+  registry.register(reopenTask);
+  registry.register(cancelTask);
+  registry.register(archiveTask);
+  registry.register(listTasks);
+  registry.register(getTaskHistory);
+
+  registry.register(createAnnouncement);
+  registry.register(updateAnnouncement);
+  registry.register(publishAnnouncement);
+  registry.register(archiveAnnouncement);
+  registry.register(getAnnouncement);
+  registry.register(listAnnouncements);
+  registry.register(acknowledgeAnnouncement);
+  registry.register(hasAcknowledgedAnnouncement);
+
+  registry.register(createShiftNote);
+  registry.register(listShiftNotesForShift);
+  registry.register(archiveShiftNote);
+
+  registry.register(clockIn);
+  registry.register(clockOut);
+  registry.register(markAttendanceAbsent);
+  registry.register(getAttendanceRecord);
+  registry.register(listAttendanceForEmployee);
+  registry.register(listMyAttendance);
+  registry.register(listAttendanceForBranchAndRange);
+  registry.register(recordAttendanceCorrection);
+  registry.register(listAttendanceCorrections);
+
+  registry.register(createLeaveRequest);
+  registry.register(approveLeaveRequest);
+  registry.register(rejectLeaveRequest);
+  registry.register(cancelLeaveRequest);
+  registry.register(getLeaveRequest);
+  registry.register(listLeaveForEmployee);
+  registry.register(listMyLeave);
+  registry.register(listPendingLeave);
+
+  registry.register(listMyNotifications);
+  registry.register(markNotificationRead);
+  registry.register(markAllNotificationsRead);
+  registry.register(getMyNotificationPreferences);
+  registry.register(setMyNotificationPreference);
+
+  registry.register(createDepartment);
+  registry.register(getDepartment);
+  registry.register(updateDepartment);
+  registry.register(archiveDepartment);
+  registry.register(listDepartments);
+  registry.register(countEmployeesInDepartment);
+
+  registry.register(requestShiftSwap);
+  registry.register(respondToShiftSwap);
+  registry.register(cancelShiftSwap);
+  registry.register(approveShiftSwap);
+  registry.register(rejectShiftSwap);
+  registry.register(getShiftSwap);
+  registry.register(listMyShiftSwaps);
+  registry.register(listOpenShiftSwaps);
+  registry.register(listPendingShiftSwapApprovals);
+
+  registry.register(getAttendanceSummaryReport);
+  registry.register(getTaskCompletionReport);
+  registry.register(getLeaveUsageReport);
 
   return registry;
 }

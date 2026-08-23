@@ -92,11 +92,27 @@ export function DataTable<T>({
       <ul className="flex flex-col gap-2 md:hidden">
         {rows.map((row) => (
           <li key={rowKey(row)}>
-            <button
-              type="button"
+            {/* A real <button> here would make any interactive element inside a column's
+                render() (e.g. a row action button) an invalid <button> nested in a <button>,
+                so a clickable row uses div+role="button" instead of a native button. */}
+            <div
+              role={onRowClick ? 'button' : undefined}
+              tabIndex={onRowClick ? 0 : undefined}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
-              disabled={!onRowClick}
-              className="w-full rounded-xl border border-neutral-200 bg-white p-4 text-left disabled:cursor-default"
+              onKeyDown={
+                onRowClick
+                  ? (event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onRowClick(row);
+                      }
+                    }
+                  : undefined
+              }
+              className={[
+                'w-full rounded-xl border border-neutral-200 bg-white p-4 text-left',
+                onRowClick ? 'cursor-pointer' : ''
+              ].join(' ')}
             >
               <div className="font-medium text-neutral-900">{primaryColumn.render(row)}</div>
               <dl className="mt-2 flex flex-col gap-1">
@@ -107,7 +123,7 @@ export function DataTable<T>({
                   </div>
                 ))}
               </dl>
-            </button>
+            </div>
           </li>
         ))}
       </ul>

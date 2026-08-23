@@ -58,7 +58,11 @@ export default function ScheduleListPage(): React.ReactElement {
       <DataTable<Schedule>
         columns={[
           { key: 'name', header: 'Name', primary: true, render: (s) => s.name },
-          { key: 'range', header: 'Period', render: (s) => `${s.start_date} – ${s.end_date}` },
+          {
+            key: 'range',
+            header: 'Period',
+            render: (s) => `${new Date(s.start_date).toLocaleDateString()} – ${new Date(s.end_date).toLocaleDateString()}`
+          },
           { key: 'status', header: 'Status', render: (s) => <Badge tone={STATUS_TONE[s.status]}>{s.status}</Badge> }
         ]}
         rows={schedules ?? []}

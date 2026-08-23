@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Badge, DataTable, PageContainer, PageHeader, PermissionDenied } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcQuery } from '../../lib/useRpc.js';
@@ -12,11 +13,10 @@ import type { Member } from '../../types/domain.js';
  * organization_memberships/users/roles via a single joined repository query
  * — no fabricated data.
  *
- * Deliberately read-only: there is still no backend capability to invite a
- * new member (that requires the Supabase Auth admin API / service-role key —
- * see InvitationsPage) or to change a member's role/remove a member (no
- * update_member_role / remove_member RPC operation exists yet). Those remain
- * documented gaps, not silently faked here.
+ * Inviting a new member is handled on the Invitations page (real
+ * invite_member/accept_invitation flow, not a gap). Changing an existing
+ * member's role or removing a member is still a real gap: no
+ * update_member_role / remove_member RPC operation exists yet.
  */
 export default function MembersPage(): React.ReactElement {
   const { hasPermission } = useSession();
@@ -52,8 +52,11 @@ export default function MembersPage(): React.ReactElement {
         emptyDescription="This organization has no active memberships yet."
       />
       <p className="mt-6 text-sm text-neutral-500">
-        Inviting new members, changing roles, and removing members aren&apos;t available from ShiftOS yet — see{' '}
-        <span className="font-medium text-neutral-700">Invitations</span> for the same documented gap.
+        To invite a new member, use{' '}
+        <Link to="/invitations" className="font-medium text-brand-600 hover:text-brand-700">
+          Invitations
+        </Link>
+        . Changing an existing member&apos;s role or removing a member isn&apos;t available from ShiftOS yet.
       </p>
     </PageContainer>
   );

@@ -1,6 +1,7 @@
 import type { DatabaseClient } from '@shiftos/database';
 import { AuthorizationError } from '@shiftos/errors';
 import type { AuthenticationProvider } from '@shiftos/auth';
+import { AuditLogRepository, SecurityEventRepository } from '@shiftos/repositories';
 import {
   resolveAuthorizationContext,
   listAccessibleOrganizationIds,
@@ -45,6 +46,15 @@ export interface ApplicationContext {
   requireBranchAccess(branchId: string): void;
 
   /**
+   * Records a row to the append-only audit_logs table (015/024). Centralized
+   * here (rather than each service importing AuditLogRepository itself) so
+   * every caller gets the same organization_id/user_id/timestamp handling
+   * for free. A logging failure never masks the caller's real result — see
+   * ApplicationContextImpl.audit()'s try/catch.
+   */
+  audit(action: string, entityType: string, entityId: string | null, oldValues?: Record<string, unknown> | null, newValues?: Record<string, unknown> | null): Promise<void>;
+
+  /**
    * Turns a client-supplied, untrusted branch id (or none) into a verified
    * scope for a repository call. A supplied id is checked against
    * branchAccess.branchIds and rejected if not accessible; omitting it
@@ -58,6 +68,8 @@ export interface ApplicationContext {
 class ApplicationContextImpl implements ApplicationContext {
   readonly permissions: ReadonlySet<string>;
   private readonly authorizationService = new RoleBasedAuthorizationService([], {});
+  private readonly auditLog: AuditLogRepository;
+  private readonly securityEvents: SecurityEventRepository;
 
   constructor(
     readonly client: DatabaseClient,
@@ -67,6 +79,8 @@ class ApplicationContextImpl implements ApplicationContext {
     readonly authProvider?: AuthenticationProvider
   ) {
     this.permissions = new Set(resolved.user.permissions ?? []);
+    this.auditLog = new AuditLogRepository(client);
+    this.securityEvents = new SecurityEventRepository(client);
   }
 
   get userId(): string { return this.resolved.user.id; }
@@ -82,7 +96,14 @@ class ApplicationContextImpl implements ApplicationContext {
   }
 
   async requirePermission(permission: string): Promise<void> {
-    await this.authorizationService.requirePermission(this.resolved, permission);
+    try {
+      await this.authorizationService.requirePermission(this.resolved, permission);
+    } catch (error) {
+      if (error instanceof AuthorizationError) {
+        await this.recordSecurityEvent('permission_denied', { permission });
+      }
+      throw error;
+    }
   }
 
   hasBranchAccess(branchId: string): boolean {
@@ -91,7 +112,59 @@ class ApplicationContextImpl implements ApplicationContext {
 
   requireBranchAccess(branchId: string): void {
     if (!this.hasBranchAccess(branchId)) {
+      void this.recordSecurityEvent('branch_access_denied', { branchId });
       throw new AuthorizationError('You do not have access to this branch');
+    }
+  }
+
+  async audit(
+    action: string,
+    entityType: string,
+    entityId: string | null,
+    oldValues: Record<string, unknown> | null = null,
+    newValues: Record<string, unknown> | null = null
+  ): Promise<void> {
+    try {
+      await this.auditLog.record({
+        organization_id: this.organizationId,
+        user_id: this.userId,
+        action,
+        entity_type: entityType,
+        entity_id: entityId,
+        old_values: oldValues,
+        new_values: newValues,
+        ip_address: null,
+        user_agent: null
+      });
+    } catch {
+      // A logging failure must never mask the caller's real result — the
+      // action this audits already happened (or is about to, for a
+      // pre-write call); losing one audit row is recoverable, silently
+      // failing the actual domain operation because logging broke is not.
+    }
+  }
+
+  /**
+   * requirePermission/requireBranchAccess call this on every denial — a
+   * single wiring point that covers every service using ApplicationContext,
+   * present and future, rather than each service remembering to log its own
+   * denials. Fire-and-forget by design for the same reason audit() swallows
+   * its own errors: a broken security_events write must never turn into a
+   * misleading "you're allowed" or an unrelated 500 for the caller.
+   */
+  private async recordSecurityEvent(eventType: string, details: Record<string, unknown>): Promise<void> {
+    try {
+      await this.securityEvents.record({
+        organization_id: this.organizationId,
+        user_id: this.userId,
+        event_type: eventType,
+        details,
+        ip_address: null,
+        user_agent: null
+      });
+    } catch {
+      // Same reasoning as audit(): never let logging failure change the
+      // outcome of the authorization check that triggered it.
     }
   }
 

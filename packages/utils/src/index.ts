@@ -55,8 +55,21 @@ export function toSafeApiError(error: unknown): SafeApiError {
   return { message: 'An unexpected error occurred', code: 'INTERNAL_ERROR', statusCode: 500 };
 }
 
-/** Builds a client-safe ApiResponse error envelope (success: false) directly from a thrown value. */
+/**
+ * Builds a client-safe ApiResponse error envelope (success: false) directly
+ * from a thrown value. Also logs the real error server-side first — several
+ * error types (DatabaseError especially) intentionally strip the raw driver
+ * message from what the client receives, and the `.cause` those types carry
+ * was, until now, never actually read by anything, so a real connection or
+ * query failure was completely invisible outside the client's generic
+ * "A database operation failed" message. This is the single chokepoint every
+ * RPC error already passes through, so logging here covers all of them
+ * without needing to instrument every call site individually.
+ */
 export function buildErrorApiResponse<T>(error: unknown): ApiResponse<T> {
   const safe = toSafeApiError(error);
+  const cause = error instanceof Error ? (error as { cause?: unknown }).cause : undefined;
+  // eslint-disable-next-line no-console
+  console.error('[RPC error]', safe.code, safe.message, cause ?? error);
   return buildApiResponse<T>(null, { message: safe.message, code: safe.code, details: safe.details });
 }

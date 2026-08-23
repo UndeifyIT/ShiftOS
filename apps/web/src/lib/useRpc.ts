@@ -34,10 +34,10 @@ export function useRpcMutation<TOutput, TInput = unknown>(
 
   return useMutation<TOutput, Error, TInput>({
     mutationFn: (input: TInput) => callRpc<TOutput>(operation, organizationId as string, input),
+    ...options,
     onSuccess: (...args) => {
       options?.invalidates?.forEach((key) => void queryClient.invalidateQueries({ queryKey: [key] }));
       options?.onSuccess?.(...args);
-    },
-    ...options
+    }
   });
 }

@@ -118,7 +118,7 @@ export default function EmployeeFormPage(): React.ReactElement {
       setLastName(employee.last_name);
       setEmail(employee.email ?? '');
       setPhone(employee.phone ?? '');
-      setHireDate(employee.hire_date);
+      setHireDate(employee.hire_date.slice(0, 10));
       setEmploymentStatus(employee.employment_status);
       setNotes(employee.notes ?? '');
       setAvatarUrl(employee.avatar_url);
