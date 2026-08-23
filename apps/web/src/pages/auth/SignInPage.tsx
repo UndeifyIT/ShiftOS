@@ -1,44 +1,24 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Building2,
-  Calendar,
-  CalendarClock,
-  CreditCard,
-  Headset,
-  LayoutDashboard,
-  RefreshCw,
-  ShieldCheck,
-  TrendingUp,
-  UserPlus
-} from 'lucide-react';
+import { BarChart3, CalendarClock, MessageSquare, Clock3, Lock, ShieldCheck } from 'lucide-react';
 import { Button, FormField, InlineError, Input } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { supabase } from '../../lib/supabase.js';
-import { AuthMarketingLayout } from './AuthMarketingLayout.js';
+import { isNetworkError } from '../../lib/authErrors.js';
+import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
 import { PasswordInput } from './PasswordInput.js';
 
-const FEATURES = [
-  { icon: LayoutDashboard, title: 'Access Dashboard', description: 'Explore all features for 30 days.' },
-  { icon: TrendingUp, title: 'View Real-time Data', description: 'Start your trial instantly. No hidden fees.' },
-  { icon: CalendarClock, title: 'Manage Schedules', description: 'Designed for managers and supervisors.' },
-  { icon: Headset, title: 'Get Live Support', description: "We're here to help you succeed." }
-];
-
-const STEPS = {
-  heading: 'Explore Features',
-  items: [
-    { icon: LayoutDashboard, title: 'View Branch Overview', description: 'Sign up in less than 2 minutes to get started.' },
-    { icon: UserPlus, title: 'Connect with Staff', description: 'Add your branch details and customize settings.' },
-    { icon: Calendar, title: 'Check Shift Schedules', description: 'Build shifts and invite your team.' }
-  ]
+const HIGHLIGHT: AuthHighlight = {
+  icon: Lock,
+  title: 'One account, one workspace',
+  body: "You'll land in the branch and role your organization assigned to you."
 };
 
-const TRUST_ITEMS = [
-  { icon: ShieldCheck, label: 'Trusted by retail leaders across Nigeria' },
-  { icon: Calendar, label: '30-Day Free Trial' },
-  { icon: CreditCard, label: 'No Credit Card' },
-  { icon: RefreshCw, label: 'Cancel Anytime' }
+const BENEFITS: AuthBenefit[] = [
+  { icon: BarChart3, title: 'Access dashboard', body: "Your role's view, ready on sign-in." },
+  { icon: Clock3, title: 'Live shift data', body: 'Attendance and tasks as they happen.' },
+  { icon: CalendarClock, title: 'Manage schedules', body: 'Build, publish and adjust the week.' },
+  { icon: MessageSquare, title: 'Branch updates', body: 'Announcements your team must read.' }
 ];
 
 /** SHARED-001 — Sign In (WF-001). */
@@ -58,9 +38,14 @@ export default function SignInPage(): React.ReactElement {
     }
     setSubmitting(true);
     setError(null);
-    const { error: signInError } = await signIn(email, password);
-    setSubmitting(false);
-    if (signInError) setError(signInError);
+    try {
+      const { error: signInError } = await signIn(email, password);
+      if (signInError) setError(signInError);
+    } catch (err) {
+      setError(isNetworkError(err) ? "Couldn't reach ShiftOS. Check your connection and try again." : 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleGoogleSignIn = async (): Promise<void> => {
@@ -76,25 +61,18 @@ export default function SignInPage(): React.ReactElement {
   };
 
   return (
-    <AuthMarketingLayout
-      eyebrow="Create Your Account"
-      heading={
-        <>
-          Welcome Back
-          <br />
-          Access Your Branch <span className="text-brand-700">Account</span>
-        </>
-      }
-      description="Log in to continue managing schedules, staff, and operations from one secure platform."
-      callout={{ icon: Building2, title: 'One account. One branch workspace.', description: 'Invite supervisors and staff when you’re ready.' }}
-      features={FEATURES}
-      steps={STEPS}
-      trustItems={TRUST_ITEMS}
+    <AuthShell
+      eyebrow="Welcome back"
+      title="Welcome Back. Access Your"
+      accent="Workspace"
+      body="Sign in to continue managing schedules, staff and daily operations from one secure platform."
+      highlight={HIGHLIGHT}
+      benefits={BENEFITS}
       topRightPrompt="Don't have an account?"
       topRightLinkLabel="Sign up"
       topRightLinkTo="/sign-up"
     >
-      <h2 className="text-2xl font-bold text-neutral-900">Sign In to Your Account</h2>
+      <h2 className="text-2xl font-bold text-neutral-900">Sign in to your account</h2>
       <p className="mt-1 text-sm text-neutral-500">Access your active workspace</p>
 
       <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
@@ -121,7 +99,7 @@ export default function SignInPage(): React.ReactElement {
         </div>
         {error ? <InlineError message={error} /> : null}
         <Button type="submit" loading={submitting} fullWidth size="lg">
-          Sign In →
+          Sign in →
         </Button>
 
         <div className="flex items-center gap-3 text-xs text-neutral-400">
@@ -135,10 +113,10 @@ export default function SignInPage(): React.ReactElement {
         </Button>
 
         <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
-          <ShieldCheck size={14} /> Your data is secure and protected.
+          <ShieldCheck size={14} /> By signing in you agree to our Terms &amp; Conditions and Privacy Policy.
         </p>
       </form>
-    </AuthMarketingLayout>
+    </AuthShell>
   );
 }
 
