@@ -79,7 +79,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.get_pending_invitation() IS
-  'Read-only preview of the current authenticated identity''s most recent invitation (matched by auth.email(), same pattern as accept_invitation() in 031/033) — returns organization/role/branch/inviter/expiry plus a computed status (pending/accepted/revoked/expired) so the Accept Invitation screen can render the right card and state before the invitee submits a password. Unlike accept_invitation(), never mutates public.invitations and does not filter out non-pending or expired rows — the frontend needs those to render "already accepted"/"expired" states.';
+  'Read-only preview of the current authenticated identity''s most recent invitation (matched by the caller''s own verified email, resolved server-side via auth.uid() -> public.users.auth_user_id -> email, same pattern as accept_invitation() in 031/033 — never trusts a client-supplied email or JWT claim) — returns organization/role/branch/inviter/expiry plus a computed status (pending/accepted/revoked/expired) so the Accept Invitation screen can render the right card and state before the invitee submits a password. Unlike accept_invitation(), never mutates public.invitations and does not filter out non-pending or expired rows — the frontend needs those to render "already accepted"/"expired" states.';
 
 REVOKE ALL ON FUNCTION public.get_pending_invitation() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.get_pending_invitation() FROM anon;
