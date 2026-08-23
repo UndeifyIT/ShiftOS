@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Building2, Calendar, Lock, Mail, MessageSquare, ShieldCheck, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Building2, Calendar, Lock, MessageSquare, ShieldCheck, Users } from 'lucide-react';
 import { Button, FormField, InlineError, Input } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { checklistFor, strengthFor } from '../../lib/password.js';
@@ -39,7 +40,7 @@ export default function SignUpPage(): React.ReactElement {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [checkEmail, setCheckEmail] = useState(false);
+  const navigate = useNavigate();
 
   const checks = useMemo(() => checklistFor(password), [password]);
   const strength = useMemo(() => strengthFor(checks), [checks]);
@@ -76,7 +77,9 @@ export default function SignUpPage(): React.ReactElement {
         return;
       }
       if (!data.session) {
-        setCheckEmail(true);
+        window.sessionStorage.setItem('shiftos.pendingVerifyEmail', email);
+        navigate('/verify-email');
+        return;
       }
       // If a session came back immediately (email confirmation disabled on
       // this Supabase project), SessionProvider's onAuthStateChange listener
@@ -100,72 +103,57 @@ export default function SignUpPage(): React.ReactElement {
       topRightLinkLabel="Sign in"
       topRightLinkTo="/sign-in"
     >
-      {checkEmail ? (
-        <div className="py-6 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft text-brand-deep">
-            <Mail size={26} />
-          </div>
-          <h2 className="mt-4 text-xl font-bold text-neutral-900">Check your email</h2>
-          <p className="mt-2 text-sm text-neutral-500">
-            We sent a verification link to <strong>{email}</strong>. Verify it to continue setting up your organization.
-          </p>
-          <p className="mt-2 text-xs text-neutral-400">The link expires in 24 hours. You can request a new one at any time.</p>
-        </div>
-      ) : (
-        <>
-          <h2 className="text-2xl font-bold text-neutral-900">Create your account</h2>
-          <p className="mt-1 text-sm text-neutral-500">Start your 30-day free trial. Cancel anytime.</p>
+      <h2 className="text-2xl font-bold text-neutral-900">Create your account</h2>
+      <p className="mt-1 text-sm text-neutral-500">Start your 30-day free trial. Cancel anytime.</p>
 
-          <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
-            <FormField label="Full Name" htmlFor="fullName" required>
-              {(fieldProps) => <Input {...fieldProps} placeholder="Enter your full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />}
-            </FormField>
-            <FormField label="Work Email" htmlFor="email" required>
-              {(fieldProps) => (
-                <Input {...fieldProps} type="email" autoComplete="email" placeholder="Enter your work email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              )}
-            </FormField>
-            <FormField label="WhatsApp Number" htmlFor="whatsapp" required>
-              {(fieldProps) => (
-                <div className="flex">
-                  <span className="flex items-center rounded-l-md border border-r-0 border-neutral-300 bg-neutral-50 px-3 text-sm text-neutral-600">+234</span>
-                  <Input {...fieldProps} className="rounded-l-none" placeholder="801 234 5678" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
-                </div>
-              )}
-            </FormField>
-            <FormField label="Password" htmlFor="password" required>
-              {(fieldProps) => (
-                <PasswordInput {...fieldProps} autoComplete="new-password" placeholder="Create your password" value={password} onChange={(e) => setPassword(e.target.value)} />
-              )}
-            </FormField>
-            {password ? <PasswordStrengthMeter checks={checks} strength={strength} /> : null}
-
-            {error ? <InlineError message={error} /> : null}
-            <Button type="submit" loading={submitting} fullWidth size="lg">
-              Continue →
-            </Button>
-
-            <div className="flex items-center gap-3 text-xs text-neutral-400">
-              <span className="h-px flex-1 bg-neutral-200" />
-              or
-              <span className="h-px flex-1 bg-neutral-200" />
+      <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
+        <FormField label="Full Name" htmlFor="fullName" required>
+          {(fieldProps) => <Input {...fieldProps} placeholder="Enter your full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />}
+        </FormField>
+        <FormField label="Work Email" htmlFor="email" required>
+          {(fieldProps) => (
+            <Input {...fieldProps} type="email" autoComplete="email" placeholder="Enter your work email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          )}
+        </FormField>
+        <FormField label="WhatsApp Number" htmlFor="whatsapp" required>
+          {(fieldProps) => (
+            <div className="flex">
+              <span className="flex items-center rounded-l-md border border-r-0 border-neutral-300 bg-neutral-50 px-3 text-sm text-neutral-600">+234</span>
+              <Input {...fieldProps} className="rounded-l-none" placeholder="801 234 5678" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
             </div>
-            <Button
-              type="button"
-              variant="secondary"
-              fullWidth
-              size="lg"
-              onClick={() => void supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })}
-            >
-              Continue with Google
-            </Button>
+          )}
+        </FormField>
+        <FormField label="Password" htmlFor="password" required>
+          {(fieldProps) => (
+            <PasswordInput {...fieldProps} autoComplete="new-password" placeholder="Create your password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          )}
+        </FormField>
+        {password ? <PasswordStrengthMeter checks={checks} strength={strength} /> : null}
 
-            <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
-              <ShieldCheck size={14} /> By creating an account you agree to our Terms &amp; Conditions and Privacy Policy.
-            </p>
-          </form>
-        </>
-      )}
+        {error ? <InlineError message={error} /> : null}
+        <Button type="submit" loading={submitting} fullWidth size="lg">
+          Continue →
+        </Button>
+
+        <div className="flex items-center gap-3 text-xs text-neutral-400">
+          <span className="h-px flex-1 bg-neutral-200" />
+          or
+          <span className="h-px flex-1 bg-neutral-200" />
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          fullWidth
+          size="lg"
+          onClick={() => void supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })}
+        >
+          Continue with Google
+        </Button>
+
+        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
+          <ShieldCheck size={14} /> By creating an account you agree to our Terms &amp; Conditions and Privacy Policy.
+        </p>
+      </form>
     </AuthShell>
   );
 }
