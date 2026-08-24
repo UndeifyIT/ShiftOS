@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, CheckCircle2, Clock3, Mail, ShieldCheck, Users } from 'lucide-react';
+import { Building2, CheckCircle2, Clock3, Mail, ShieldCheck, Users, WifiOff } from 'lucide-react';
 import { Button, FormField, InlineError, Input } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { isNetworkError } from '../../lib/authErrors.js';
@@ -115,7 +115,7 @@ export default function VerifyEmailPage(): React.ReactElement {
         <div className="py-16 text-center text-sm text-neutral-400">Checking your session…</div>
       ) : view === 'network-error' ? (
         <AuthStatusPanel
-          icon={Clock3}
+          icon={WifiOff}
           tone="warn"
           title="Couldn't reach ShiftOS"
           body="Check your internet connection and try again."

@@ -40,6 +40,7 @@ export default function SignUpPage(): React.ReactElement {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
 
   const checks = useMemo(() => checklistFor(password), [password]);
@@ -92,6 +93,18 @@ export default function SignUpPage(): React.ReactElement {
       setError(isNetworkError(err) ? "Couldn't reach ShiftOS. Check your connection and try again." : 'Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignUp = async (): Promise<void> => {
+    setGoogleLoading(true);
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    });
+    if (oauthError) {
+      setError('Google sign-up is not available right now.');
+      setGoogleLoading(false);
     }
   };
 
@@ -149,7 +162,8 @@ export default function SignUpPage(): React.ReactElement {
           variant="secondary"
           fullWidth
           size="lg"
-          onClick={() => void supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })}
+          onClick={() => void handleGoogleSignUp()}
+          loading={googleLoading}
         >
           Continue with Google
         </Button>

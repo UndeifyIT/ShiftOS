@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock3, Lock, Mail, Users } from 'lucide-react';
+import { Clock3, Lock, Mail, Users, WifiOff } from 'lucide-react';
 import { Button, FormField, InlineError, Input } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { isNetworkError } from '../../lib/authErrors.js';
@@ -20,19 +20,19 @@ const BENEFITS: AuthBenefit[] = [
   { icon: Users, title: 'Need a hand?', body: 'Your manager can also reset it for you.' }
 ];
 
+type View = 'form' | 'sent' | 'network-error';
+
 /** SHARED-002 — Forgot Password, styled to match Reset Password (SHARED-003). */
 export default function ForgotPasswordPage(): React.ReactElement {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [networkError, setNetworkError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [view, setView] = useState<View>('form');
 
   const sendResetLink = async (): Promise<void> => {
     setSubmitting(true);
     setError(null);
-    setNetworkError(false);
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`
@@ -40,14 +40,14 @@ export default function ForgotPasswordPage(): React.ReactElement {
       // Supabase never reveals whether the email is registered — always show
       // the same success state regardless of outcome (account-enumeration safe).
       if (!resetError) {
-        setSent(true);
+        setView('sent');
       } else if (isNetworkError(resetError)) {
-        setNetworkError(true);
+        setView('network-error');
       } else {
         setError('Something went wrong. Please try again.');
       }
     } catch (err) {
-      if (isNetworkError(err)) setNetworkError(true);
+      if (isNetworkError(err)) setView('network-error');
       else setError('Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
@@ -75,9 +75,9 @@ export default function ForgotPasswordPage(): React.ReactElement {
       topRightLinkLabel="Sign in"
       topRightLinkTo="/sign-in"
     >
-      {networkError ? (
+      {view === 'network-error' ? (
         <AuthStatusPanel
-          icon={Clock3}
+          icon={WifiOff}
           tone="warn"
           title="Couldn't reach ShiftOS"
           body="Check your internet connection and try again."
@@ -85,7 +85,7 @@ export default function ForgotPasswordPage(): React.ReactElement {
           ctaLoading={submitting}
           onCta={() => void sendResetLink()}
         />
-      ) : sent ? (
+      ) : view === 'sent' ? (
         <AuthStatusPanel
           icon={Mail}
           tone="primary"

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MessageSquare, Shield, User, Users } from 'lucide-react';
 import { Button, FormField, InlineError, Input } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
-import { uploadUserAvatar } from '../../lib/avatars.js';
+import { removeAvatar, uploadUserAvatar } from '../../lib/avatars.js';
 import { isNetworkError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
 
@@ -90,7 +90,19 @@ export default function CompleteProfilePage(): React.ReactElement {
         jobTitle: jobTitle.trim() || undefined,
         avatarUrl
       });
-      if (submitError) setError(submitError);
+      if (submitError) {
+        // The photo upload succeeded but the profile row was never created —
+        // the object in Storage is now orphaned. Best-effort cleanup only:
+        // never let a failure here mask the original error above.
+        if (avatarUrl) {
+          try {
+            await removeAvatar(avatarUrl);
+          } catch (cleanupErr) {
+            console.error('Failed to clean up orphaned avatar upload:', cleanupErr);
+          }
+        }
+        setError(submitError);
+      }
     } catch (err) {
       setError(isNetworkError(err) ? "Couldn't reach ShiftOS. Check your connection and try again." : 'Something went wrong. Please try again.');
     } finally {
