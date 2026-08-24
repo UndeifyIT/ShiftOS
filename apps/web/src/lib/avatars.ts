@@ -30,6 +30,19 @@ export async function uploadUserAvatar(authUserId: string, file: File): Promise<
   return path;
 }
 
+/**
+ * Organization logo upload (Onboarding wizard rebuild, spec decision 2) —
+ * same private `avatars` bucket, a new `organizations/{organizationId}/...`
+ * prefix. Requires supabase/migrations/046_add_organization_logo_storage_policy.sql
+ * to be applied — 030's original RLS only recognized `employees/`/`users/`.
+ */
+export async function uploadOrganizationLogo(organizationId: string, file: File): Promise<string> {
+  const path = `organizations/${organizationId}/${Date.now()}.${extensionOf(file)}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: true });
+  if (error) throw new Error(error.message);
+  return path;
+}
+
 export async function removeAvatar(path: string): Promise<void> {
   await supabase.storage.from(BUCKET).remove([path]);
 }

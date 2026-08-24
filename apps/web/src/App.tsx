@@ -24,8 +24,14 @@ const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage.js')
 const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmailPage.js'));
 const AcceptInvitationPage = lazy(() => import('./pages/auth/AcceptInvitationPage.js'));
 const CompleteProfilePage = lazy(() => import('./pages/auth/CompleteProfilePage.js'));
-const OrganizationSetupPage = lazy(() => import('./pages/onboarding/OrganizationSetupPage.js'));
 const OnboardingWizard = lazy(() => import('./pages/onboarding/OnboardingWizard.js'));
+const OrganizationStep = lazy(() => import('./pages/onboarding/steps/OrganizationStep.js'));
+// Named export, not default — the shell is shared by OnboardingWizard.tsx's
+// own already-lazy chunk too, so re-wrap it here rather than importing it
+// eagerly (which would pull Shifty's mascot image assets into the main bundle).
+const OnboardingWizardShell = lazy(() =>
+  import('./pages/onboarding/OnboardingWizardShell.js').then((mod) => ({ default: mod.OnboardingWizardShell }))
+);
 
 const RoleDashboard = lazy(() => import('./pages/dashboard/RoleDashboard.js'));
 const OrganizationSettingsPage = lazy(() => import('./pages/organization/OrganizationSettingsPage.js'));
@@ -137,7 +143,9 @@ export function App(): React.ReactElement {
   if (status === 'no-organization') {
     return (
       <SuspenseRoute>
-        <OrganizationSetupPage />
+        <OnboardingWizardShell currentStep="Organization">
+          <OrganizationStep />
+        </OnboardingWizardShell>
       </SuspenseRoute>
     );
   }
