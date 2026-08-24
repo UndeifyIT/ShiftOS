@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, FormField, InlineError, Input, SkeletonRows } from '@shiftos/ui';
+import { Button, FormField, InlineError, Input, Select, SkeletonRows } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import { ShiftyMascot } from '../../components/shifty/mascot.js';
@@ -44,17 +44,60 @@ export default function OnboardingWizard(): React.ReactElement {
   );
 }
 
+/** Preset store-type options for the Branch step's Store Type field (settings.storeType). */
+const STORE_TYPES = ['Supermarket', 'Convenience Store', 'Restaurant', 'Warehouse', 'Kitchen / Production', 'Office', 'Other'];
+
+/**
+ * Time zone options for the Branch step's Time Zone field (settings.timeZone).
+ * Uses the runtime's own IANA tz database via Intl.supportedValuesOf — no new
+ * dependency — falling back to a short static list on engines that predate it.
+ */
+function getTimeZoneOptions(): string[] {
+  try {
+    const supportedValuesOf = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
+    if (typeof supportedValuesOf === 'function') {
+      return supportedValuesOf('timeZone');
+    }
+  } catch {
+    // fall through to the static fallback below
+  }
+  return [
+    'Africa/Lagos',
+    'Africa/Accra',
+    'Africa/Nairobi',
+    'Africa/Johannesburg',
+    'Europe/London',
+    'America/New_York',
+    'America/Los_Angeles',
+    'Asia/Dubai',
+    'UTC'
+  ];
+}
+
 function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
+  const { activeOrganization } = useSession();
   const { data: branches, isLoading } = useRpcQuery<Branch[]>('list_branches');
+
+  const orgCountry = typeof activeOrganization?.metadata?.country === 'string' ? (activeOrganization.metadata.country as string) : '';
+  const timeZoneOptions = useMemo(() => getTimeZoneOptions(), []);
+
   const [name, setName] = useState('');
+  const [storeType, setStoreType] = useState('');
+  const [country, setCountry] = useState(orgCountry);
+  const [branchState, setBranchState] = useState('');
+  const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
+  const [timeZone, setTimeZone] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const createMutation = useRpcMutation<Branch, { name: string; address?: string | null }>('create_branch', {
-    invalidates: ['list_branches'],
-    onSuccess: onNext,
-    onError: (err) => setError(err.message)
-  });
+  const createMutation = useRpcMutation<Branch, { name: string; address?: string | null; settings?: Record<string, unknown> }>(
+    'create_branch',
+    {
+      invalidates: ['list_branches'],
+      onSuccess: onNext,
+      onError: (err) => setError(err.message)
+    }
+  );
 
   if (isLoading) {
     return <SkeletonRows rows={3} />;
@@ -78,12 +121,16 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        if (!name.trim()) {
-          setError('Branch name is required.');
+        if (!name.trim() || !storeType || !country.trim() || !branchState.trim() || !city.trim() || !timeZone) {
+          setError('Branch name, store type, country, state, city and time zone are required.');
           return;
         }
         setError(null);
-        createMutation.mutate({ name: name.trim(), address: address.trim() || null });
+        createMutation.mutate({
+          name: name.trim(),
+          address: address.trim() || null,
+          settings: { storeType, state: branchState.trim(), city: city.trim(), timeZone }
+        });
       }}
       className="flex flex-col gap-4"
     >
@@ -92,10 +139,58 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
         <p className="mt-1 text-sm text-neutral-500">Branches let you organize schedules and staff by location.</p>
       </div>
       <FormField label="Branch name" htmlFor="branchName" required>
-        {(fieldProps) => <Input {...fieldProps} value={name} onChange={(e) => setName(e.target.value)} placeholder="Main Branch" />}
+        {(fieldProps) => (
+          <Input {...fieldProps} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Main Branch" />
+        )}
       </FormField>
-      <FormField label="Address" htmlFor="branchAddress">
-        {(fieldProps) => <Input {...fieldProps} value={address} onChange={(e) => setAddress(e.target.value)} />}
+      <FormField label="Store type" htmlFor="branchStoreType" required>
+        {(fieldProps) => (
+          <Select
+            {...fieldProps}
+            value={storeType}
+            onChange={(e) => setStoreType(e.target.value)}
+            placeholder="Select store type"
+            options={STORE_TYPES.map((label) => ({ value: label, label }))}
+          />
+        )}
+      </FormField>
+      <FormField
+        label="Country"
+        htmlFor="branchCountry"
+        required
+        hint={orgCountry ? "From your organization's settings." : undefined}
+      >
+        {(fieldProps) =>
+          orgCountry ? (
+            <Input {...fieldProps} value={country} disabled />
+          ) : (
+            <Input {...fieldProps} value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Nigeria" />
+          )
+        }
+      </FormField>
+      <FormField label="State" htmlFor="branchState" required>
+        {(fieldProps) => (
+          <Input {...fieldProps} value={branchState} onChange={(e) => setBranchState(e.target.value)} placeholder="Select state" />
+        )}
+      </FormField>
+      <FormField label="City" htmlFor="branchCity" required>
+        {(fieldProps) => <Input {...fieldProps} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Select city" />}
+      </FormField>
+      <FormField label="Branch address" htmlFor="branchAddress" hint="Optional — used on attendance records and shift notes.">
+        {(fieldProps) => (
+          <Input {...fieldProps} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Enter full address" />
+        )}
+      </FormField>
+      <FormField label="Time zone" htmlFor="branchTimeZone" required>
+        {(fieldProps) => (
+          <Select
+            {...fieldProps}
+            value={timeZone}
+            onChange={(e) => setTimeZone(e.target.value)}
+            placeholder="Select time zone"
+            options={timeZoneOptions.map((tz) => ({ value: tz, label: tz }))}
+          />
+        )}
       </FormField>
       {error ? <InlineError message={error} /> : null}
       <Button type="submit" loading={createMutation.isPending} className="self-start">
