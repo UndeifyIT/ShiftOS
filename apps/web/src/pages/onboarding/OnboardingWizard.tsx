@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, FormField, InlineError, Input, Select, SkeletonRows } from '@shiftos/ui';
+import { Check, Lock, X } from 'lucide-react';
+import { Badge, Button, FormField, InlineError, Input, Select, SkeletonRows } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import { ShiftyMascot } from '../../components/shifty/mascot.js';
@@ -200,6 +201,50 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
   );
 }
 
+/**
+ * Static, read-only mirror of the Supervisor role's fixed permission set
+ * (design's `Supervisor.permissions`, `ShiftOS Onboarding.dc.html` ~line
+ * 448). Informational only — spec decision 4 explicitly rules out an
+ * editable per-invitation permission override, so this never feeds into
+ * `invite_member`'s call.
+ */
+const SUPERVISOR_PERMISSIONS: { label: string; on?: boolean; locked?: boolean }[] = [
+  { label: 'Manage schedules', on: true },
+  { label: 'Mark attendance', on: true },
+  { label: 'Assign tasks', on: false },
+  { label: 'Approve swaps', on: true },
+  { label: 'Post announcements', on: false },
+  { label: 'View reports', on: false },
+  { label: 'Change organization settings', locked: true },
+  { label: 'Delete employees', locked: true }
+];
+
+/** Read-only checklist of what a Supervisor can/can't do — see SUPERVISOR_PERMISSIONS. */
+function SupervisorPermissionsChecklist(): React.ReactElement {
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-neutral-500">What a Supervisor can do</p>
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {SUPERVISOR_PERMISSIONS.map((permission) => {
+          const label = permission.locked
+            ? `Cannot ${permission.label.charAt(0).toLowerCase()}${permission.label.slice(1)}`
+            : permission.label;
+          const tone = permission.locked ? 'error' : permission.on ? 'success' : 'neutral';
+          const Icon = permission.locked ? X : permission.on ? Check : Lock;
+          return (
+            <li key={permission.label}>
+              <Badge tone={tone} className="w-full justify-start gap-2 py-1.5">
+                <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+                <span>{label}</span>
+              </Badge>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }): React.ReactElement {
   const { data: branches } = useRpcQuery<Branch[]>('list_branches');
   const branchId = branches?.[0]?.id;
@@ -208,15 +253,28 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [invited, setInvited] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Running list of everyone invited so far this step (design's `repeat: true`) —
+  // pure local-state accumulation of this step's own successful invite_member
+  // results, no separate list-fetching RPC needed.
+  const [invitedSoFar, setInvitedSoFar] = useState<{ firstName: string; lastName: string; email: string }[]>([]);
+  const [justInvited, setJustInvited] = useState<{ firstName: string; email: string } | null>(null);
 
   const inviteMutation = useRpcMutation<
     Invitation,
     { email: string; firstName: string; lastName: string; roleId: string; branchIds: string[] }
   >('invite_member', {
     invalidates: ['list_invitations'],
-    onSuccess: () => setInvited(true),
+    onSuccess: (invitation) => {
+      setInvitedSoFar((prev) => [
+        ...prev,
+        { firstName: invitation.first_name, lastName: invitation.last_name, email: invitation.email }
+      ]);
+      setJustInvited({ firstName: invitation.first_name, email: invitation.email });
+      setFirstName('');
+      setLastName('');
+      setEmail('');
+    },
     onError: (err) => setError(err.message)
   });
 
@@ -229,9 +287,32 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
         </p>
       </div>
 
-      {invited ? (
-        <div className="rounded-xl bg-success-50 p-4 text-sm text-success-text">
-          An invitation has been sent to {email}. {firstName} will become a Supervisor once they accept it.
+      {invitedSoFar.length > 0 ? (
+        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-neutral-500">
+            Invited so far ({invitedSoFar.length})
+          </p>
+          <ul className="flex flex-col gap-1.5">
+            {invitedSoFar.map((invitee, index) => (
+              <li key={`${invitee.email}-${index}`} className="text-sm text-neutral-700">
+                <span className="font-medium">
+                  {invitee.firstName} {invitee.lastName}
+                </span>{' '}
+                <span className="text-neutral-500">{invitee.email}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {justInvited ? (
+        <div className="flex flex-col gap-3 rounded-xl bg-success-50 p-4 text-sm text-success-text">
+          <p>
+            An invitation has been sent to {justInvited.email}. {justInvited.firstName} will become a Supervisor once they accept it.
+          </p>
+          <Button variant="secondary" className="self-start" onClick={() => setJustInvited(null)}>
+            Invite another supervisor
+          </Button>
         </div>
       ) : (
         <form
@@ -273,6 +354,7 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
           <Button type="submit" loading={inviteMutation.isPending} className="self-start">
             Send invitation
           </Button>
+          <SupervisorPermissionsChecklist />
         </form>
       )}
 
@@ -280,8 +362,8 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
         <button type="button" onClick={onBack} className="text-sm font-medium text-neutral-500 hover:text-neutral-700">
           Back
         </button>
-        <Button variant={invited ? 'primary' : 'ghost'} onClick={onNext}>
-          {invited ? 'Continue' : 'Skip for now'}
+        <Button variant={invitedSoFar.length > 0 ? 'primary' : 'ghost'} onClick={onNext}>
+          {invitedSoFar.length > 0 ? 'Continue' : 'Skip for now'}
         </Button>
       </div>
     </div>
