@@ -1,33 +1,21 @@
 import React, { useState } from 'react';
-import { Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Button, Card, FormField, InlineError, Input, SkeletonRows } from '@shiftos/ui';
+import { Button, FormField, InlineError, Input, SkeletonRows } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import { Shifty } from '../../components/shifty/Shifty.js';
-import { ShiftyMascot, ShiftyPanel } from '../../components/shifty/mascot.js';
-import { LogoMark } from '../../marketing/Logo.js';
+import { ShiftyMascot } from '../../components/shifty/mascot.js';
+import { OnboardingWizardShell, type OnboardingStepId } from './OnboardingWizardShell.js';
 import type { Branch, Invitation, Organization, Role } from '../../types/domain.js';
 
 const STEPS = ['branch', 'supervisor', 'departments', 'finish'] as const;
 type Step = (typeof STEPS)[number];
 
-/** `pointing`: true when Shifty should visually point at the form immediately below the panel (a directional cue, not a new mascot pose). */
-const STEP_GUIDANCE: Record<Step, { title: string; message: string; variant: 'wave' | 'guide' | 'success'; pointing?: boolean }> = {
-  branch: {
-    title: 'Set up your branch',
-    message: 'Branches are how ShiftOS organizes locations, schedules, and staff. Fill in the field below to get started — you can add more later.',
-    variant: 'wave',
-    pointing: true
-  },
-  supervisor: {
-    title: 'Add a supervisor',
-    message: "Send a real invitation — they'll set their own password and sign in with their own Supervisor account, scoped to this branch.",
-    variant: 'guide',
-    pointing: true
-  },
-  departments: { title: 'Departments', message: "Department support isn't built yet — for now, ShiftOS organizes your team by branch.", variant: 'guide' },
-  finish: { title: "You're almost done", message: 'Once you finish, you will land on your real dashboard with live data.', variant: 'success' }
+/** Maps this wizard's local step ids onto the shared shell's 5-step ids (Task 1's `OnboardingWizardShell`). */
+const SHELL_STEP: Record<Step, OnboardingStepId> = {
+  branch: 'Branch',
+  supervisor: 'Supervisor',
+  departments: 'Department',
+  finish: 'Finish'
 };
 
 /**
@@ -36,54 +24,23 @@ const STEP_GUIDANCE: Record<Step, { title: string; message: string; variant: 'wa
  * (set by FinishStep via the existing update_organization RPC). Branch and
  * Supervisor steps use real RPCs; Departments is an honest not-yet-connected
  * state (no backend table exists — Tier 3 per the frontend foundation doc).
+ *
+ * The Organization step (design's first of 5 steps) isn't wired here yet —
+ * it's created by a separate route branch (`no-organization` in App.tsx,
+ * Task 2) that mounts the same `OnboardingWizardShell`. This wizard only
+ * covers Branch → Supervisor → Department → Finish.
  */
 export default function OnboardingWizard(): React.ReactElement {
   const { refresh } = useSession();
   const [step, setStep] = useState<Step>('branch');
-  const stepIndex = STEPS.indexOf(step);
 
   return (
-    <div className="min-h-screen bg-neutral-50 px-4 py-10">
-      <div className="mx-auto max-w-2xl">
-        <div className="mb-8 flex items-center justify-center gap-2">
-          <LogoMark className="h-9 w-9" />
-          <span className="font-display text-xl font-semibold tracking-tight text-neutral-900">ShiftOS</span>
-        </div>
-
-        <div className="mb-8 flex items-center justify-center gap-2">
-          {STEPS.map((s, index) => (
-            <React.Fragment key={s}>
-              <div
-                className={[
-                  'flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold',
-                  index < stepIndex ? 'bg-success-500 text-white' : index === stepIndex ? 'bg-brand-700 text-white' : 'bg-neutral-200 text-neutral-500'
-                ].join(' ')}
-              >
-                {index < stepIndex ? <Check size={14} /> : index + 1}
-              </div>
-              {index < STEPS.length - 1 ? (
-                <div className={['h-0.5 w-8', index < stepIndex ? 'bg-success-500' : 'bg-neutral-200'].join(' ')} />
-              ) : null}
-            </React.Fragment>
-          ))}
-        </div>
-
-        <Card className="p-8">
-          <ShiftyPanel
-            variant={STEP_GUIDANCE[step].variant}
-            message={STEP_GUIDANCE[step].message}
-            pointing={STEP_GUIDANCE[step].pointing}
-            className="mb-6"
-          />
-          {step === 'branch' ? <BranchStep onNext={() => setStep('supervisor')} /> : null}
-          {step === 'supervisor' ? <SupervisorStep onNext={() => setStep('departments')} onBack={() => setStep('branch')} /> : null}
-          {step === 'departments' ? <DepartmentsStep onNext={() => setStep('finish')} onBack={() => setStep('supervisor')} /> : null}
-          {step === 'finish' ? <FinishStep onFinish={() => void refresh()} /> : null}
-        </Card>
-      </div>
-
-      <Shifty step={STEP_GUIDANCE[step]} suggestedPrompts={['What is a branch?', 'How do invitations work?']} />
-    </div>
+    <OnboardingWizardShell currentStep={SHELL_STEP[step]}>
+      {step === 'branch' ? <BranchStep onNext={() => setStep('supervisor')} /> : null}
+      {step === 'supervisor' ? <SupervisorStep onNext={() => setStep('departments')} onBack={() => setStep('branch')} /> : null}
+      {step === 'departments' ? <DepartmentsStep onNext={() => setStep('finish')} onBack={() => setStep('supervisor')} /> : null}
+      {step === 'finish' ? <FinishStep onFinish={() => void refresh()} /> : null}
+    </OnboardingWizardShell>
   );
 }
 
