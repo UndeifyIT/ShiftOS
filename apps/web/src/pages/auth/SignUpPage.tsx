@@ -22,6 +22,10 @@ const BENEFITS: AuthBenefit[] = [
   { icon: MessageSquare, title: 'Support included', body: "We're here to help you get set up." }
 ];
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type SignUpField = 'fullName' | 'email' | 'whatsapp' | 'password';
+
 /**
  * Not a screen in FD-4's numbered inventory — self-service signup is new
  * scope beyond the invitation-only model (DEC-017). Wired to real
@@ -39,6 +43,7 @@ export default function SignUpPage(): React.ReactElement {
   const [whatsapp, setWhatsapp] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<SignUpField, string>>>({});
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
@@ -46,12 +51,36 @@ export default function SignUpPage(): React.ReactElement {
   const checks = useMemo(() => checklistFor(password), [password]);
   const strength = useMemo(() => strengthFor(checks), [checks]);
 
+  const clearFieldError = (field: SignUpField): void => {
+    setFieldErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const validate = (): Partial<Record<SignUpField, string>> => {
+    const errs: Partial<Record<SignUpField, string>> = {};
+    if (!fullName.trim()) errs.fullName = 'Full name is required.';
+    if (!email) {
+      errs.email = 'Work email is required.';
+    } else if (!EMAIL_PATTERN.test(email)) {
+      errs.email = 'Enter a valid work email address.';
+    }
+    if (!whatsapp.trim()) errs.whatsapp = 'WhatsApp number is required.';
+    if (checks.some((c) => !c.passed)) errs.password = 'Password must meet every requirement below.';
+    return errs;
+  };
+
   const handleSubmit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
-    if (!fullName.trim() || !email || !whatsapp.trim() || checks.some((c) => !c.passed)) {
-      setError('Please fill in all required fields. Password must meet every requirement below.');
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       return;
     }
+    setFieldErrors({});
     setSubmitting(true);
     setError(null);
 
@@ -124,25 +153,72 @@ export default function SignUpPage(): React.ReactElement {
       <p className="mt-1 text-sm text-neutral-500">Start your 30-day free trial. Cancel anytime.</p>
 
       <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
-        <FormField label="Full Name" htmlFor="fullName" required>
-          {(fieldProps) => <Input {...fieldProps} placeholder="Enter your full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />}
-        </FormField>
-        <FormField label="Work Email" htmlFor="email" required>
+        {Object.keys(fieldErrors).length > 0 ? (
+          <InlineError
+            message={`Check the highlighted fields — ${
+              Object.keys(fieldErrors).length === 1
+                ? 'one field needs'
+                : `${Object.keys(fieldErrors).length} fields need`
+            } attention before we can create your account.`}
+          />
+        ) : null}
+        <FormField label="Full Name" htmlFor="fullName" required error={fieldErrors.fullName}>
           {(fieldProps) => (
-            <Input {...fieldProps} type="email" autoComplete="email" placeholder="Enter your work email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input
+              {...fieldProps}
+              placeholder="Enter your full name"
+              value={fullName}
+              onChange={(e) => {
+                setFullName(e.target.value);
+                clearFieldError('fullName');
+              }}
+            />
           )}
         </FormField>
-        <FormField label="WhatsApp Number" htmlFor="whatsapp" required>
+        <FormField label="Work Email" htmlFor="email" required error={fieldErrors.email}>
+          {(fieldProps) => (
+            <Input
+              {...fieldProps}
+              type="email"
+              autoComplete="email"
+              placeholder="Enter your work email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                clearFieldError('email');
+              }}
+            />
+          )}
+        </FormField>
+        <FormField label="WhatsApp Number" htmlFor="whatsapp" required error={fieldErrors.whatsapp}>
           {(fieldProps) => (
             <div className="flex">
               <span className="flex items-center rounded-l-md border border-r-0 border-neutral-300 bg-neutral-50 px-3 text-sm text-neutral-600">+234</span>
-              <Input {...fieldProps} className="rounded-l-none" placeholder="801 234 5678" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
+              <Input
+                {...fieldProps}
+                className="rounded-l-none"
+                placeholder="801 234 5678"
+                value={whatsapp}
+                onChange={(e) => {
+                  setWhatsapp(e.target.value);
+                  clearFieldError('whatsapp');
+                }}
+              />
             </div>
           )}
         </FormField>
-        <FormField label="Password" htmlFor="password" required>
+        <FormField label="Password" htmlFor="password" required error={fieldErrors.password}>
           {(fieldProps) => (
-            <PasswordInput {...fieldProps} autoComplete="new-password" placeholder="Create your password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <PasswordInput
+              {...fieldProps}
+              autoComplete="new-password"
+              placeholder="Create your password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                clearFieldError('password');
+              }}
+            />
           )}
         </FormField>
         {password ? <PasswordStrengthMeter checks={checks} strength={strength} /> : null}
