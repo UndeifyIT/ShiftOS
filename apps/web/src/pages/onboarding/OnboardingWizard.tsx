@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Lock, X } from 'lucide-react';
-import { Badge, Button, FormField, InlineError, Input, Select, SkeletonRows } from '@shiftos/ui';
+import { Badge, Button, FormField, InlineError, Input, Select, Skeleton, SkeletonRows } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import { ShiftyMascot } from '../../components/shifty/mascot.js';
@@ -519,9 +519,41 @@ function DepartmentsStep({ onNext, onBack }: { onNext: () => void; onBack: () =>
   );
 }
 
+/** Pluralizes a count + noun for FinishStep's summary sentence (e.g. "1 branch", "3 supervisors"). */
+function pluralize(count: number, singular: string, plural: string = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 function FinishStep({ onFinish }: { onFinish: () => void }): React.ReactElement {
   const { activeOrganization } = useSession();
   const [error, setError] = useState<string | null>(null);
+
+  // Real counts for the completion summary (spec decision 8), not hardcoded
+  // copy. list_departments with no branchId lists departments across every
+  // branch this org has (DepartmentService.listDepartments resolves the
+  // caller's full accessible branch scope when no branchId is passed — see
+  // packages/services/src/workforce/departmentService.ts:78-82), so this
+  // stays correct even once an org has more than one branch. Supervisor
+  // count comes from every non-revoked Supervisor-role invitation this
+  // organization has ever sent (list_invitations returns every invitation
+  // regardless of which session created it), so an org resuming onboarding
+  // after a reload still sees accurate numbers, not just this session's own
+  // invites.
+  const { data: branches, isLoading: branchesLoading } = useRpcQuery<Branch[]>('list_branches');
+  const { data: departments, isLoading: departmentsLoading } = useRpcQuery<Department[]>('list_departments');
+  const { data: invitations, isLoading: invitationsLoading } = useRpcQuery<Invitation[]>('list_invitations');
+
+  const branchCount = branches?.length ?? 0;
+  const departmentCount = departments?.length ?? 0;
+  const supervisorCount = useMemo(
+    () =>
+      (invitations ?? []).filter(
+        (invitation) => invitation.role_name.toLowerCase() === 'supervisor' && invitation.status !== 'revoked'
+      ).length,
+    [invitations]
+  );
+  const countsLoading = branchesLoading || departmentsLoading || invitationsLoading;
+  const orgName = activeOrganization?.name ?? 'Your organization';
 
   const completeMutation = useRpcMutation<Organization, { metadata: Record<string, unknown> }>('update_organization', {
     onSuccess: onFinish,
@@ -533,11 +565,15 @@ function FinishStep({ onFinish }: { onFinish: () => void }): React.ReactElement 
       <span className="flex size-20 items-end justify-center overflow-hidden rounded-2xl bg-success-50">
         <ShiftyMascot variant="success" className="h-[88%] w-full" />
       </span>
-      <h2 className="font-display text-xl font-semibold text-neutral-900">You&rsquo;re all set!</h2>
-      <p className="text-sm text-neutral-500">
-        {activeOrganization?.name ?? 'Your organization'} is ready. You can add more team members and refine settings anytime from your
-        dashboard.
-      </p>
+      <h2 className="font-display text-xl font-semibold text-neutral-900">Your workspace is ready</h2>
+      {countsLoading ? (
+        <Skeleton className="h-4 w-full max-w-sm" />
+      ) : (
+        <p className="text-sm text-neutral-500">
+          {orgName} is set up with {pluralize(branchCount, 'branch', 'branches')}, {pluralize(supervisorCount, 'supervisor')} and{' '}
+          {pluralize(departmentCount, 'department')}.
+        </p>
+      )}
       {error ? <InlineError message={error} /> : null}
       <Button
         loading={completeMutation.isPending}
