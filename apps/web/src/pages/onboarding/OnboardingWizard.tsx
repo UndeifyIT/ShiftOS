@@ -130,7 +130,7 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
         createMutation.mutate({
           name: name.trim(),
           address: address.trim() || null,
-          settings: { storeType, state: branchState.trim(), city: city.trim(), timeZone }
+          settings: { storeType, country: country.trim(), state: branchState.trim(), city: city.trim(), timeZone }
         });
       }}
       className="flex flex-col gap-4"
@@ -171,11 +171,11 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
       </FormField>
       <FormField label="State" htmlFor="branchState" required>
         {(fieldProps) => (
-          <Input {...fieldProps} value={branchState} onChange={(e) => setBranchState(e.target.value)} placeholder="Select state" />
+          <Input {...fieldProps} value={branchState} onChange={(e) => setBranchState(e.target.value)} placeholder="e.g. Lagos" />
         )}
       </FormField>
       <FormField label="City" htmlFor="branchCity" required>
-        {(fieldProps) => <Input {...fieldProps} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Select city" />}
+        {(fieldProps) => <Input {...fieldProps} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Ikeja" />}
       </FormField>
       <FormField label="Branch address" htmlFor="branchAddress" hint="Optional — used on attendance records and shift notes.">
         {(fieldProps) => (
@@ -233,7 +233,7 @@ function SupervisorPermissionsChecklist(): React.ReactElement {
           const Icon = permission.locked ? X : permission.on ? Check : Lock;
           return (
             <li key={permission.label}>
-              <Badge tone={tone} className="w-full justify-start gap-2 py-1.5">
+              <Badge tone={tone} className="w-full justify-start py-1.5">
                 <Icon className="size-3.5 shrink-0" aria-hidden="true" />
                 <span>{label}</span>
               </Badge>
@@ -274,6 +274,7 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
       setFirstName('');
       setLastName('');
       setEmail('');
+      setError(null);
     },
     onError: (err) => setError(err.message)
   });
@@ -310,7 +311,14 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
           <p>
             An invitation has been sent to {justInvited.email}. {justInvited.firstName} will become a Supervisor once they accept it.
           </p>
-          <Button variant="secondary" className="self-start" onClick={() => setJustInvited(null)}>
+          <Button
+            variant="secondary"
+            className="self-start"
+            onClick={() => {
+              setJustInvited(null);
+              setError(null);
+            }}
+          >
             Invite another supervisor
           </Button>
         </div>
@@ -545,6 +553,9 @@ function FinishStep({ onFinish }: { onFinish: () => void }): React.ReactElement 
 
   const branchCount = branches?.length ?? 0;
   const departmentCount = departments?.length ?? 0;
+  // Counts pending AND accepted invitations (anything not revoked) —
+  // deliberately not narrowed to accepted-only, since during onboarding
+  // nobody has had time to accept yet and that would always show 0.
   const supervisorCount = useMemo(
     () =>
       (invitations ?? []).filter(

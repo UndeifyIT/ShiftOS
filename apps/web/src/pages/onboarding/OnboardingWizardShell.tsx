@@ -79,9 +79,9 @@ const STEP_GUIDANCE: Record<OnboardingStepId, { variant: ShiftyVariant; message:
     message: 'Nice — this person will help run your branch. Add the supervisor who owns daily operations.',
     pointing: true,
     tips: [
-      { label: 'Supervisor details', hint: 'name, email and phone for shift handovers.' },
+      { label: 'Supervisor details', hint: 'name and email for shift handovers.' },
       { label: 'Role', hint: 'decides what they see when they sign in.' },
-      { label: 'Permissions', hint: 'turn on only what they need to run a shift.' }
+      { label: 'Permissions', hint: 'Supervisors get a fixed set of branch-level permissions.' }
     ]
   },
   Department: {
@@ -90,7 +90,7 @@ const STEP_GUIDANCE: Record<OnboardingStepId, { variant: ShiftyVariant; message:
     pointing: true,
     tips: [
       { label: 'Departments', hint: 'e.g. Sales Floor, Warehouse, Bakery.' },
-      { label: 'Assign supervisors', hint: 'each department needs someone accountable.' }
+      { label: 'Quick add', hint: 'pick from suggestions or add your own.' }
     ]
   },
   Finish: {

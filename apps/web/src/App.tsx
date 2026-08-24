@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useRef } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { Spinner } from '@shiftos/ui';
+import { SkeletonRows, Spinner } from '@shiftos/ui';
 import { useSession } from './auth/SessionProvider.js';
 import { AppShell } from './layout/AppShell.js';
 import { ErrorState } from '@shiftos/ui';
@@ -61,26 +61,44 @@ function SuspenseRoute({ children }: { children: React.ReactNode }): React.React
 
 /**
  * Guards the onboarding wizard so it only ever shows for a genuinely fresh
- * organization (no branches yet), not every org that predates the
- * onboardingCompletedAt metadata flag — an org that already has a branch
- * clearly finished setup under the old single-step flow.
+ * organization, not every org that predates the onboardingCompletedAt
+ * metadata flag. For a *new-flow* org (one whose metadata carries
+ * `onboardingStartedAt`, stamped by OrganizationStep.tsx on creation), the
+ * wizard must stay reachable regardless of branch count until
+ * `onboardingCompletedAt` is set — otherwise the Branch step's own
+ * create_branch call (its first action) would flip `list_branches` non-empty
+ * mid-wizard and eject the user to the dashboard before
+ * Supervisor/Departments/Finish ever run, and worse, permanently: this gate
+ * re-evaluates fresh on every mount (including a page reload), so without
+ * the onboardingStartedAt signal a reload after the Branch step would look
+ * identical to a legacy org that finished setup long ago. The branch-count
+ * heuristic below is retained only for legacy orgs (no onboardingStartedAt),
+ * which predate this flag and have no other signal to distinguish "done"
+ * from "needs onboarding."
  */
 function OnboardingGate(): React.ReactElement {
+  const { activeOrganization } = useSession();
+  const isNewFlowOrg = Boolean(activeOrganization?.metadata?.onboardingStartedAt);
   const { data: branches, isLoading } = useRpcQuery<Branch[]>('list_branches');
   // Decided once, on this gate's first successful load, and never
-  // re-evaluated after that: the wizard's own Branch step creates a branch
-  // as its very first action, which would otherwise make this check flip to
-  // true mid-wizard (list_branches becomes non-empty) and kick the user out
-  // to the dashboard before the Supervisor/Departments/Finish steps ever
-  // run. Completing the wizard exits through App's onboardingCompletedAt
-  // check instead, which unmounts this gate entirely.
+  // re-evaluated after that (see the comment above for why a new-flow org
+  // must never fall back to the branch-count heuristic mid-wizard).
   const alreadySetUpRef = useRef<boolean | null>(null);
   if (alreadySetUpRef.current === null && !isLoading && branches) {
-    alreadySetUpRef.current = branches.length > 0;
+    alreadySetUpRef.current = isNewFlowOrg ? false : branches.length > 0;
   }
 
   if (isLoading || alreadySetUpRef.current === null) {
-    return <FullPageSpinner />;
+    // Keep the wizard shell visible (sidebar/progress/Shifty panel) instead
+    // of a bare full-page spinner, so the transition from OrganizationStep's
+    // refresh() into this gate's own list_branches load doesn't flash a
+    // second, fully-unmounted loading state right after the first one in
+    // App()'s status === 'loading' branch.
+    return (
+      <OnboardingWizardShell currentStep="Branch">
+        <SkeletonRows rows={3} />
+      </OnboardingWizardShell>
+    );
   }
   if (alreadySetUpRef.current) {
     return <AppShellRoutes />;

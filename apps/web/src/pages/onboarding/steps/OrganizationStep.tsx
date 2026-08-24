@@ -133,7 +133,18 @@ export default function OrganizationStep(): React.ReactElement {
       return;
     }
 
-    const orgMetadata: Record<string, unknown> = { businessType, departmentCountEstimate, estimatedEmployees, country, timeZone };
+    const orgMetadata: Record<string, unknown> = {
+      businessType,
+      departmentCountEstimate,
+      estimatedEmployees,
+      country,
+      timeZone,
+      // Marks this org as having gone through the new multi-step wizard (as
+      // opposed to a legacy org from the old single-step flow) — App.tsx's
+      // OnboardingGate reads this to decide whether the branch-count
+      // heuristic applies, so the wizard survives a mid-onboarding reload.
+      onboardingStartedAt: new Date().toISOString()
+    };
     try {
       await callRpc('update_organization', newOrganizationId as string, { metadata: orgMetadata });
       setMetadata(orgMetadata);
@@ -141,7 +152,7 @@ export default function OrganizationStep(): React.ReactElement {
       // The organization itself was created successfully — these extra
       // details are supplementary, so a failure here doesn't block
       // progress. Surface it on the logo screen instead of losing it.
-      setMetadataWarning('We saved your organization, but could not save a few of the extra details. You can update them later from Settings → Organization.');
+      setMetadataWarning("We saved your organization, but couldn't save a few extra details — you can try again later.");
       setMetadata(orgMetadata);
     }
 
@@ -372,7 +383,7 @@ function OrganizationLogoStep({
       <Button loading={continuing} onClick={handleContinue} disabled={logoState === 'uploading'} fullWidth>
         Continue →
       </Button>
-      <p className="text-center text-xs text-neutral-500">You can add or change your logo later from Settings → Organization.</p>
+      <p className="text-center text-xs text-neutral-500">You can add a logo later once organization settings support it.</p>
     </div>
   );
 }
