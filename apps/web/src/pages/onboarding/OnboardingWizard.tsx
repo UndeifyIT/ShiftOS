@@ -6,7 +6,7 @@ import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import { ShiftyMascot } from '../../components/shifty/mascot.js';
 import { OnboardingWizardShell, type OnboardingStepId } from './OnboardingWizardShell.js';
-import type { Branch, Invitation, Organization, Role } from '../../types/domain.js';
+import type { Branch, Department, Invitation, Organization, Role } from '../../types/domain.js';
 
 const STEPS = ['branch', 'supervisor', 'departments', 'finish'] as const;
 type Step = (typeof STEPS)[number];
@@ -22,9 +22,9 @@ const SHELL_STEP: Record<Step, OnboardingStepId> = {
 /**
  * Runs after create_organization_with_owner succeeds but before the normal
  * AppShell — gated in App.tsx by organization.metadata.onboardingCompletedAt
- * (set by FinishStep via the existing update_organization RPC). Branch and
- * Supervisor steps use real RPCs; Departments is an honest not-yet-connected
- * state (no backend table exists — Tier 3 per the frontend foundation doc).
+ * (set by FinishStep via the existing update_organization RPC). Branch,
+ * Supervisor and Department steps all use real RPCs (Departments has had a
+ * full backend since migration 041 — see spec decision 7).
  *
  * The Organization step (design's first of 5 steps) isn't wired here yet —
  * it's created by a separate route branch (`no-organization` in App.tsx,
@@ -370,22 +370,150 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
   );
 }
 
+/**
+ * One-click department suggestion chips (design's `SUGGESTIONS` array,
+ * `ShiftOS Onboarding.dc.html` ~line 485).
+ */
+const DEPARTMENT_SUGGESTIONS = ['Sales Floor', 'Cashiers', 'Warehouse', 'Inventory', 'Customer Service', 'Security', 'Administration'];
+
+/**
+ * Real Department step (spec decision 7): uses the existing
+ * create_department/list_departments RPCs against the branch created in
+ * BranchStep — the backend has existed since migration 041, this just wires
+ * the frontend up to it. Kept skippable ("Skip for now") even though the
+ * design's own validation copy implies zero departments should block
+ * continuing: many organizations legitimately organize by branch alone, so
+ * this is a deliberate trim, not a missed requirement.
+ */
 function DepartmentsStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }): React.ReactElement {
+  const { data: branches } = useRpcQuery<Branch[]>('list_branches');
+  const branchId = branches?.[0]?.id;
+  const { data: departments, isLoading } = useRpcQuery<Department[]>(
+    'list_departments',
+    { branchId },
+    { enabled: Boolean(branchId) }
+  );
+  const [customName, setCustomName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  // Names already added to this branch, lower-cased for a case-insensitive
+  // match — used to grey out suggestion chips instead of letting a duplicate
+  // create_department call reach the DB's unique branch+name constraint
+  // (migration 041) and surface a raw constraint-violation error.
+  const existingNames = useMemo(() => new Set((departments ?? []).map((d) => d.name.trim().toLowerCase())), [departments]);
+
+  const createMutation = useRpcMutation<Department, { branchId: string; name: string }>('create_department', {
+    invalidates: ['list_departments'],
+    onSuccess: () => {
+      setCustomName('');
+      setError(null);
+    },
+    onError: (err) => setError(err.message)
+  });
+
+  const addDepartment = (rawName: string) => {
+    if (!branchId) {
+      setError('Create a branch first.');
+      return;
+    }
+    const name = rawName.trim();
+    if (!name || existingNames.has(name.toLowerCase())) {
+      return;
+    }
+    setError(null);
+    createMutation.mutate({ branchId, name });
+  };
+
+  if (isLoading) {
+    return <SkeletonRows rows={3} />;
+  }
+
+  const hasDepartments = Boolean(departments && departments.length > 0);
+
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="font-display text-xl font-semibold text-neutral-900">Departments</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Organizing staff into departments isn&rsquo;t available yet — today, ShiftOS organizes your team by branch. Department support is
-          planned for a future update.
-        </p>
+        <h2 className="font-display text-xl font-semibold text-neutral-900">Create your departments</h2>
+        <p className="mt-1 text-sm text-neutral-500">Add the departments in your branch. You can always add, rename or delete them later.</p>
       </div>
-      <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-8 text-center text-sm text-neutral-500">Coming soon</div>
+
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-neutral-500">Suggested departments</p>
+        <div className="flex flex-wrap gap-2">
+          {DEPARTMENT_SUGGESTIONS.map((label) => {
+            const added = existingNames.has(label.toLowerCase());
+            return (
+              <button
+                key={label}
+                type="button"
+                disabled={added || createMutation.isPending}
+                onClick={() => addDepartment(label)}
+                aria-pressed={added}
+                className={
+                  added
+                    ? 'inline-flex items-center gap-1.5 rounded-full border border-success-200 bg-success-50 px-3 py-1.5 text-sm font-medium text-success-text'
+                    : 'inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60'
+                }
+              >
+                {added ? <Check className="size-3.5 shrink-0" aria-hidden="true" /> : null}
+                {added ? label : `+ ${label}`}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          addDepartment(customName);
+        }}
+        className="flex items-end gap-2"
+      >
+        <div className="flex-1">
+          <FormField label="Custom department name" htmlFor="customDeptName">
+            {(fieldProps) => (
+              <Input {...fieldProps} value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="e.g. Bakery" />
+            )}
+          </FormField>
+        </div>
+        <Button type="submit" loading={createMutation.isPending} disabled={!customName.trim()}>
+          Add
+        </Button>
+      </form>
+
+      {error ? <InlineError message={error} /> : null}
+
+      <div>
+        <p className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.1em] text-neutral-500">
+          <span>Your departments</span>
+          {hasDepartments ? <span>{departments!.length}</span> : null}
+        </p>
+        {hasDepartments ? (
+          <ul className="flex flex-col gap-1.5">
+            {departments!.map((department) => (
+              <li
+                key={department.id}
+                className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700"
+              >
+                {department.name}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-center text-sm text-neutral-500">
+            No departments yet. Add one from the suggestions above, or create your own.
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center justify-between">
         <button type="button" onClick={onBack} className="text-sm font-medium text-neutral-500 hover:text-neutral-700">
           Back
         </button>
-        <Button onClick={onNext}>Continue</Button>
+        <Button variant={hasDepartments ? 'primary' : 'ghost'} onClick={onNext}>
+          {hasDepartments ? 'Continue' : 'Skip for now'}
+        </Button>
       </div>
     </div>
   );

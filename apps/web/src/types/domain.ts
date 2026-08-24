@@ -29,6 +29,18 @@ export interface Branch {
   deleted_at: string | null;
 }
 
+export interface Department {
+  id: string;
+  organization_id: string;
+  branch_id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
 export type EmploymentStatus = 'active' | 'inactive' | 'terminated' | 'on_leave';
 
 export interface Employee {
