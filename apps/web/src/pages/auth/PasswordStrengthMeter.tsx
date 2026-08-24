@@ -30,7 +30,7 @@ export function PasswordStrengthMeter({
       </div>
       <ul className="mt-3 flex flex-col gap-1.5">
         {checks.map((check) => (
-          <li key={check.label} className={['flex items-center gap-1.5 text-xs', check.passed ? 'text-success-700' : 'text-neutral-400'].join(' ')}>
+          <li key={check.label} className={['flex items-center gap-1.5 text-xs', check.passed ? 'text-success-600' : 'text-neutral-400'].join(' ')}>
             {check.passed ? <Check size={13} /> : <X size={13} />}
             {check.label}
           </li>

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MessageSquare, Shield, User, Users } from 'lucide-react';
 import { Button, FormField, InlineError, Input } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
-import { supabase } from '../../lib/supabase.js';
+import { uploadUserAvatar } from '../../lib/avatars.js';
 import { isNetworkError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
 
@@ -77,12 +77,10 @@ export default function CompleteProfilePage(): React.ReactElement {
     try {
       let avatarUrl: string | undefined;
       if (photoFile && authUser) {
-        const path = `users/${authUser.id}/${Date.now()}-${photoFile.name}`;
-        const { error: uploadError } = await supabase.storage.from('avatars').upload(path, photoFile, { upsert: true });
-        if (uploadError) {
+        try {
+          avatarUrl = await uploadUserAvatar(authUser.id, photoFile);
+        } catch {
           setError('Could not upload your photo. You can add it later from Settings.');
-        } else {
-          avatarUrl = path;
         }
       }
       const { error: submitError } = await completeProfile({

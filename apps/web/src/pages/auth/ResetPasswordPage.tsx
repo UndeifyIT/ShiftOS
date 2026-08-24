@@ -62,12 +62,12 @@ export default function ResetPasswordPage(): React.ReactElement {
     setError(null);
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password });
-      if (signOutOthers) {
-        await supabase.auth.signOut({ scope: 'others' });
-      }
       if (updateError) {
         setView('expired');
         return;
+      }
+      if (signOutOthers) {
+        await supabase.auth.signOut({ scope: 'others' });
       }
       setView('success');
     } catch (err) {
@@ -117,7 +117,11 @@ export default function ResetPasswordPage(): React.ReactElement {
           icon={CheckCircle2}
           tone="ok"
           title="Password updated successfully"
-          body="Your password has been changed and all other devices have been signed out."
+          body={
+            signOutOthers
+              ? 'Your password has been changed and all other devices have been signed out.'
+              : 'Your password has been changed.'
+          }
           ctaLabel="Continue to sign in →"
           onCta={() => navigate('/sign-in')}
         />

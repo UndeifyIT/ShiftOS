@@ -25,7 +25,7 @@ interface PendingInvitation {
   status: 'pending' | 'accepted' | 'revoked' | 'expired';
 }
 
-type View = 'loading' | 'form' | 'expired' | 'used' | 'not-found' | 'success' | 'network-error';
+type View = 'loading' | 'form' | 'expired' | 'used' | 'revoked' | 'not-found' | 'success' | 'network-error';
 
 /**
  * SHARED-005 — Accept Invitation / Account Setup (WF-002). The invite email
@@ -62,7 +62,15 @@ export default function AcceptInvitationPage(): React.ReactElement {
           return;
         }
         setInvitation(data);
-        setView(data.status === 'expired' ? 'expired' : data.status !== 'pending' ? 'used' : 'form');
+        setView(
+          data.status === 'expired'
+            ? 'expired'
+            : data.status === 'revoked'
+              ? 'revoked'
+              : data.status !== 'pending'
+                ? 'used'
+                : 'form'
+        );
       } catch (err) {
         if (!cancelled) setView(isNetworkError(err) ? 'network-error' : 'not-found');
       }
@@ -90,7 +98,11 @@ export default function AcceptInvitationPage(): React.ReactElement {
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) {
-        setError('This invitation link has expired. Ask your administrator to resend it.');
+        if (isNetworkError(updateError)) {
+          setView('network-error');
+        } else {
+          setError('This invitation link has expired. Ask your administrator to resend it.');
+        }
         return;
       }
       setView('success');
@@ -162,6 +174,15 @@ export default function AcceptInvitationPage(): React.ReactElement {
           secondaryLabel="Reset password"
           onSecondary={() => navigate('/forgot-password')}
         />
+      ) : view === 'revoked' ? (
+        <AuthStatusPanel
+          icon={XCircle}
+          tone="bad"
+          title="This invitation was revoked"
+          body="Your administrator withdrew this invitation. Contact them if you still need access."
+          ctaLabel="Back to sign in"
+          onCta={() => navigate('/sign-in')}
+        />
       ) : view === 'success' ? (
         <AuthStatusPanel
           icon={CheckCircle2}
@@ -175,6 +196,18 @@ export default function AcceptInvitationPage(): React.ReactElement {
         <>
           <h2 className="text-2xl font-bold text-neutral-900">Accept your invitation</h2>
           <p className="mt-1 text-sm text-neutral-500">Set a password to activate your ShiftOS account.</p>
+
+          {invitation ? (
+            <div className="mt-4 flex items-start gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 lg:hidden">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-deep">
+                <Building2 size={17} />
+              </span>
+              <div className="text-sm">
+                <p className="font-semibold text-neutral-900">{invitation.organization_name}</p>
+                <p className="text-neutral-500">{invitation.role_name} role{invitation.branch_names.length ? ` · ${invitation.branch_names.join(', ')}` : ''}</p>
+              </div>
+            </div>
+          ) : null}
 
           <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
             <FormField label="Create Password" htmlFor="password" required>

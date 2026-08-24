@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { AuthError, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase.js';
 import { callRpc } from '../lib/apiClient.js';
 import { friendlyErrorMessage } from '../lib/errors.js';
@@ -17,7 +17,7 @@ interface SessionState {
 }
 
 interface SessionContextValue extends SessionState {
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   completeProfile: (input: { firstName: string; lastName: string; phone?: string; jobTitle?: string; avatarUrl?: string }) => Promise<{ error: string | null }>;
   switchOrganization: (organizationId: string) => Promise<void>;
@@ -134,12 +134,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }): Re
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const signIn = useCallback(async (email: string, password: string): Promise<{ error: string | null }> => {
+  const signIn = useCallback(async (email: string, password: string): Promise<{ error: AuthError | null }> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      return { error: 'Incorrect email or password.' };
-    }
-    return { error: null };
+    return { error };
   }, []);
 
   const signOut = useCallback(async (): Promise<void> => {

@@ -4,7 +4,7 @@ import { Building2, CheckCircle2, Clock3, Mail, ShieldCheck, Users } from 'lucid
 import { Button, FormField, InlineError, Input } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { isNetworkError } from '../../lib/authErrors.js';
-import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
+import { AuthShell, type AuthBenefit } from './AuthShell.js';
 import { AuthStatusPanel } from './AuthStatusPanel.js';
 
 const BENEFITS: AuthBenefit[] = [
@@ -29,10 +29,10 @@ export default function VerifyEmailPage(): React.ReactElement {
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        setView('success');
-        return;
-      }
+      // No `if (data.session) setView('success')` branch here: this page only
+      // ever renders while SessionProvider's status is 'unauthenticated'
+      // (see App.tsx), which by definition means there is no session — so
+      // that check would never fire and was dead code.
       const pending = window.sessionStorage.getItem(PENDING_EMAIL_KEY);
       if (!pending) {
         setView('no-email');
@@ -52,10 +52,15 @@ export default function VerifyEmailPage(): React.ReactElement {
     }
     setSubmitting(true);
     setError(null);
+    setResent(false);
     try {
       const { error: verifyError } = await supabase.auth.verifyOtp({ email, token: code.trim(), type: 'signup' });
       if (verifyError) {
-        setError("That code isn't right. Check the most recent email — earlier codes stop working once a new one is sent.");
+        if (isNetworkError(verifyError)) {
+          setView('network-error');
+        } else {
+          setError("That code isn't right. Check the most recent email — earlier codes stop working once a new one is sent.");
+        }
         return;
       }
       window.sessionStorage.removeItem(PENDING_EMAIL_KEY);
@@ -75,12 +80,20 @@ export default function VerifyEmailPage(): React.ReactElement {
     try {
       const { error: resendError } = await supabase.auth.resend({ type: 'signup', email });
       if (resendError) {
-        setError('Could not resend the code. Please try again in a moment.');
+        if (isNetworkError(resendError)) {
+          setView('network-error');
+        } else {
+          setError('Could not resend the code. Please try again in a moment.');
+        }
       } else {
         setResent(true);
       }
     } catch (err) {
-      if (isNetworkError(err)) setView('network-error');
+      if (isNetworkError(err)) {
+        setView('network-error');
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
     } finally {
       setResending(false);
     }
@@ -125,7 +138,7 @@ export default function VerifyEmailPage(): React.ReactElement {
           title="Email verified"
           body="Your account is confirmed. Next, set up your organization."
           ctaLabel="Start setup →"
-          onCta={() => navigate('/sign-in')}
+          onCta={() => navigate('/complete-profile')}
         />
       ) : (
         <>

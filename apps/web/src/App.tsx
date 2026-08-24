@@ -126,7 +126,10 @@ export function App(): React.ReactElement {
   if (status === 'no-profile') {
     return (
       <SuspenseRoute>
-        <CompleteProfilePage />
+        <Routes>
+          <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+          <Route path="*" element={<CompleteProfilePage />} />
+        </Routes>
       </SuspenseRoute>
     );
   }

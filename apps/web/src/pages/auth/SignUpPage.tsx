@@ -66,6 +66,10 @@ export default function SignUpPage(): React.ReactElement {
       });
 
       if (signUpError) {
+        if (isNetworkError(signUpError)) {
+          setError("Couldn't reach ShiftOS. Check your connection and try again.");
+          return;
+        }
         const message = signUpError.message.toLowerCase();
         if (message.includes('already registered') || message.includes('already exists')) {
           setError('An account with this email already exists.');

@@ -41,6 +41,8 @@ export default function ForgotPasswordPage(): React.ReactElement {
       // the same success state regardless of outcome (account-enumeration safe).
       if (!resetError) {
         setSent(true);
+      } else if (isNetworkError(resetError)) {
+        setNetworkError(true);
       } else {
         setError('Something went wrong. Please try again.');
       }

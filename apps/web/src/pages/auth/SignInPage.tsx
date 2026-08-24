@@ -40,7 +40,13 @@ export default function SignInPage(): React.ReactElement {
     setError(null);
     try {
       const { error: signInError } = await signIn(email, password);
-      if (signInError) setError(signInError);
+      if (signInError) {
+        setError(
+          isNetworkError(signInError)
+            ? "Couldn't reach ShiftOS. Check your connection and try again."
+            : 'Incorrect email or password.'
+        );
+      }
     } catch (err) {
       setError(isNetworkError(err) ? "Couldn't reach ShiftOS. Check your connection and try again." : 'Something went wrong. Please try again.');
     } finally {
