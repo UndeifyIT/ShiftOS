@@ -26,6 +26,7 @@ export default function SignInPage(): React.ReactElement {
   const { signIn } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -39,6 +40,7 @@ export default function SignInPage(): React.ReactElement {
     setSubmitting(true);
     setError(null);
     try {
+      window.localStorage.setItem('shiftos.rememberMe', rememberMe ? 'true' : 'false');
       const { error: signInError } = await signIn(email, password);
       if (signInError) {
         setError(
@@ -103,6 +105,20 @@ export default function SignInPage(): React.ReactElement {
             Forgot Password?
           </Link>
         </div>
+
+        <label className="flex items-start gap-2 text-sm text-neutral-700">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-brand-700"
+          />
+          <span>
+            Keep me signed in
+            <span className="block text-xs text-neutral-400">Only on this device — not on shared branch terminals.</span>
+          </span>
+        </label>
+
         {error ? <InlineError message={error} /> : null}
         <Button type="submit" loading={submitting} fullWidth size="lg">
           Sign in →
