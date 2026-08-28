@@ -34,6 +34,9 @@ const OnboardingWizardShell = lazy(() =>
 );
 
 const RoleDashboard = lazy(() => import('./pages/dashboard/RoleDashboard.js'));
+const AdminConsolePage = lazy(() => import('./pages/admin/AdminConsolePage.js'));
+const AnnouncementsPage = lazy(() => import('./pages/announcements/AnnouncementsPage.js'));
+const RequestsPage = lazy(() => import('./pages/requests/RequestsPage.js'));
 const OrganizationSettingsPage = lazy(() => import('./pages/organization/OrganizationSettingsPage.js'));
 const BranchListPage = lazy(() => import('./pages/branches/BranchListPage.js'));
 const BranchDetailPage = lazy(() => import('./pages/branches/BranchDetailPage.js'));
@@ -46,6 +49,8 @@ const ScheduleListPage = lazy(() => import('./pages/scheduling/ScheduleListPage.
 const ScheduleBuilderPage = lazy(() => import('./pages/scheduling/ScheduleBuilderPage.js'));
 const ProfilePage = lazy(() => import('./pages/account/ProfilePage.js'));
 const SecurityPage = lazy(() => import('./pages/account/SecurityPage.js'));
+const TasksPage = lazy(() => import('./pages/tasks/TasksPage.js'));
+const AttendancePage = lazy(() => import('./pages/attendance/AttendancePage.js'));
 
 function FullPageSpinner(): React.ReactElement {
   return (
@@ -188,6 +193,9 @@ function AppShellRoutes(): React.ReactElement {
     <Routes>
       <Route element={<AppShell />}>
         <Route path="/" element={<RoleDashboard />} />
+        <Route path="/admin" element={<AdminConsolePage />} />
+        <Route path="/announcements" element={<AnnouncementsPage />} />
+        <Route path="/requests" element={<RequestsPage />} />
         <Route path="/organization" element={<OrganizationSettingsPage />} />
         <Route path="/branches" element={<BranchListPage />} />
         <Route path="/branches/new" element={<BranchDetailPage />} />
@@ -201,6 +209,8 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/schedules" element={<ScheduleListPage />} />
         <Route path="/schedules/new" element={<ScheduleBuilderPage />} />
         <Route path="/schedules/:scheduleId" element={<ScheduleBuilderPage />} />
+        <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/security" element={<SecurityPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
