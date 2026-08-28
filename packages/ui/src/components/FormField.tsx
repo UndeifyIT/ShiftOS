@@ -24,18 +24,18 @@ export function FormField({ label, htmlFor, hint, error, required, children }: F
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-neutral-800">
+      <label htmlFor={id} className="text-[12.5px] font-bold text-neutral-900">
         {label}
-        {required ? <span className="text-error-500"> *</span> : null}
+        {required ? <span className="text-brand-500"> *</span> : null}
       </label>
       {children({ id, 'aria-describedby': describedBy, 'aria-invalid': Boolean(error) })}
       {hint && !error ? (
-        <p id={hintId} className="text-xs text-neutral-500">
+        <p id={hintId} className="-mt-0.5 text-[11.5px] text-neutral-400">
           {hint}
         </p>
       ) : null}
       {error ? (
-        <p id={errorId} role="alert" className="text-xs font-medium text-error-600">
+        <p id={errorId} role="alert" className="text-[11.5px] font-semibold text-error-600">
           {error}
         </p>
       ) : null}
