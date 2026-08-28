@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock3, Lock, Mail, Users, WifiOff } from 'lucide-react';
-import { Button, FormField, InlineError, Input } from '@shiftos/ui';
+import { FormField } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { isNetworkError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
+import { AuthInput, AuthSubmit } from './AuthInputs.js';
 import { AuthStatusPanel } from './AuthStatusPanel.js';
 
 const HIGHLIGHT: AuthHighlight = {
@@ -99,20 +100,30 @@ export default function ForgotPasswordPage(): React.ReactElement {
         />
       ) : (
         <>
-          <h2 className="text-2xl font-bold text-neutral-900">Reset your password</h2>
-          <p className="mt-1 text-sm text-neutral-500">We&rsquo;ll email you a secure reset link.</p>
+          <h2 className="text-center text-[22px] font-extrabold tracking-[-0.02em] text-neutral-900">Reset your password</h2>
+          <p className="mt-2 text-center text-[13px] text-neutral-500">We&rsquo;ll email you a secure reset link.</p>
 
-          <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
-            <FormField label="Work Email" htmlFor="email" required>
+          <form onSubmit={handleSubmit} noValidate className="mt-[18px] flex flex-col gap-[15px]">
+            <FormField label="Work Email" htmlFor="email" required error={error ?? undefined}>
               {(fieldProps) => (
-                <Input {...fieldProps} type="email" autoComplete="email" placeholder="Enter your work email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <AuthInput
+                  {...fieldProps}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="Enter your work email"
+                  value={email}
+                  invalid={!!error}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setError(null);
+                  }}
+                />
               )}
             </FormField>
-            {error ? <InlineError message={error} /> : null}
-            <Button type="submit" loading={submitting} fullWidth size="lg">
+            <AuthSubmit loading={submitting} loadingLabel="Sending link…">
               Send reset link →
-            </Button>
-            <p className="text-center text-xs text-neutral-400">
+            </AuthSubmit>
+            <p className="text-center text-[11.5px] leading-normal text-neutral-400">
               For security we send the same confirmation whether or not the email is registered.
             </p>
           </form>

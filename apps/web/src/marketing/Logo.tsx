@@ -18,14 +18,14 @@ export function Logo({
   to?: string;
   inverted?: boolean;
 }): React.ReactElement {
-  const mark = size === 'lg' ? 'h-10 w-10' : size === 'sm' ? 'h-7 w-7' : 'h-8 w-8';
-  const text = size === 'lg' ? 'text-2xl' : size === 'sm' ? 'text-lg' : 'text-xl';
+  const mark = size === 'lg' ? 'h-12 w-12' : size === 'sm' ? 'h-8 w-8' : 'h-10 w-10';
+  const text = size === 'lg' ? 'text-3xl' : size === 'sm' ? 'text-xl' : 'text-2xl';
   return (
-    <Link to={to} className={['inline-flex items-center gap-2 rounded-md', className].join(' ')} aria-label="ShiftOS home">
+    <Link to={to} className={['inline-flex items-center gap-2.5 rounded-md', className].join(' ')} aria-label="ShiftOS home">
       <LogoMark className={mark} />
-      <span className={['font-display font-semibold tracking-tight', text].join(' ')}>
+      <span className={['font-display font-extrabold tracking-tight', text].join(' ')}>
         <span className={inverted ? 'text-white' : 'text-neutral-900'}>Shift</span>
-        <span className="text-brand-600">OS</span>
+        <span className="bg-gradient-to-r from-brand-500 to-brand-700 bg-clip-text text-transparent">OS</span>
       </span>
     </Link>
   );

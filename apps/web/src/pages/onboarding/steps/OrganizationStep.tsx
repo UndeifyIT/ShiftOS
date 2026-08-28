@@ -1,10 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { Building2, ImageOff } from 'lucide-react';
-import { Button, FormField, InlineError, Input, Select, Spinner, type SelectOption } from '@shiftos/ui';
+import { FormField, Spinner, type SelectOption } from '@shiftos/ui';
 import { supabase } from '../../../lib/supabase.js';
 import { callRpc } from '../../../lib/apiClient.js';
 import { uploadOrganizationLogo } from '../../../lib/avatars.js';
 import { useSession } from '../../../auth/SessionProvider.js';
+import { AuthBanner, AuthInput } from '../../auth/AuthInputs.js';
+import { ObSelect, WizardFooter } from '../OnboardingFields.js';
 
 function slugify(name: string): string {
   return name
@@ -173,25 +175,36 @@ export default function OrganizationStep(): React.ReactElement {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-[15px]">
       <div>
-        <h2 className="font-display text-xl font-semibold text-neutral-900">Tell us about your organization</h2>
-        <p className="mt-1 text-sm text-neutral-500">This information helps us create your ShiftOS workspace.</p>
+        <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-neutral-900">Tell us about your organization</h2>
+        <p className="mt-[7px] text-[13px] text-neutral-500">This information helps us create your ShiftOS workspace.</p>
       </div>
 
-      <FormField label="Organization Name" htmlFor="orgName" required>
-        {(fieldProps) => <Input {...fieldProps} value={name} onChange={(e) => handleNameChange(e.target.value)} placeholder="Acme Retail" />}
+      <FormField label="Organization Name" htmlFor="orgName" required error={error && error.includes('name') ? error : undefined}>
+        {(fieldProps) => (
+          <AuthInput
+            {...fieldProps}
+            value={name}
+            invalid={!!error && error.includes('name')}
+            onChange={(e) => {
+              handleNameChange(e.target.value);
+              setError(null);
+            }}
+            placeholder="Acme Retail"
+          />
+        )}
       </FormField>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3.5">
         <FormField label="Business Type" htmlFor="businessType" required>
           {(fieldProps) => (
-            <Select {...fieldProps} options={BUSINESS_TYPES} placeholder="Select business type" value={businessType} onChange={(e) => setBusinessType(e.target.value)} />
+            <ObSelect {...fieldProps} options={BUSINESS_TYPES} placeholder="Select business type" value={businessType} onChange={(e) => setBusinessType(e.target.value)} />
           )}
         </FormField>
         <FormField label="Number of Departments" htmlFor="departmentCount" required>
           {(fieldProps) => (
-            <Select
+            <ObSelect
               {...fieldProps}
               options={DEPARTMENT_COUNT_ESTIMATES}
               placeholder="Select a range"
@@ -202,7 +215,7 @@ export default function OrganizationStep(): React.ReactElement {
         </FormField>
         <FormField label="Estimated Employees" htmlFor="estimatedEmployees" required>
           {(fieldProps) => (
-            <Select
+            <ObSelect
               {...fieldProps}
               options={EMPLOYEE_ESTIMATES}
               placeholder="Select a range"
@@ -212,16 +225,16 @@ export default function OrganizationStep(): React.ReactElement {
           )}
         </FormField>
         <FormField label="Country" htmlFor="orgCountry" required>
-          {(fieldProps) => <Select {...fieldProps} options={COUNTRIES} placeholder="Select country" value={country} onChange={(e) => setCountry(e.target.value)} />}
+          {(fieldProps) => <ObSelect {...fieldProps} options={COUNTRIES} placeholder="Select country" value={country} onChange={(e) => setCountry(e.target.value)} />}
         </FormField>
         <FormField label="Time Zone" htmlFor="orgTimeZone" required hint="Keeps clock-ins and schedules accurate.">
-          {(fieldProps) => <Select {...fieldProps} options={TIME_ZONES} placeholder="Select time zone" value={timeZone} onChange={(e) => setTimeZone(e.target.value)} />}
+          {(fieldProps) => <ObSelect {...fieldProps} options={TIME_ZONES} placeholder="Select time zone" value={timeZone} onChange={(e) => setTimeZone(e.target.value)} />}
         </FormField>
       </div>
 
       <FormField label="Workspace Name" htmlFor="orgSlug" required hint="This is your unique workspace URL. You can change it later.">
         {(fieldProps) => (
-          <Input
+          <AuthInput
             {...fieldProps}
             value={slug}
             onChange={(e) => {
@@ -232,15 +245,14 @@ export default function OrganizationStep(): React.ReactElement {
         )}
       </FormField>
 
-      {error ? <InlineError message={error} /> : null}
-      <Button type="submit" loading={submitting} fullWidth>
-        Continue →
-      </Button>
+      {error && !error.includes('name') ? <AuthBanner tone="bad" title={error} /> : null}
 
-      <p className="mt-2 text-center text-xs text-neutral-500">
+      <WizardFooter onNext={() => undefined} nextLabel="Continue →" nextType="submit" saving={submitting} />
+
+      <p className="mt-2 text-center text-[11.5px] leading-normal text-neutral-400">
         Were you invited to an existing team? Ask your administrator to confirm your invitation was completed.
       </p>
-      <button type="button" onClick={() => void signOut()} className="block w-full text-center text-sm font-medium text-neutral-500 hover:text-neutral-700">
+      <button type="button" onClick={() => void signOut()} className="block w-full cursor-pointer text-center text-[13px] font-bold text-neutral-500 transition-colors hover:text-neutral-700">
         Sign out
       </button>
     </form>
@@ -302,20 +314,20 @@ function OrganizationLogoStep({
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-[15px]">
       <div>
-        <h2 className="font-display text-xl font-semibold text-neutral-900">Add your organization logo</h2>
-        <p className="mt-1 text-sm text-neutral-500">Optional — your initials are used until you upload one.</p>
+        <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-neutral-900">Add your organization logo</h2>
+        <p className="mt-[7px] text-[13px] text-neutral-500">Optional &mdash; your initials are used until you upload one.</p>
       </div>
 
-      <div className="flex items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50/50 p-3.5">
+      <div className="flex items-center gap-3.5 rounded-[14px] border border-neutral-200 bg-[#FDFCFB] p-3.5">
         <div
-          className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border ${
+          className={`flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl text-[17px] font-extrabold ${
             logoState === 'error'
-              ? 'border-error-300 bg-error-50 text-error-500'
+              ? 'border-[1.5px] border-dashed border-error-500 bg-error-50 text-error-500'
               : logoState === 'uploading'
-                ? 'border-neutral-200 bg-neutral-100 text-neutral-400'
-                : 'border-neutral-200 bg-white text-neutral-400'
+                ? 'bg-[#F4F1EE] text-neutral-500'
+                : 'border-[1.5px] border-dashed border-neutral-200 bg-white text-neutral-400'
           }`}
         >
           {logoState === 'uploading' ? (
@@ -332,7 +344,10 @@ function OrganizationLogoStep({
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-neutral-400">
+          <p className="text-[13px] font-extrabold text-neutral-900">
+            Organization logo <span className="font-semibold text-neutral-400">(optional)</span>
+          </p>
+          <p className="mt-0.5 text-[11.5px] text-neutral-500">
             {logoState === 'uploading'
               ? 'Uploading your logo…'
               : logoState === 'uploaded'
@@ -341,25 +356,41 @@ function OrganizationLogoStep({
                   ? "Couldn't upload your logo."
                   : 'PNG, JPG or SVG · max 2 MB.'}
           </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <div className="mt-2 flex flex-wrap gap-[7px]">
             {logoState === 'empty' ? (
-              <Button type="button" variant="primary" size="sm" onClick={() => fileInputRef.current?.click()}>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-8 cursor-pointer rounded-[9px] bg-brand-500 px-3 text-[11.5px] font-bold text-white transition-colors hover:bg-brand-600"
+              >
                 Upload logo
-              </Button>
+              </button>
             ) : logoState === 'uploading' ? (
-              <span className="text-sm font-medium text-neutral-400">Uploading…</span>
+              <span className="text-xs font-medium text-neutral-400">Uploading…</span>
             ) : logoState === 'uploaded' ? (
-              <Button type="button" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()}>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-8 cursor-pointer rounded-[9px] border border-neutral-200 bg-white px-3 text-[11.5px] font-bold text-neutral-900 transition-colors hover:border-neutral-300"
+              >
                 Replace logo
-              </Button>
+              </button>
             ) : (
               <>
-                <Button type="button" variant="primary" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-8 cursor-pointer rounded-[9px] bg-brand-500 px-3 text-[11.5px] font-bold text-white transition-colors hover:bg-brand-600"
+                >
                   Try again
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setLogoState('empty')}>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLogoState('empty')}
+                  className="h-8 cursor-pointer rounded-[9px] border border-neutral-200 bg-white px-3 text-[11.5px] font-bold text-neutral-900 transition-colors hover:border-neutral-300"
+                >
                   Skip for now
-                </Button>
+                </button>
               </>
             )}
           </div>
@@ -378,12 +409,23 @@ function OrganizationLogoStep({
         />
       </div>
 
-      {warning ? <InlineError message={warning} /> : null}
+      {warning ? <AuthBanner tone="warn" title="Some details weren't saved" body={warning} /> : null}
 
-      <Button loading={continuing} onClick={handleContinue} disabled={logoState === 'uploading'} fullWidth>
-        Continue →
-      </Button>
-      <p className="text-center text-xs text-neutral-500">You can add a logo later once organization settings support it.</p>
+      <button
+        type="button"
+        onClick={handleContinue}
+        disabled={logoState === 'uploading' || continuing}
+        className={
+          continuing || logoState === 'uploading'
+            ? 'h-12 w-full cursor-progress rounded-[13px] bg-[#F5A98A] text-[14.5px] font-bold text-white'
+            : 'h-12 w-full cursor-pointer rounded-[13px] bg-brand-500 text-[14.5px] font-bold text-white shadow-[0_14px_30px_-16px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600'
+        }
+      >
+        {continuing ? 'Saving…' : 'Continue →'}
+      </button>
+      <p className="text-center text-[11.5px] leading-normal text-neutral-400">
+        You can add a logo later once organization settings support it.
+      </p>
     </div>
   );
 }

@@ -1,323 +1,145 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import {
-  ArrowRight,
-  BellRing,
   Building2,
   CalendarDays,
   CheckCircle2,
-  ClipboardList,
-  Eye,
+  Clock,
   MessageCircle,
+  PlayCircle,
   Repeat2,
-  Smartphone,
-  Sparkles,
-  Store,
+  ShieldCheck,
   Users
 } from 'lucide-react';
-import { buttonClasses } from '@shiftos/ui';
 import { MarketingLayout } from '../../marketing/MarketingLayout.js';
-import { Eyebrow, Section, SectionHeading } from '../../marketing/components.js';
-import dashboardMock from '../../assets/dashboard-mock.png';
-import illusTeam from '../../assets/illus-team.png';
-import illusBuilding from '../../assets/illus-building.png';
+import { Eyebrow } from '../../marketing/components.js';
 
 /**
- * Ported from shift-app-hero's routes/features.tsx — same pillar structure,
- * capability grid, Shifty preview and closing CTA, adapted from TanStack
- * Router's <Link>/createFileRoute onto react-router-dom and from the
- * prototype's oklch design tokens onto this app's existing brand, success and
- * neutral Tailwind config (see apps/web/tailwind.config.cjs,
- * packages/ui/src/tokens.ts). Shifty's chat preview is static copy, matching
- * the prototype's own note that its responses are simulated on the frontend.
+ * Recreated from `ShiftOS Marketing.dc.html`'s "isFeatures" branch and its
+ * `CAPABILITIES` config — a single vertical list of nine capability cards
+ * (icon/title/body/audience + a 4-point checklist), not the previous
+ * invented pillars/Shifty-chat layout ported from a different prototype.
  */
 
-const pillars = [
-  {
-    id: 'scheduling',
-    eyebrow: 'Scheduling',
-    title: 'Build a week that',
-    accent: 'actually holds.',
-    body: 'Plan coverage first, then assign people. Publish once and the whole branch sees the same schedule.',
-    points: [
-      'Weekly and daily shift views',
-      'Recurring shift patterns',
-      'Coverage gaps highlighted before publishing',
-      'Swap and leave requests in one queue'
-    ],
-    image: dashboardMock,
-    imageAlt: 'Weekly shift schedule in ShiftOS',
-    framed: true,
-    reverse: false
-  },
-  {
-    id: 'workforce',
-    eyebrow: 'Workforce management',
-    title: 'Your people, organized',
-    accent: 'by how you work.',
-    body: 'Group staff by branch, department and role, and give supervisors exactly the permissions they need.',
-    points: [
-      'Departments and roles per branch',
-      'Supervisor permission sets',
-      'Invitations by work email',
-      'Profile details kept in one place'
-    ],
-    image: illusTeam,
-    imageAlt: 'Illustration of a shift team',
-    framed: false,
-    reverse: true
-  },
-  {
-    id: 'branches',
-    eyebrow: 'Branch management',
-    title: 'One organization,',
-    accent: 'many branches.',
-    body: 'Each location keeps its own schedule, supervisors and reporting — while the organization keeps the overview.',
-    points: [
-      'Branch-level schedules and attendance',
-      'Time zones set per branch',
-      'Store type and operating details',
-      'Compare branches from the organization view'
-    ],
-    image: illusBuilding,
-    imageAlt: 'Illustration of an organization building',
-    framed: false,
-    reverse: false
-  }
-];
+const TONE_CLASSES: Record<string, string> = {
+  primary: 'bg-brand-soft text-brand-deep',
+  info: 'bg-info-50 text-info-600',
+  ok: 'bg-success-soft text-success-600',
+  warn: 'bg-warning-soft text-warning-600',
+  violet: 'bg-[#F3EEFE] text-[#7C3AED]'
+};
 
-const capabilities = [
+const CAPABILITIES = [
   {
-    icon: Eye,
-    title: 'Operational Visibility',
-    body: "See what's covered, what's missing and what's pending across the day at a glance."
+    title: 'Workforce management',
+    who: 'Manager · Supervisor',
+    icon: Users,
+    tone: 'primary',
+    body: 'One record per person, scoped to the branch and department they actually work in.',
+    points: ['Employee profiles with optional photo', 'Branch and department assignment', 'Employment type and status', 'Spreadsheet import with row validation']
   },
   {
-    icon: ClipboardList,
-    title: 'Tasks & Handover',
-    body: 'Assign shift tasks and pass context between the morning and evening team.'
+    title: 'Scheduling',
+    who: 'Manager publishes · Supervisor builds',
+    icon: CalendarDays,
+    tone: 'info',
+    body: "Build a week from shift templates, assign people, publish when it's ready.",
+    points: ['Week and day views', 'Reusable shift templates', 'Draft → published states', 'Versioned schedule history']
   },
   {
-    icon: BellRing,
-    title: 'Notifications',
-    body: 'Shift reminders, schedule changes and branch announcements reach the right people.'
+    title: 'Shift management',
+    who: 'Supervisor',
+    icon: PlayCircle,
+    tone: 'ok',
+    body: 'The live shift: who started it, what happened, and how it was handed over.',
+    points: ['Start and end a shift', 'Live progress through the shift', 'Assignment-level status', 'Handover at close']
   },
   {
-    icon: Smartphone,
-    title: 'Mobile Workforce Access',
-    body: 'Staff check schedules and updates from their phones before and after shifts.'
+    title: 'Attendance',
+    who: 'Supervisor marks · Manager reviews',
+    icon: Clock,
+    tone: 'warn',
+    body: 'Present, late and absent against the published schedule — corrected on the record, not in secret.',
+    points: ['Mark and adjust attendance', 'Late thresholds and grace periods', 'Correction requests with audit trail', 'Per-employee attendance history']
   },
   {
-    icon: Repeat2,
-    title: 'Swaps & Leave',
-    body: 'Requests follow one approval path so coverage is never guesswork.'
+    title: 'Tasks',
+    who: 'All roles',
+    icon: CheckCircle2,
+    tone: 'violet',
+    body: 'The recurring operational checks that keep a location running.',
+    points: ['Create, assign and prioritize', 'Due times inside a shift', 'Status and completion history', 'Staff see only their own tasks']
   },
   {
+    title: 'Announcements',
+    who: 'Manager · Supervisor post',
     icon: MessageCircle,
-    title: 'Team Communication',
-    body: 'Replace scattered group chats with announcements tied to a branch and shift.'
+    tone: 'primary',
+    body: 'Operational communication that replaces the branch WhatsApp group.',
+    points: ['Organization or branch audience', 'Acknowledgement tracking', 'Pinned notices', 'Read state per recipient']
+  },
+  {
+    title: 'Branch management',
+    who: 'Manager',
+    icon: Building2,
+    tone: 'info',
+    body: 'Every branch keeps its own team, schedule and attendance, so reporting stays clean.',
+    points: ['Multiple branches per organization', 'Branch-level supervisors', 'Branch-scoped data isolation', 'Per-branch operating details']
+  },
+  {
+    title: 'Role-based operations',
+    who: 'Manager · Supervisor · Staff',
+    icon: ShieldCheck,
+    tone: 'ok',
+    body: 'Permissions come from roles, never job titles — least privilege by default.',
+    points: ['Manager, Supervisor and Staff roles', 'Per-permission grants', 'Branch access control', 'Invitations with scoped access']
+  },
+  {
+    title: 'Leave & requests',
+    who: 'Staff request · Supervisor approves',
+    icon: Repeat2,
+    tone: 'warn',
+    body: 'Time-off requests flow to the person responsible for coverage.',
+    points: ['Staff submit requests', 'Approval and decline states', 'Visible against the schedule', 'Request history']
   }
 ];
 
 export default function FeaturesPage(): React.ReactElement {
   return (
     <MarketingLayout>
-      {/* Hero */}
-      <section className="bg-neutral-50">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:py-20">
-          <div className="max-w-3xl">
-            <Eyebrow>Features</Eyebrow>
-            <h1 className="mt-5 font-display text-4xl font-semibold leading-[1.06] tracking-tight text-neutral-900 sm:text-5xl">
-              Everything a shift-based team needs, <span className="text-brand-700">nothing it doesn't.</span>
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-neutral-500">
-              ShiftOS is built around how branches really operate: a manager planning the week, a supervisor running the
-              day, and staff who need to know when they're working.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/sign-up" className={buttonClasses({ variant: 'hero', size: 'xl' })}>
-                Start Free Trial
-              </Link>
-              <Link to="/request-demo" className={buttonClasses({ variant: 'heroOutline', size: 'xl' })}>
-                Book a Demo
-              </Link>
-            </div>
-          </div>
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-13 sm:px-6">
+        <Eyebrow>Features</Eyebrow>
+        <h1 className="mt-3.5 max-w-[720px] font-display text-[2.75rem] font-extrabold leading-[1.08] tracking-[-0.035em] text-neutral-900">
+          Everything a shift-based business actually runs on.
+        </h1>
+        <p className="mt-4 max-w-[620px] text-base text-neutral-500">
+          Nine capabilities, one operating model: Organization &rarr; Branch &rarr; Department &rarr; Manager, Supervisor and Staff.
+        </p>
 
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { icon: CalendarDays, label: 'Scheduling' },
-              { icon: Users, label: 'Workforce' },
-              { icon: Store, label: 'Branches' },
-              { icon: Sparkles, label: 'Shifty assistant' }
-            ].map((i) => (
-              <div
-                key={i.label}
-                className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3.5 shadow-card"
-              >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-deep">
-                  <i.icon className="size-4" aria-hidden="true" />
+        <div className="mt-9 flex flex-col gap-3.5">
+          {CAPABILITIES.map((c) => (
+            <article key={c.title} className="flex flex-wrap gap-5 rounded-2xl border border-neutral-200 bg-white p-5 sm:p-6">
+              <div className="flex min-w-[240px] flex-1 basis-[260px] gap-3.5">
+                <span className={`flex size-[42px] shrink-0 items-center justify-center rounded-xl ${TONE_CLASSES[c.tone]}`}>
+                  <c.icon className="size-5" aria-hidden="true" />
                 </span>
-                <span className="text-sm font-bold text-neutral-900">{i.label}</span>
+                <div>
+                  <h2 className="text-lg font-extrabold tracking-[-0.02em] text-neutral-900">{c.title}</h2>
+                  <p className="mt-1.5 text-[13.5px] text-neutral-500">{c.body}</p>
+                  <p className="mt-2 text-[11.5px] font-bold text-neutral-400">{c.who}</p>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pillars */}
-      {pillars.map((p, index) => (
-        <Section key={p.id} wash={index % 2 === 1}>
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div className={p.reverse ? 'lg:order-2' : ''}>
-              <Eyebrow>{p.eyebrow}</Eyebrow>
-              <h2 className="mt-4 font-display text-3xl font-semibold leading-[1.1] text-neutral-900 sm:text-4xl">
-                {p.title} <span className="text-brand-700">{p.accent}</span>
-              </h2>
-              <p className="mt-4 text-base leading-relaxed text-neutral-500">{p.body}</p>
-              <ul className="mt-6 space-y-2.5">
-                {p.points.map((point) => (
-                  <li key={point} className="flex items-start gap-2.5 text-sm">
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-700" aria-hidden="true" />
-                    <span className="text-neutral-500">{point}</span>
+              <ul className="grid min-w-[260px] flex-1 basis-[300px] grid-cols-1 gap-x-4.5 gap-y-2 sm:grid-cols-2">
+                {c.points.map((p) => (
+                  <li key={p} className="flex gap-2 text-[13px] text-neutral-600">
+                    <span className="font-extrabold text-success-600">&#10003;</span>
+                    {p}
                   </li>
                 ))}
               </ul>
-            </div>
-            <div className={p.reverse ? 'lg:order-1' : ''}>
-              {p.framed ? (
-                <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-2 shadow-lift">
-                  <img
-                    src={p.image}
-                    alt={p.imageAlt}
-                    width={1440}
-                    height={896}
-                    loading="lazy"
-                    className="w-full rounded-xl"
-                  />
-                </div>
-              ) : (
-                <div className="relative flex justify-center">
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-x-12 top-6 aspect-square rounded-full bg-brand-soft/70"
-                  />
-                  <img
-                    src={p.image}
-                    alt={p.imageAlt}
-                    width={1024}
-                    height={1024}
-                    loading="lazy"
-                    className="relative w-full max-w-[340px] object-contain"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </Section>
-      ))}
-
-      {/* Capabilities */}
-      <Section>
-        <SectionHeading
-          eyebrow="Capabilities"
-          title="Built around the"
-          highlight="working day."
-          description="Every capability exists because a manager or supervisor needed it to get through a shift."
-        />
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {capabilities.map((c) => (
-            <div
-              key={c.title}
-              className="rounded-lg border border-neutral-200 bg-white p-6 shadow-card transition-shadow hover:shadow-lift"
-            >
-              <span className="flex size-11 items-center justify-center rounded-xl bg-brand-soft text-brand-deep">
-                <c.icon className="size-5" aria-hidden="true" />
-              </span>
-              <h3 className="mt-4 text-base font-extrabold text-neutral-900">{c.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-neutral-500">{c.body}</p>
-            </div>
+            </article>
           ))}
         </div>
-      </Section>
-
-      {/* Shifty */}
-      <Section wash>
-        <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-          <div>
-            <span className="eyebrow inline-flex items-center gap-1.5">
-              <Sparkles className="size-3.5" aria-hidden="true" /> Shifty
-            </span>
-            <h2 className="mt-4 font-display text-3xl font-semibold leading-[1.1] text-neutral-900 sm:text-4xl">
-              Ask your operations <span className="text-brand-700">a question.</span>
-            </h2>
-            <p className="mt-4 text-base leading-relaxed text-neutral-500">
-              Shifty is the ShiftOS assistant. Instead of digging through screens, ask about coverage, open shifts or
-              next week's plan and get a direct answer.
-            </p>
-            <ul className="mt-6 space-y-2.5">
-              {[
-                'Suggested prompts for daily standups',
-                'Conversation history within a session',
-                'Available from every page in ShiftOS'
-              ].map((t) => (
-                <li key={t} className="flex items-start gap-2.5 text-sm">
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-700" aria-hidden="true" />
-                  <span className="text-neutral-500">{t}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-5 text-xs text-neutral-500">Shifty responses shown here are illustrative.</p>
-          </div>
-
-          <div className="rounded-lg border border-neutral-200 bg-white p-5 shadow-lift">
-            <div className="flex items-center gap-2.5 border-b border-neutral-200 pb-3">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-brand-soft text-brand-deep">
-                <Sparkles className="size-4" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-sm font-extrabold text-neutral-900">Shifty</p>
-                <p className="text-xs text-neutral-500">Operational assistant</p>
-              </div>
-            </div>
-            <div className="space-y-3 py-4">
-              <p className="ml-auto max-w-[80%] rounded-lg rounded-br-md bg-brand-700 px-3.5 py-2.5 text-sm text-white">
-                Which shifts are unassigned?
-              </p>
-              <p className="max-w-[85%] rounded-lg rounded-bl-md bg-neutral-100 px-3.5 py-2.5 text-sm leading-relaxed text-neutral-900">
-                2 shifts are unassigned this week: Saturday evening and Sunday morning. Want suggestions from the same
-                department?
-              </p>
-            </div>
-            <p className="border-t border-neutral-200 pt-3 text-xs text-neutral-500">
-              Open Shifty from the button in the corner of any page.
-            </p>
-          </div>
-        </div>
-      </Section>
-
-      {/* Closing CTA */}
-      <section className="border-t border-neutral-200">
-        <div className="mx-auto flex max-w-7xl flex-col items-start gap-6 px-4 py-12 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <Building2 className="mt-1 size-6 shrink-0 text-brand-700" aria-hidden="true" />
-            <div>
-              <h2 className="font-display text-2xl font-semibold text-neutral-900 sm:text-3xl">Set up your organization in minutes</h2>
-              <p className="mt-2 text-sm text-neutral-500">
-                Organization &rarr; Branch &rarr; Supervisor. Three steps to your first schedule.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link to="/sign-up" className={buttonClasses({ variant: 'hero', size: 'xl' })}>
-              Get Started <ArrowRight className="size-4" />
-            </Link>
-            <Link to="/pricing" className={buttonClasses({ variant: 'heroOutline', size: 'xl' })}>
-              See Pricing
-            </Link>
-          </div>
-        </div>
-      </section>
+      </div>
     </MarketingLayout>
   );
 }

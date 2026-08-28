@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Building2, Calendar, Lock, MessageSquare, ShieldCheck, Users } from 'lucide-react';
-import { Button, FormField, InlineError, Input } from '@shiftos/ui';
+import { Link, useNavigate } from 'react-router-dom';
+import { Building2, Calendar, Lock, MessageSquare, Users } from 'lucide-react';
+import { FormField } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { checklistFor, strengthFor } from '../../lib/password.js';
 import { isNetworkError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
+import { AuthBanner, AuthGoogleButton, AuthInput, AuthSubmit } from './AuthInputs.js';
 import { PasswordInput } from './PasswordInput.js';
 import { PasswordStrengthMeter } from './PasswordStrengthMeter.js';
 
@@ -149,25 +150,29 @@ export default function SignUpPage(): React.ReactElement {
       topRightLinkLabel="Sign in"
       topRightLinkTo="/sign-in"
     >
-      <h2 className="text-2xl font-bold text-neutral-900">Create your account</h2>
-      <p className="mt-1 text-sm text-neutral-500">Start your 30-day free trial. Cancel anytime.</p>
+      <h2 className="text-center text-[22px] font-extrabold tracking-[-0.02em] text-neutral-900">Create your account</h2>
+      <p className="mt-2 text-center text-[13px] text-neutral-500">Start your 30-day free trial. Cancel anytime.</p>
 
-      <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="mt-[18px] flex flex-col gap-[15px]">
         {Object.keys(fieldErrors).length > 0 ? (
-          <InlineError
-            message={`Check the highlighted fields — ${
+          <AuthBanner
+            tone="bad"
+            title="Check the highlighted fields"
+            body={
               Object.keys(fieldErrors).length === 1
-                ? 'one field needs'
-                : `${Object.keys(fieldErrors).length} fields need`
-            } attention before we can create your account.`}
+                ? 'One field needs attention before we can create your account.'
+                : `${Object.keys(fieldErrors).length} fields need attention before we can create your account.`
+            }
           />
         ) : null}
         <FormField label="Full Name" htmlFor="fullName" required error={fieldErrors.fullName}>
           {(fieldProps) => (
-            <Input
+            <AuthInput
               {...fieldProps}
               placeholder="Enter your full name"
+              autoComplete="name"
               value={fullName}
+              invalid={!!fieldErrors.fullName}
               onChange={(e) => {
                 setFullName(e.target.value);
                 clearFieldError('fullName');
@@ -177,12 +182,13 @@ export default function SignUpPage(): React.ReactElement {
         </FormField>
         <FormField label="Work Email" htmlFor="email" required error={fieldErrors.email}>
           {(fieldProps) => (
-            <Input
+            <AuthInput
               {...fieldProps}
               type="email"
               autoComplete="email"
               placeholder="Enter your work email"
               value={email}
+              invalid={!!fieldErrors.email}
               onChange={(e) => {
                 setEmail(e.target.value);
                 clearFieldError('email');
@@ -193,12 +199,17 @@ export default function SignUpPage(): React.ReactElement {
         <FormField label="WhatsApp Number" htmlFor="whatsapp" required error={fieldErrors.whatsapp}>
           {(fieldProps) => (
             <div className="flex">
-              <span className="flex items-center rounded-l-md border border-r-0 border-neutral-300 bg-neutral-50 px-3 text-sm text-neutral-600">+234</span>
-              <Input
+              <span className="flex items-center rounded-l-xl border border-r-0 border-neutral-300 bg-[#F7F4F1] px-3 text-[13.5px] text-neutral-600">
+                +234
+              </span>
+              <AuthInput
                 {...fieldProps}
+                type="tel"
+                autoComplete="tel"
                 className="rounded-l-none"
                 placeholder="801 234 5678"
                 value={whatsapp}
+                invalid={!!fieldErrors.whatsapp}
                 onChange={(e) => {
                   setWhatsapp(e.target.value);
                   clearFieldError('whatsapp');
@@ -207,13 +218,14 @@ export default function SignUpPage(): React.ReactElement {
             </div>
           )}
         </FormField>
-        <FormField label="Password" htmlFor="password" required error={fieldErrors.password}>
+        <FormField label="Password" htmlFor="password" required error={fieldErrors.password} hint="Manager creates the organization">
           {(fieldProps) => (
             <PasswordInput
               {...fieldProps}
               autoComplete="new-password"
               placeholder="Create your password"
               value={password}
+              invalid={!!fieldErrors.password}
               onChange={(e) => {
                 setPassword(e.target.value);
                 clearFieldError('password');
@@ -223,29 +235,38 @@ export default function SignUpPage(): React.ReactElement {
         </FormField>
         {password ? <PasswordStrengthMeter checks={checks} strength={strength} /> : null}
 
-        {error ? <InlineError message={error} /> : null}
-        <Button type="submit" loading={submitting} fullWidth size="lg">
+        {error ? (
+          <AuthBanner
+            tone={error.includes('reach ShiftOS') || error.includes('connection') ? 'warn' : 'bad'}
+            title={error.includes('reach ShiftOS') || error.includes('connection') ? "Couldn't reach ShiftOS" : "Couldn't create your account"}
+            body={error}
+          />
+        ) : null}
+        <AuthSubmit loading={submitting} loadingLabel="Creating your account…">
           Continue →
-        </Button>
+        </AuthSubmit>
 
-        <div className="flex items-center gap-3 text-xs text-neutral-400">
-          <span className="h-px flex-1 bg-neutral-200" />
-          or
-          <span className="h-px flex-1 bg-neutral-200" />
+        <div>
+          <div className="flex items-center gap-3 text-xs text-neutral-400">
+            <span className="h-px flex-1 bg-neutral-200" />
+            or
+            <span className="h-px flex-1 bg-neutral-200" />
+          </div>
+          <div className="mt-3">
+            <AuthGoogleButton onClick={() => void handleGoogleSignUp()} loading={googleLoading} />
+          </div>
         </div>
-        <Button
-          type="button"
-          variant="secondary"
-          fullWidth
-          size="lg"
-          onClick={() => void handleGoogleSignUp()}
-          loading={googleLoading}
-        >
-          Continue with Google
-        </Button>
 
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
-          <ShieldCheck size={14} /> By creating an account you agree to our Terms &amp; Conditions and Privacy Policy.
+        <p className="text-center text-[11.5px] leading-normal text-neutral-400">
+          By creating an account you agree to our{' '}
+          <Link to="/terms" className="font-bold text-brand-deep hover:text-brand-500">
+            Terms &amp; Conditions
+          </Link>{' '}
+          and{' '}
+          <Link to="/privacy" className="font-bold text-brand-deep hover:text-brand-500">
+            Privacy Policy
+          </Link>
+          .
         </p>
       </form>
     </AuthShell>

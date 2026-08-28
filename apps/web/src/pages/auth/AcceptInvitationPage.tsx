@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, CheckCircle2, Clock3, ShieldCheck, User, WifiOff, XCircle } from 'lucide-react';
-import { Button, FormField, InlineError } from '@shiftos/ui';
+import { FormField } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { checklistFor, strengthFor } from '../../lib/password.js';
 import { isNetworkError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
+import { AuthBanner, AuthSubmit } from './AuthInputs.js';
 import { AuthStatusPanel } from './AuthStatusPanel.js';
 import { PasswordInput } from './PasswordInput.js';
 import { PasswordStrengthMeter } from './PasswordStrengthMeter.js';
@@ -194,36 +195,61 @@ export default function AcceptInvitationPage(): React.ReactElement {
         />
       ) : (
         <>
-          <h2 className="text-2xl font-bold text-neutral-900">Accept your invitation</h2>
-          <p className="mt-1 text-sm text-neutral-500">Set a password to activate your ShiftOS account.</p>
+          <h2 className="text-center text-[22px] font-extrabold tracking-[-0.02em] text-neutral-900">Accept your invitation</h2>
+          <p className="mt-2 text-center text-[13px] text-neutral-500">Set a password to activate your ShiftOS account.</p>
 
           {invitation ? (
-            <div className="mt-4 flex items-start gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 lg:hidden">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-deep">
-                <Building2 size={17} />
+            <div className="mt-[18px] flex items-center gap-3 rounded-[14px] border border-[#F7DFD1] bg-[#FEF7F2] px-3.5 py-[13px]">
+              <span className="flex size-[38px] shrink-0 items-center justify-center rounded-full bg-brand-500 text-[13px] font-extrabold text-white">
+                {invitation.organization_name
+                  .split(' ')
+                  .map((w) => w[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase()}
               </span>
-              <div className="text-sm">
-                <p className="font-semibold text-neutral-900">{invitation.organization_name}</p>
-                <p className="text-neutral-500">{invitation.role_name} role{invitation.branch_names.length ? ` · ${invitation.branch_names.join(', ')}` : ''}</p>
-              </div>
+              <span className="min-w-0">
+                <span className="block truncate text-[13px] font-extrabold text-neutral-900">{invitation.organization_name}</span>
+                <span className="block truncate text-xs text-neutral-500">
+                  {invitation.role_name}
+                  {invitation.branch_names.length ? ` · ${invitation.branch_names.join(', ')}` : ''} · invited by{' '}
+                  {invitation.invited_by_name}
+                </span>
+              </span>
             </div>
           ) : null}
 
-          <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
+          <form onSubmit={handleSubmit} noValidate className="mt-[18px] flex flex-col gap-[15px]">
             <FormField label="Create Password" htmlFor="password" required>
               {(fieldProps) => <PasswordInput {...fieldProps} autoComplete="new-password" placeholder="Create your password" value={password} onChange={(e) => setPassword(e.target.value)} />}
             </FormField>
             {password ? <PasswordStrengthMeter checks={checks} strength={strength} /> : null}
-            <FormField label="Confirm Password" htmlFor="confirmPassword" required>
+            <FormField
+              label="Confirm Password"
+              htmlFor="confirmPassword"
+              required
+              error={error && error.includes('match') ? 'Passwords do not match.' : undefined}
+            >
               {(fieldProps) => (
-                <PasswordInput {...fieldProps} autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                <PasswordInput
+                  {...fieldProps}
+                  autoComplete="new-password"
+                  invalid={!!error && error.includes('match')}
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setError(null);
+                  }}
+                />
               )}
             </FormField>
-            {error ? <InlineError message={error} /> : null}
-            <Button type="submit" loading={submitting} fullWidth size="lg">
+            {error && !error.includes('match') ? <AuthBanner tone="bad" title="Check your password" body={error} /> : null}
+            <AuthSubmit loading={submitting} loadingLabel="Activating your account…">
               Accept invitation →
-            </Button>
-            <p className="text-center text-xs text-neutral-400">By accepting you agree to our Terms &amp; Conditions and Privacy Policy.</p>
+            </AuthSubmit>
+            <p className="text-center text-[11.5px] leading-normal text-neutral-400">
+              By accepting you agree to our Terms &amp; Conditions and Privacy Policy.
+            </p>
           </form>
         </>
       )}

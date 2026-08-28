@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, Clock3, Lock, ShieldCheck, User } from 'lucide-react';
-import { Button, FormField, InlineError } from '@shiftos/ui';
+import { FormField } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { checklistFor, strengthFor } from '../../lib/password.js';
 import { isNetworkError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
+import { AuthBanner, AuthCheckbox, AuthSubmit } from './AuthInputs.js';
 import { AuthStatusPanel } from './AuthStatusPanel.js';
 import { PasswordInput } from './PasswordInput.js';
 import { PasswordStrengthMeter } from './PasswordStrengthMeter.js';
@@ -127,38 +128,50 @@ export default function ResetPasswordPage(): React.ReactElement {
         />
       ) : (
         <>
-          <h2 className="text-2xl font-bold text-neutral-900">Reset your password</h2>
-          <p className="mt-1 text-sm text-neutral-500">Enter and confirm your new password below.</p>
+          <h2 className="text-center text-[22px] font-extrabold tracking-[-0.02em] text-neutral-900">Reset your password</h2>
+          <p className="mt-2 text-center text-[13px] text-neutral-500">Enter and confirm your new password below.</p>
 
-          <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
+          <form onSubmit={handleSubmit} noValidate className="mt-[18px] flex flex-col gap-[15px]">
             <FormField label="New Password" htmlFor="password" required>
               {(fieldProps) => <PasswordInput {...fieldProps} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />}
             </FormField>
             {password ? <PasswordStrengthMeter checks={checks} strength={strength} /> : null}
-            <FormField label="Confirm Password" htmlFor="confirmPassword" required>
+            <FormField
+              label="Confirm Password"
+              htmlFor="confirmPassword"
+              required
+              error={error && error.includes('match') ? 'Passwords do not match.' : undefined}
+            >
               {(fieldProps) => (
-                <PasswordInput {...fieldProps} autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                <PasswordInput
+                  {...fieldProps}
+                  autoComplete="new-password"
+                  invalid={!!error && error.includes('match')}
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setError(null);
+                  }}
+                />
               )}
             </FormField>
 
-            <label className="flex items-start gap-2 text-sm text-neutral-700">
-              <input
-                type="checkbox"
-                checked={signOutOthers}
-                onChange={(e) => setSignOutOthers(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-brand-700"
-              />
-              <span>
-                Sign out all other devices
-                <span className="block text-xs text-neutral-400">This will end all active sessions except this one.</span>
-              </span>
-            </label>
+            <AuthCheckbox
+              checked={signOutOthers}
+              onChange={setSignOutOthers}
+              label="Sign out all other devices"
+              body="This will end all active sessions except this one."
+            />
 
-            {error ? <InlineError message={error} /> : null}
-            <Button type="submit" loading={submitting} fullWidth size="lg">
+            {error && !error.includes('match') ? (
+              <AuthBanner tone="bad" title="Check your password" body={error} />
+            ) : null}
+            <AuthSubmit loading={submitting} loadingLabel="Updating password…">
               Reset password →
-            </Button>
-            <p className="text-center text-xs text-neutral-400">For security reasons, this reset link will expire in 20 minutes.</p>
+            </AuthSubmit>
+            <p className="text-center text-[11.5px] leading-normal text-neutral-400">
+              For security reasons, this reset link will expire in 20 minutes.
+            </p>
           </form>
         </>
       )}

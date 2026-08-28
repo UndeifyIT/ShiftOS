@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, CheckCircle2, Clock3, Mail, ShieldCheck, Users, WifiOff } from 'lucide-react';
-import { Button, FormField, InlineError, Input } from '@shiftos/ui';
+import { FormField } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { isNetworkError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit } from './AuthShell.js';
+import { AuthInput, AuthSubmit } from './AuthInputs.js';
 import { AuthStatusPanel } from './AuthStatusPanel.js';
 
 const BENEFITS: AuthBenefit[] = [
@@ -142,37 +143,47 @@ export default function VerifyEmailPage(): React.ReactElement {
         />
       ) : (
         <>
-          <h2 className="text-2xl font-bold text-neutral-900">Verify your email</h2>
-          <p className="mt-1 text-sm text-neutral-500">Enter the 6-digit code from the email we sent to {email}.</p>
+          <h2 className="text-center text-[22px] font-extrabold tracking-[-0.02em] text-neutral-900">Verify your email</h2>
+          <p className="mt-2 text-center text-[13px] text-neutral-500">
+            Enter the 6-digit code from the email we sent to {email}.
+          </p>
 
-          <form onSubmit={handleVerify} noValidate className="mt-6 flex flex-col gap-4">
-            <FormField label="Verification Code" htmlFor="code" required hint="6 digits">
+          <form onSubmit={handleVerify} noValidate className="mt-[18px] flex flex-col gap-[15px]">
+            <FormField label="Verification Code" htmlFor="code" required hint="6 digits" error={error ?? undefined}>
               {(fieldProps) => (
-                <Input
+                <AuthInput
                   {...fieldProps}
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   placeholder="123456"
                   maxLength={6}
+                  invalid={!!error}
                   value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) => {
+                    setCode(e.target.value.replace(/\D/g, ''));
+                    setError(null);
+                  }}
                 />
               )}
             </FormField>
-            {error ? <InlineError message={error} /> : null}
-            <Button type="submit" loading={submitting} fullWidth size="lg">
+            <AuthSubmit loading={submitting} loadingLabel="Verifying…">
               Verify email →
-            </Button>
-            <button
-              type="button"
-              onClick={() => void handleResend()}
-              disabled={resending}
-              className="text-center text-sm font-medium text-brand-600 hover:text-brand-700 disabled:text-neutral-400"
-            >
-              {resending ? 'Resending…' : resent ? 'Code resent — check your email' : 'Resend code'}
-            </button>
-            <p className="text-center text-xs text-neutral-400">Codes and links expire after 24 hours for your security.</p>
+            </AuthSubmit>
+            <p className="text-center text-[12.5px] text-neutral-500">
+              Didn't get the email?{' '}
+              <button
+                type="button"
+                onClick={() => void handleResend()}
+                disabled={resending}
+                className="cursor-pointer font-bold text-brand-deep transition-colors hover:text-brand-500 disabled:text-neutral-400"
+              >
+                {resending ? 'Resending…' : resent ? 'Code resent — check your email' : 'Resend verification link'}
+              </button>
+            </p>
+            <p className="text-center text-[11.5px] leading-normal text-neutral-400">
+              Codes and links expire after 24 hours for your security.
+            </p>
           </form>
         </>
       )}

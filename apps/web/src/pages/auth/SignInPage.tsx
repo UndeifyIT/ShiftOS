@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart3, CalendarClock, MessageSquare, Clock3, Lock, ShieldCheck } from 'lucide-react';
-import { Button, FormField, InlineError, Input } from '@shiftos/ui';
+import { BarChart3, CalendarClock, MessageSquare, Clock3, Lock } from 'lucide-react';
+import { FormField } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { supabase } from '../../lib/supabase.js';
 import { isNetworkError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
+import { AuthBanner, AuthCheckbox, AuthGoogleButton, AuthInput, AuthSubmit } from './AuthInputs.js';
 import { PasswordInput } from './PasswordInput.js';
 
 const HIGHLIGHT: AuthHighlight = {
@@ -80,13 +81,13 @@ export default function SignInPage(): React.ReactElement {
       topRightLinkLabel="Sign up"
       topRightLinkTo="/sign-up"
     >
-      <h2 className="text-2xl font-bold text-neutral-900">Sign in to your account</h2>
-      <p className="mt-1 text-sm text-neutral-500">Access your active workspace</p>
+      <h2 className="text-center text-[22px] font-extrabold tracking-[-0.02em] text-neutral-900">Sign in to your account</h2>
+      <p className="mt-2 text-center text-[13px] text-neutral-500">Access your active workspace</p>
 
-      <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="mt-[18px] flex flex-col gap-[15px]">
         <FormField label="Work Email" htmlFor="email" required>
           {(fieldProps) => (
-            <Input {...fieldProps} type="email" autoComplete="email" placeholder="Enter your work email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <AuthInput {...fieldProps} type="email" autoComplete="email" placeholder="Enter your work email" value={email} onChange={(e) => setEmail(e.target.value)} />
           )}
         </FormField>
         <div>
@@ -101,54 +102,52 @@ export default function SignInPage(): React.ReactElement {
               />
             )}
           </FormField>
-          <Link to="/forgot-password" className="mt-1.5 block text-right text-xs font-medium text-brand-600 hover:text-brand-700">
+          <Link to="/forgot-password" className="mt-1.5 block text-right text-[12.5px] font-bold text-brand-deep transition-colors hover:text-brand-500">
             Forgot Password?
           </Link>
         </div>
 
-        <label className="flex items-start gap-2 text-sm text-neutral-700">
-          <input
-            type="checkbox"
-            checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-brand-700"
+        <AuthCheckbox
+          checked={rememberMe}
+          onChange={setRememberMe}
+          label="Keep me signed in"
+          body="Only on this device — not on shared branch terminals."
+        />
+
+        {error ? (
+          <AuthBanner
+            tone={error.includes("reach ShiftOS") || error.includes('connection') ? 'warn' : 'bad'}
+            title={error.includes("reach ShiftOS") || error.includes('connection') ? "Couldn't reach ShiftOS" : 'Email or password is incorrect'}
+            body={error}
           />
-          <span>
-            Keep me signed in
-            <span className="block text-xs text-neutral-400">Only on this device — not on shared branch terminals.</span>
-          </span>
-        </label>
-
-        {error ? <InlineError message={error} /> : null}
-        <Button type="submit" loading={submitting} fullWidth size="lg">
+        ) : null}
+        <AuthSubmit loading={submitting} loadingLabel="Signing you in…">
           Sign in →
-        </Button>
+        </AuthSubmit>
 
-        <div className="flex items-center gap-3 text-xs text-neutral-400">
-          <span className="h-px flex-1 bg-neutral-200" />
-          or
-          <span className="h-px flex-1 bg-neutral-200" />
+        <div>
+          <div className="flex items-center gap-3 text-xs text-neutral-400">
+            <span className="h-px flex-1 bg-neutral-200" />
+            or
+            <span className="h-px flex-1 bg-neutral-200" />
+          </div>
+          <div className="mt-3">
+            <AuthGoogleButton onClick={() => void handleGoogleSignIn()} loading={googleLoading} />
+          </div>
         </div>
 
-        <Button type="button" variant="secondary" fullWidth size="lg" onClick={() => void handleGoogleSignIn()} loading={googleLoading}>
-          <GoogleIcon /> Continue with Google
-        </Button>
-
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
-          <ShieldCheck size={14} /> By signing in you agree to our Terms &amp; Conditions and Privacy Policy.
+        <p className="text-center text-[11.5px] leading-normal text-neutral-400">
+          By signing in you agree to our{' '}
+          <Link to="/terms" className="font-bold text-brand-deep hover:text-brand-500">
+            Terms &amp; Conditions
+          </Link>{' '}
+          and{' '}
+          <Link to="/privacy" className="font-bold text-brand-deep hover:text-brand-500">
+            Privacy Policy
+          </Link>
+          .
         </p>
       </form>
     </AuthShell>
-  );
-}
-
-function GoogleIcon(): React.ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
-      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6 29.6 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.2-.1-2.3-.4-3.5z" />
-      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6 29.6 4 24 4c-7.5 0-14 4.1-17.7 10.7z" />
-      <path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.9 14.3-5.1l-6.6-5.6C29.6 34.9 26.9 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.6 5.1C9.9 39.8 16.4 44 24 44z" />
-      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.6 5.6C41.5 35.9 44 30.4 44 24c0-1.2-.1-2.3-.4-3.5z" />
-    </svg>
   );
 }

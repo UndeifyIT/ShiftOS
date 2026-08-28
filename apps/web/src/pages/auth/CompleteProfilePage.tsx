@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ImageOff, MessageSquare, Shield, User, Users } from 'lucide-react';
-import { Button, FormField, InlineError, Input, Spinner } from '@shiftos/ui';
+import { FormField, Spinner } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { removeAvatar, uploadUserAvatar } from '../../lib/avatars.js';
 import { isNetworkError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
+import { AuthBanner, AuthInput, AuthSubmit } from './AuthInputs.js';
 
 /** Drives the photo tile below — mirrors the 4-state widget in the design
  * handoff (`ShiftOS Auth.dc.html`'s Complete Profile `photo` state). Upload
@@ -180,18 +181,20 @@ export default function CompleteProfilePage(): React.ReactElement {
       topRightPrompt="Signed in as"
       topRightLinkLabel={authUser?.email ?? ''}
     >
-      <h2 className="text-2xl font-bold text-neutral-900">Complete your profile</h2>
-      <p className="mt-1 text-sm text-neutral-500">This is how your team will see you in ShiftOS.</p>
+      <h2 className="text-center text-[22px] font-extrabold tracking-[-0.02em] text-neutral-900">Complete your profile</h2>
+      <p className="mt-2 text-center text-[13px] text-neutral-500">This is how your team will see you in ShiftOS.</p>
 
-      <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
-        <div className="flex items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50/50 p-3.5">
+      <form onSubmit={handleSubmit} noValidate className="mt-[18px] flex flex-col gap-[15px]">
+        <div className="flex items-center gap-3.5 rounded-[14px] border border-neutral-200 bg-[#FDFCFB] p-3.5">
           <div
-            className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border ${
+            className={`flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full text-[17px] font-extrabold ${
               photoState === 'error'
-                ? 'border-error-300 bg-error-50 text-error-500'
+                ? 'border-[1.5px] border-dashed border-error-500 bg-error-50 text-error-500'
                 : photoState === 'uploading'
-                  ? 'border-neutral-200 bg-neutral-100 text-neutral-400'
-                  : 'border-neutral-200 bg-white text-neutral-400'
+                  ? 'bg-[#F4F1EE] text-neutral-500'
+                  : photoState === 'uploaded' && photoPreviewUrl
+                    ? 'bg-brand-soft'
+                    : 'border-[1.5px] border-dashed border-neutral-200 bg-white text-neutral-400'
             }`}
           >
             {photoState === 'uploading' ? (
@@ -208,39 +211,71 @@ export default function CompleteProfilePage(): React.ReactElement {
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-neutral-400">
+            <p className="text-[13px] font-extrabold text-neutral-900">
+              Profile photo <span className="font-semibold text-neutral-400">(optional)</span>
+            </p>
+            <p className="mt-0.5 text-[11.5px] text-neutral-500">
               {photoState === 'uploading'
                 ? 'Uploading your photo…'
                 : photoState === 'uploaded'
                   ? 'Photo added.'
                   : photoState === 'error'
                     ? "Couldn't upload your photo."
-                    : 'Optional. JPG or PNG.'}
+                    : 'PNG, JPG or WebP · max 2 MB. You can add it later.'}
             </p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="mt-2 flex flex-wrap gap-[7px]">
               {photoState === 'empty' ? (
-                <Button type="button" variant="primary" size="sm" onClick={() => fileInputRef.current?.click()}>
-                  Upload photo
-                </Button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-[34px] cursor-pointer rounded-[10px] bg-brand-500 px-3 text-xs font-bold text-white transition-colors hover:bg-brand-600"
+                  >
+                    Upload photo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSkipPhoto}
+                    className="h-[34px] cursor-pointer rounded-[10px] border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-700 transition-colors hover:border-neutral-300"
+                  >
+                    Skip photo
+                  </button>
+                </>
               ) : photoState === 'uploading' ? (
-                <span className="text-sm font-medium text-neutral-400">Uploading…</span>
+                <span className="text-xs font-medium text-neutral-400">Uploading…</span>
               ) : photoState === 'uploaded' ? (
                 <>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-[34px] cursor-pointer rounded-[10px] border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-700 transition-colors hover:border-neutral-300"
+                  >
                     Replace photo
-                  </Button>
-                  <Button type="button" variant="destructive" size="sm" onClick={() => void handleRemovePhoto()}>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleRemovePhoto()}
+                    className="h-[34px] cursor-pointer rounded-[10px] border border-error-500/40 bg-white px-3 text-xs font-bold text-error-600 transition-colors hover:bg-error-50"
+                  >
                     Remove
-                  </Button>
+                  </button>
                 </>
               ) : (
                 <>
-                  <Button type="button" variant="primary" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-[34px] cursor-pointer rounded-[10px] bg-brand-500 px-3 text-xs font-bold text-white transition-colors hover:bg-brand-600"
+                  >
                     Try again
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={handleSkipPhoto}>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSkipPhoto}
+                    className="h-[34px] cursor-pointer rounded-[10px] border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-700 transition-colors hover:border-neutral-300"
+                  >
                     Skip photo
-                  </Button>
+                  </button>
                 </>
               )}
             </div>
@@ -262,24 +297,32 @@ export default function CompleteProfilePage(): React.ReactElement {
         </div>
 
         <FormField label="First Name" htmlFor="firstName" required>
-          {(fieldProps) => <Input {...fieldProps} placeholder="Sarah" value={firstName} onChange={(e) => setFirstName(e.target.value)} />}
+          {(fieldProps) => <AuthInput {...fieldProps} autoComplete="given-name" placeholder="Sarah" value={firstName} onChange={(e) => setFirstName(e.target.value)} />}
         </FormField>
         <FormField label="Last Name" htmlFor="lastName" required>
-          {(fieldProps) => <Input {...fieldProps} placeholder="Johnson" value={lastName} onChange={(e) => setLastName(e.target.value)} />}
+          {(fieldProps) => <AuthInput {...fieldProps} autoComplete="family-name" placeholder="Johnson" value={lastName} onChange={(e) => setLastName(e.target.value)} />}
         </FormField>
         <FormField label="Phone Number" htmlFor="phone" required>
-          {(fieldProps) => <Input {...fieldProps} type="tel" autoComplete="tel" placeholder="+234 802 345 6789" value={phone} onChange={(e) => setPhone(e.target.value)} />}
+          {(fieldProps) => <AuthInput {...fieldProps} type="tel" autoComplete="tel" placeholder="+234 802 345 6789" value={phone} onChange={(e) => setPhone(e.target.value)} />}
         </FormField>
         <FormField label="Job Title" htmlFor="jobTitle" hint="Optional">
-          {(fieldProps) => <Input {...fieldProps} placeholder="Floor Supervisor" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />}
+          {(fieldProps) => <AuthInput {...fieldProps} placeholder="Floor Supervisor" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />}
         </FormField>
 
-        {error ? <InlineError message={error} /> : null}
-        <Button type="submit" loading={submitting} fullWidth size="lg">
+        {error ? (
+          <AuthBanner
+            tone={error.includes('reach ShiftOS') || error.includes('connection') ? 'warn' : 'bad'}
+            title={error.includes('reach ShiftOS') || error.includes('connection') ? "Couldn't reach ShiftOS" : "Couldn't save your profile"}
+            body={error}
+          />
+        ) : null}
+        <AuthSubmit loading={submitting} loadingLabel="Saving your profile…">
           Save and continue →
-        </Button>
-        <p className="text-center text-xs text-neutral-400">You can change any of this later from Settings → Profile.</p>
-        <button type="button" onClick={() => void signOut()} className="text-center text-sm font-medium text-neutral-500 hover:text-neutral-700">
+        </AuthSubmit>
+        <p className="text-center text-[11.5px] leading-normal text-neutral-400">
+          You can change any of this later from Settings → Profile.
+        </p>
+        <button type="button" onClick={() => void signOut()} className="text-center text-[13px] font-bold text-neutral-500 transition-colors hover:text-neutral-700">
           Sign out
         </button>
       </form>

@@ -51,9 +51,249 @@ body {
   }
 }
 
+/* Landing-page hero/phone loops, ported verbatim from `Local file
+   check/design_handoff_shiftos/ShiftOS Marketing.dc.html`'s so-* keyframes
+   (same timings/easings). Applied via the .animate-so-* utilities below so
+   JSX stays free of long arbitrary-value animation classes. */
+@keyframes so-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- First-load splash (BrandReveal.tsx), ported verbatim from the design
+   file's reveal overlay keyframes. ---- */
+
+/* Logo mark falls in from above and bounces to rest. */
+@keyframes so-mark-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-170px) rotate(-8deg) scale(0.92);
+  }
+  6% {
+    opacity: 1;
+  }
+  58% {
+    transform: translateY(6px) rotate(1.5deg) scale(1.045);
+  }
+  74% {
+    transform: translateY(-3px) rotate(-0.6deg) scale(0.985);
+  }
+  88% {
+    transform: translateY(1px) scale(1.006);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+}
+
+/* Wordmark rises into view under its own overflow mask. */
+@keyframes so-word-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Whole lockup does a tiny settle-lift once both pieces have landed. */
+@keyframes so-lockup-settle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Splash sheet scales slightly and fades away on exit. */
+@keyframes so-splash-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes so-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+/* Notification toast card beside the hero schedule: fade in, hold, fade out. */
+@keyframes so-toast {
+  0%,
+  12% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  24%,
+  70% {
+    opacity: 1;
+    transform: none;
+  }
+  84%,
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* Status dots ("Live", hero badge) — scale + dim, not just opacity. */
+@keyframes so-pulse-dot {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.45;
+  }
+}
+
+/* Light shimmer band sweeping across the hero schedule grid. */
+@keyframes so-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  55%,
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+/* One synced 15s phone loop: content scrolls up, a bottom sheet slides over
+   it while a touch ripple "taps", then everything returns. */
+@keyframes so-phone-scroll {
+  0%,
+  12% {
+    transform: translateY(0);
+  }
+  24%,
+  86% {
+    transform: translateY(-172px);
+  }
+  96%,
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes so-phone-sheet {
+  0%,
+  40% {
+    transform: translateY(101%);
+  }
+  50%,
+  78% {
+    transform: translateY(0);
+  }
+  88%,
+  100% {
+    transform: translateY(101%);
+  }
+}
+
+@keyframes so-phone-touch {
+  0%,
+  9% {
+    opacity: 0;
+    transform: translate(0, 62px) scale(1);
+  }
+  12%,
+  15% {
+    opacity: 0.85;
+    transform: translate(0, 62px) scale(1);
+  }
+  22% {
+    opacity: 0.85;
+    transform: translate(0, -46px) scale(1);
+  }
+  26%,
+  35% {
+    opacity: 0;
+    transform: translate(0, -46px) scale(1);
+  }
+  36% {
+    opacity: 0;
+    transform: translate(-8px, 150px) scale(1);
+  }
+  40%,
+  43% {
+    opacity: 0.85;
+    transform: translate(-8px, 150px) scale(1);
+  }
+  45% {
+    opacity: 0.85;
+    transform: translate(-8px, 150px) scale(0.78);
+  }
+  50%,
+  100% {
+    opacity: 0;
+    transform: translate(-8px, 150px) scale(1);
+  }
+}
+
+/* Shifty's "Pointing at" arrow nudges toward the active field. */
+@keyframes shifty-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-4px);
+  }
+}
+
+.animate-shifty-nudge {
+  animation: shifty-nudge 1.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-\[shiftos-reveal_0\.6s_ease-out\] {
-    animation: none;
+  .animate-shifty-nudge {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[shiftos-reveal_0\.6s_ease-out\],
+  .animate-so-in,
+  .animate-so-mark-drop,
+  .animate-so-word-in,
+  .animate-so-lockup-settle,
+  .animate-so-splash-out,
+  .animate-so-float,
+  .animate-so-float-slow,
+  .animate-so-toast,
+  .animate-so-pulse-dot,
+  .animate-so-sweep,
+  .animate-so-sweep-once,
+  .animate-so-phone-scroll,
+  .animate-so-phone-sheet,
+  .animate-so-phone-touch {
+    /* ! needed because the utilities sit in @layer utilities while this
+       media query is unlayered (unlayered wins regardless of specificity,
+       but keep it explicit like the original guard). */
+    animation: none !important;
   }
 }
 
@@ -99,5 +339,64 @@ h4 {
   .dot-grid {
     background-image: radial-gradient(theme('colors.neutral.300') 1.5px, transparent 1.5px);
     background-size: 14px 14px;
+  }
+
+  .animate-so-in {
+    animation: so-in 0.6s ease-out both;
+  }
+
+  .animate-so-float {
+    animation: so-float 6s ease-in-out infinite;
+  }
+
+  /* The whole phone bobs on a slower beat than the hero chip. */
+  .animate-so-float-slow {
+    animation: so-float 9s ease-in-out infinite;
+  }
+
+  .animate-so-toast {
+    animation: so-toast 9s ease-in-out infinite;
+  }
+
+  .animate-so-pulse-dot {
+    animation: so-pulse-dot 2.2s ease-in-out infinite;
+  }
+
+  .animate-so-sweep {
+    animation: so-sweep 7s ease-in-out infinite;
+  }
+
+  /* One-shot variant used by the splash shine across the wordmark. */
+  .animate-so-sweep-once {
+    animation: so-sweep 0.7s ease-out 1.55s 1;
+  }
+
+  /* Splash pieces — delays match the design file exactly. */
+  .animate-so-mark-drop {
+    animation: so-mark-drop 0.8s cubic-bezier(0.33, 0.6, 0.4, 1) 0.58s both;
+  }
+
+  .animate-so-word-in {
+    animation: so-word-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+  }
+
+  .animate-so-lockup-settle {
+    animation: so-lockup-settle 0.5s ease-out 1.5s both;
+  }
+
+  .animate-so-splash-out {
+    animation: so-splash-out 0.4s ease forwards;
+  }
+
+  .animate-so-phone-scroll {
+    animation: so-phone-scroll 15s cubic-bezier(0.33, 0.9, 0.28, 1) infinite;
+  }
+
+  .animate-so-phone-sheet {
+    animation: so-phone-sheet 15s cubic-bezier(0.33, 0.9, 0.28, 1) infinite;
+  }
+
+  .animate-so-phone-touch {
+    animation: so-phone-touch 15s ease-in-out infinite;
   }
 }

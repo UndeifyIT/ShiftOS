@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Lock, X } from 'lucide-react';
-import { Badge, Button, FormField, InlineError, Input, Select, Skeleton, SkeletonRows } from '@shiftos/ui';
+import { CalendarDays, Check, MessageSquare, Users, X } from 'lucide-react';
+import { FormField, Skeleton, SkeletonRows } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import { ShiftyMascot } from '../../components/shifty/mascot.js';
 import { OnboardingWizardShell, type OnboardingStepId } from './OnboardingWizardShell.js';
+import { AuthBanner, AuthInput } from '../auth/AuthInputs.js';
+import { ObSelect, WizardFooter } from './OnboardingFields.js';
 import type { Branch, Department, Invitation, Organization, Role } from '../../types/domain.js';
 
 const STEPS = ['branch', 'supervisor', 'departments', 'finish'] as const;
@@ -108,12 +109,10 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
     return (
       <div className="flex flex-col gap-4">
         <div>
-          <h2 className="font-display text-xl font-semibold text-neutral-900">Your first branch is set up</h2>
-          <p className="mt-1 text-sm text-neutral-500">{branches[0]!.name} is ready to go.</p>
+          <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-neutral-900">Your first branch is set up</h2>
+          <p className="mt-[7px] text-[13px] text-neutral-500">{branches[0]!.name} is ready to go.</p>
         </div>
-        <Button className="self-start" onClick={onNext}>
-          Continue
-        </Button>
+        <WizardFooter onNext={onNext} nextLabel="Continue →" />
       </div>
     );
   }
@@ -133,58 +132,61 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
           settings: { storeType, country: country.trim(), state: branchState.trim(), city: city.trim(), timeZone }
         });
       }}
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-[15px]"
     >
       <div>
-        <h2 className="font-display text-xl font-semibold text-neutral-900">Set up your first branch</h2>
-        <p className="mt-1 text-sm text-neutral-500">Branches let you organize schedules and staff by location.</p>
+        <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-neutral-900">Tell us about your branch</h2>
+        <p className="mt-[7px] text-[13px] text-neutral-500">This information helps us organize your operations and team.</p>
       </div>
-      <FormField label="Branch name" htmlFor="branchName" required>
+
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3.5">
+        <FormField label="Branch Name" htmlFor="branchName" required>
+          {(fieldProps) => (
+            <AuthInput {...fieldProps} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Main Branch" />
+          )}
+        </FormField>
+        <FormField label="Store Type" htmlFor="branchStoreType" required>
+          {(fieldProps) => (
+            <ObSelect
+              {...fieldProps}
+              value={storeType}
+              onChange={(e) => setStoreType(e.target.value)}
+              placeholder="Select store type"
+              options={STORE_TYPES.map((label) => ({ value: label, label }))}
+            />
+          )}
+        </FormField>
+        <FormField
+          label="Country"
+          htmlFor="branchCountry"
+          required
+          hint={orgCountry ? "From your organization's settings." : undefined}
+        >
+          {(fieldProps) =>
+            orgCountry ? (
+              <AuthInput {...fieldProps} value={country} disabled />
+            ) : (
+              <AuthInput {...fieldProps} value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Nigeria" />
+            )
+          }
+        </FormField>
+        <FormField label="State" htmlFor="branchState" required>
+          {(fieldProps) => (
+            <AuthInput {...fieldProps} value={branchState} onChange={(e) => setBranchState(e.target.value)} placeholder="e.g. Lagos" />
+          )}
+        </FormField>
+        <FormField label="City" htmlFor="branchCity" required>
+          {(fieldProps) => <AuthInput {...fieldProps} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Ikeja" />}
+        </FormField>
+        <FormField label="Branch Address" htmlFor="branchAddress" hint="Optional — used on attendance records and shift notes.">
+          {(fieldProps) => (
+            <AuthInput {...fieldProps} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Enter full address" />
+          )}
+        </FormField>
+      </div>
+      <FormField label="Time Zone" htmlFor="branchTimeZone" required>
         {(fieldProps) => (
-          <Input {...fieldProps} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Main Branch" />
-        )}
-      </FormField>
-      <FormField label="Store type" htmlFor="branchStoreType" required>
-        {(fieldProps) => (
-          <Select
-            {...fieldProps}
-            value={storeType}
-            onChange={(e) => setStoreType(e.target.value)}
-            placeholder="Select store type"
-            options={STORE_TYPES.map((label) => ({ value: label, label }))}
-          />
-        )}
-      </FormField>
-      <FormField
-        label="Country"
-        htmlFor="branchCountry"
-        required
-        hint={orgCountry ? "From your organization's settings." : undefined}
-      >
-        {(fieldProps) =>
-          orgCountry ? (
-            <Input {...fieldProps} value={country} disabled />
-          ) : (
-            <Input {...fieldProps} value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Nigeria" />
-          )
-        }
-      </FormField>
-      <FormField label="State" htmlFor="branchState" required>
-        {(fieldProps) => (
-          <Input {...fieldProps} value={branchState} onChange={(e) => setBranchState(e.target.value)} placeholder="e.g. Lagos" />
-        )}
-      </FormField>
-      <FormField label="City" htmlFor="branchCity" required>
-        {(fieldProps) => <Input {...fieldProps} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Ikeja" />}
-      </FormField>
-      <FormField label="Branch address" htmlFor="branchAddress" hint="Optional — used on attendance records and shift notes.">
-        {(fieldProps) => (
-          <Input {...fieldProps} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Enter full address" />
-        )}
-      </FormField>
-      <FormField label="Time zone" htmlFor="branchTimeZone" required>
-        {(fieldProps) => (
-          <Select
+          <ObSelect
             {...fieldProps}
             value={timeZone}
             onChange={(e) => setTimeZone(e.target.value)}
@@ -193,10 +195,8 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
           />
         )}
       </FormField>
-      {error ? <InlineError message={error} /> : null}
-      <Button type="submit" loading={createMutation.isPending} className="self-start">
-        Create branch
-      </Button>
+      {error ? <AuthBanner tone="bad" title={error} /> : null}
+      <WizardFooter onNext={() => undefined} nextLabel="Continue →" nextType="submit" saving={createMutation.isPending} />
     </form>
   );
 }
@@ -219,24 +219,42 @@ const SUPERVISOR_PERMISSIONS: { label: string; on?: boolean; locked?: boolean }[
   { label: 'Delete employees', locked: true }
 ];
 
-/** Read-only checklist of what a Supervisor can/can't do — see SUPERVISOR_PERMISSIONS. */
+/** Read-only checklist of what a Supervisor can/can't do, in the design's permission-chip styling (on: green, off: quiet, locked: red). See SUPERVISOR_PERMISSIONS. */
 function SupervisorPermissionsChecklist(): React.ReactElement {
   return (
     <div>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-neutral-500">What a Supervisor can do</p>
-      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <p className="text-[13px] font-extrabold text-neutral-900">Permissions</p>
+      <p className="mb-3 mt-1 text-xs text-neutral-500">
+        What this supervisor will access and manage. Least privilege by default &mdash; you can change these later in Members.
+      </p>
+      <ul className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-[9px]">
         {SUPERVISOR_PERMISSIONS.map((permission) => {
           const label = permission.locked
             ? `Cannot ${permission.label.charAt(0).toLowerCase()}${permission.label.slice(1)}`
             : permission.label;
-          const tone = permission.locked ? 'error' : permission.on ? 'success' : 'neutral';
-          const Icon = permission.locked ? X : permission.on ? Check : Lock;
+          const locked = permission.locked;
+          const on = permission.on;
           return (
-            <li key={permission.label}>
-              <Badge tone={tone} className="w-full justify-start py-1.5">
-                <Icon className="size-3.5 shrink-0" aria-hidden="true" />
-                <span>{label}</span>
-              </Badge>
+            <li
+              key={permission.label}
+              className={[
+                'flex items-center gap-[9px] rounded-xl px-3 py-2.5 text-[12.5px] font-bold',
+                locked
+                  ? 'border border-[#F3C6BD] bg-error-50 text-[#8E2A17]'
+                  : on
+                    ? 'border border-[#BFE6CF] bg-success-50 text-[#1E6B45]'
+                    : 'border border-neutral-200 bg-white text-neutral-500'
+              ].join(' ')}
+            >
+              <span
+                className={[
+                  'flex size-[18px] shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold text-white',
+                  locked ? 'bg-error-500' : on ? 'bg-success-500' : 'border-[1.5px] border-neutral-200 text-transparent'
+                ].join(' ')}
+              >
+                {locked ? <X className="size-2.5" aria-hidden="true" /> : on ? <Check className="size-2.5" aria-hidden="true" /> : ''}
+              </span>
+              {label}
             </li>
           );
         })}
@@ -280,47 +298,54 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
   });
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-[15px]">
       <div>
-        <h2 className="font-display text-xl font-semibold text-neutral-900">Add your first supervisor</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Send them a real invitation by email. They&rsquo;ll set their own password and sign in as a Supervisor scoped to this branch.
+        <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-neutral-900">Set up your supervisors</h2>
+        <p className="mt-[7px] text-[13px] text-neutral-500">
+          Add supervisors who help you manage daily operations. You can add more or edit their details anytime.
         </p>
       </div>
 
       {invitedSoFar.length > 0 ? (
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-neutral-500">
-            Invited so far ({invitedSoFar.length})
-          </p>
-          <ul className="flex flex-col gap-1.5">
+        <div>
+          <p className="text-[13px] font-extrabold text-neutral-900">Invited so far</p>
+          <div className="mt-2.5 flex flex-col gap-[9px]">
             {invitedSoFar.map((invitee, index) => (
-              <li key={`${invitee.email}-${index}`} className="text-sm text-neutral-700">
-                <span className="font-medium">
-                  {invitee.firstName} {invitee.lastName}
-                </span>{' '}
-                <span className="text-neutral-500">{invitee.email}</span>
-              </li>
+              <div
+                key={`${invitee.email}-${index}`}
+                className="flex flex-wrap items-center gap-2.5 rounded-[13px] border border-neutral-200 bg-[#FDFCFB] px-[13px] py-[11px]"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12.5px] font-bold text-neutral-900">
+                    {invitee.firstName} {invitee.lastName}
+                  </span>
+                  <span className="block text-[11.5px] text-neutral-400">{invitee.email}</span>
+                </span>
+                <span className="inline-flex items-center rounded-full bg-success-50 px-2 py-0.5 text-[10px] font-extrabold text-success-600">
+                  Invitation sent
+                </span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       ) : null}
 
       {justInvited ? (
-        <div className="flex flex-col gap-3 rounded-xl bg-success-50 p-4 text-sm text-success-text">
+        <div className="flex flex-col gap-2 rounded-[13px] border border-[#BFE6CF] bg-success-50 p-3.5 text-[12.5px] text-success-text">
           <p>
-            An invitation has been sent to {justInvited.email}. {justInvited.firstName} will become a Supervisor once they accept it.
+            An invitation has been sent to {justInvited.email}. {justInvited.firstName} will become a Supervisor once they accept
+            it.
           </p>
-          <Button
-            variant="secondary"
-            className="self-start"
+          <button
+            type="button"
             onClick={() => {
               setJustInvited(null);
               setError(null);
             }}
+            className="h-8 w-fit cursor-pointer rounded-[9px] border border-neutral-200 bg-white px-3 text-[11.5px] font-bold text-neutral-900 transition-colors hover:border-neutral-300"
           >
-            Invite another supervisor
-          </Button>
+            + Add another supervisor
+          </button>
         </div>
       ) : (
         <form
@@ -347,33 +372,41 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
               branchIds: [branchId]
             });
           }}
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-[15px]"
         >
-          <FormField label="First name" htmlFor="supFirstName" required>
-            {(fieldProps) => <Input {...fieldProps} value={firstName} onChange={(e) => setFirstName(e.target.value)} />}
-          </FormField>
-          <FormField label="Last name" htmlFor="supLastName" required>
-            {(fieldProps) => <Input {...fieldProps} value={lastName} onChange={(e) => setLastName(e.target.value)} />}
-          </FormField>
-          <FormField label="Email" htmlFor="supEmail" required hint="We'll send a real invitation to this address.">
-            {(fieldProps) => <Input {...fieldProps} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
-          </FormField>
-          {error ? <InlineError message={error} /> : null}
-          <Button type="submit" loading={inviteMutation.isPending} className="self-start">
-            Send invitation
-          </Button>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3.5">
+            <FormField label="First Name" htmlFor="supFirstName" required>
+              {(fieldProps) => <AuthInput {...fieldProps} value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="e.g. Sarah" />}
+            </FormField>
+            <FormField label="Last Name" htmlFor="supLastName" required>
+              {(fieldProps) => <AuthInput {...fieldProps} value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="e.g. Johnson" />}
+            </FormField>
+            <FormField label="Work Email" htmlFor="supEmail" required hint="We'll send a real invitation to this address.">
+              {(fieldProps) => <AuthInput {...fieldProps} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sarah@abcsupermarket.com" />}
+            </FormField>
+          </div>
+          {error ? <AuthBanner tone="bad" title={error} /> : null}
+          <button
+            type="submit"
+            disabled={inviteMutation.isPending}
+            className={
+              inviteMutation.isPending
+                ? 'h-11 w-full cursor-progress rounded-xl bg-[#F5A98A] text-[13.5px] font-bold text-white sm:w-auto sm:px-6'
+                : 'h-11 w-full cursor-pointer rounded-xl bg-brand-500 text-[13.5px] font-bold text-white shadow-[0_12px_26px_-14px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600 sm:w-auto sm:px-6'
+            }
+          >
+            {inviteMutation.isPending ? 'Sending…' : 'Send invitation'}
+          </button>
           <SupervisorPermissionsChecklist />
         </form>
       )}
 
-      <div className="flex items-center justify-between">
-        <button type="button" onClick={onBack} className="text-sm font-medium text-neutral-500 hover:text-neutral-700">
-          Back
-        </button>
-        <Button variant={invitedSoFar.length > 0 ? 'primary' : 'ghost'} onClick={onNext}>
-          {invitedSoFar.length > 0 ? 'Continue' : 'Skip for now'}
-        </Button>
-      </div>
+      <WizardFooter
+        onBack={onBack}
+        onSkip={invitedSoFar.length === 0 ? onNext : undefined}
+        onNext={onNext}
+        nextLabel="Continue →"
+      />
     </div>
   );
 }
@@ -439,15 +472,17 @@ function DepartmentsStep({ onNext, onBack }: { onNext: () => void; onBack: () =>
   const hasDepartments = Boolean(departments && departments.length > 0);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-[15px]">
       <div>
-        <h2 className="font-display text-xl font-semibold text-neutral-900">Create your departments</h2>
-        <p className="mt-1 text-sm text-neutral-500">Add the departments in your branch. You can always add, rename or delete them later.</p>
+        <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-neutral-900">Create your departments</h2>
+        <p className="mt-[7px] text-[13px] text-neutral-500">
+          Add the departments in your branch. You can always add, rename or delete them later.
+        </p>
       </div>
 
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-neutral-500">Suggested departments</p>
-        <div className="flex flex-wrap gap-2">
+        <p className="text-[13px] font-extrabold text-neutral-900">Suggested departments</p>
+        <div className="mt-2.5 flex flex-wrap gap-2">
           {DEPARTMENT_SUGGESTIONS.map((label) => {
             const added = existingNames.has(label.toLowerCase());
             return (
@@ -459,8 +494,8 @@ function DepartmentsStep({ onNext, onBack }: { onNext: () => void; onBack: () =>
                 aria-pressed={added}
                 className={
                   added
-                    ? 'inline-flex items-center gap-1.5 rounded-full border border-success-200 bg-success-50 px-3 py-1.5 text-sm font-medium text-success-text'
-                    : 'inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60'
+                    ? 'inline-flex cursor-default items-center gap-1.5 rounded-full border border-[#BFE6CF] bg-success-50 px-[13px] py-2 text-xs font-bold text-[#1E6B45]'
+                    : 'inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-[13px] py-2 text-xs font-bold text-neutral-600 transition-colors hover:border-brand-300 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60'
                 }
               >
                 {added ? <Check className="size-3.5 shrink-0" aria-hidden="true" /> : null}
@@ -479,50 +514,65 @@ function DepartmentsStep({ onNext, onBack }: { onNext: () => void; onBack: () =>
         className="flex items-end gap-2"
       >
         <div className="flex-1">
-          <FormField label="Custom department name" htmlFor="customDeptName">
+          <FormField label="Or create your own" htmlFor="customDeptName">
             {(fieldProps) => (
-              <Input {...fieldProps} value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="e.g. Bakery" />
+              <AuthInput {...fieldProps} value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="e.g. Bakery" />
             )}
           </FormField>
         </div>
-        <Button type="submit" loading={createMutation.isPending} disabled={!customName.trim()}>
-          Add
-        </Button>
+        <button
+          type="submit"
+          disabled={!customName.trim() || createMutation.isPending}
+          className="h-[44px] shrink-0 cursor-pointer rounded-xl bg-brand-500 px-5 text-[13px] font-bold text-white shadow-[0_12px_26px_-14px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400 disabled:shadow-none"
+        >
+          {createMutation.isPending ? 'Adding…' : 'Add'}
+        </button>
       </form>
 
-      {error ? <InlineError message={error} /> : null}
+      {error ? <AuthBanner tone="bad" title={error} /> : null}
 
       <div>
-        <p className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.1em] text-neutral-500">
-          <span>Your departments</span>
-          {hasDepartments ? <span>{departments!.length}</span> : null}
+        <p className="flex items-center justify-between gap-2.5 text-[13px] font-extrabold text-neutral-900">
+          Your departments{' '}
+          {hasDepartments ? (
+            <span className="text-[11.5px] font-semibold text-neutral-400">{departments!.length} added</span>
+          ) : (
+            <span className="text-[11.5px] font-semibold text-neutral-400">At least one is recommended</span>
+          )}
         </p>
         {hasDepartments ? (
-          <ul className="flex flex-col gap-1.5">
+          <div className="mt-2.5 flex flex-col gap-[9px]">
             {departments!.map((department) => (
-              <li
+              <div
                 key={department.id}
-                className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-700"
+                className="flex flex-wrap items-center gap-2.5 rounded-[13px] border border-neutral-200 bg-[#FDFCFB] px-[13px] py-[11px]"
               >
-                {department.name}
-              </li>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12.5px] font-bold text-neutral-900">{department.name}</span>
+                  <span className="block text-[11.5px] text-neutral-400">No supervisor assigned yet</span>
+                </span>
+                <span className="inline-flex items-center rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-extrabold text-brand-deep">
+                  {branchId === department.branch_id ? 'This branch' : 'Branch'}
+                </span>
+              </div>
             ))}
-          </ul>
+          </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-center text-sm text-neutral-500">
-            No departments yet. Add one from the suggestions above, or create your own.
+          <div className="mt-2.5 rounded-[13px] border border-dashed border-neutral-300 bg-[#FDFCFB] p-6 text-center">
+            <p className="text-[13.5px] font-extrabold text-neutral-900">No departments yet</p>
+            <p className="mx-auto mt-1.5 max-w-[340px] text-[12.5px] text-neutral-500">
+              Add one from the suggestions above, or create your own. Departments decide where schedules and tasks land.
+            </p>
           </div>
         )}
       </div>
 
-      <div className="flex items-center justify-between">
-        <button type="button" onClick={onBack} className="text-sm font-medium text-neutral-500 hover:text-neutral-700">
-          Back
-        </button>
-        <Button variant={hasDepartments ? 'primary' : 'ghost'} onClick={onNext}>
-          {hasDepartments ? 'Continue' : 'Skip for now'}
-        </Button>
-      </div>
+      <WizardFooter
+        onBack={onBack}
+        onSkip={hasDepartments ? undefined : onNext}
+        onNext={onNext}
+        nextLabel="Continue →"
+      />
     </div>
   );
 }
@@ -572,48 +622,66 @@ function FinishStep({ onFinish }: { onFinish: () => void }): React.ReactElement 
   });
 
   return (
-    <div className="flex flex-col items-center gap-4 text-center">
-      <span className="flex size-20 items-end justify-center overflow-hidden rounded-2xl bg-success-50">
-        <ShiftyMascot variant="success" className="h-[88%] w-full" />
+    <div className="flex flex-col items-center py-2 text-center">
+      <span className="flex size-16 items-center justify-center rounded-full bg-success-50 text-success-500">
+        <Check className="size-[30px]" aria-hidden="true" />
       </span>
-      <h2 className="font-display text-xl font-semibold text-neutral-900">Your workspace is ready</h2>
+      <h2 className="mt-[18px] text-2xl font-extrabold tracking-[-0.025em] text-neutral-900">Your workspace is ready</h2>
       {countsLoading ? (
-        <Skeleton className="h-4 w-full max-w-sm" />
+        <Skeleton className="mt-[9px] h-4 w-full max-w-[420px]" />
       ) : (
-        <p className="text-sm text-neutral-500">
+        <p className="mx-auto mt-[9px] max-w-[420px] text-[13.5px] leading-relaxed text-neutral-500">
           {orgName} is set up with {pluralize(branchCount, 'branch', 'branches')}, {pluralize(supervisorCount, 'supervisor')} and{' '}
-          {pluralize(departmentCount, 'department')}.
+          {pluralize(departmentCount, 'department')}. Next, create your first shift.
         </p>
       )}
-      {error ? <InlineError message={error} /> : null}
-      <Button
-        loading={completeMutation.isPending}
+      {error ? <AuthBanner tone="bad" title={error} /> : null}
+
+      <div className="mt-5 grid w-full grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3 text-left">
+        <Link
+          to="/schedules"
+          className="rounded-[14px] border border-neutral-200 bg-[#FDFCFB] p-[15px] transition-colors hover:border-brand-500"
+        >
+          <span className="flex size-[34px] items-center justify-center rounded-xl bg-brand-soft text-brand-deep">
+            <CalendarDays className="size-[17px]" aria-hidden="true" />
+          </span>
+          <span className="mt-[11px] block text-[13.5px] font-extrabold text-neutral-900">Create your first schedule</span>
+          <span className="mt-[3px] block text-xs text-neutral-500">Plan the week ahead for your branch.</span>
+        </Link>
+        <Link
+          to="/employees"
+          className="rounded-[14px] border border-neutral-200 bg-[#FDFCFB] p-[15px] transition-colors hover:border-brand-500"
+        >
+          <span className="flex size-[34px] items-center justify-center rounded-xl bg-info-50 text-info-600">
+            <Users className="size-[17px]" aria-hidden="true" />
+          </span>
+          <span className="mt-[11px] block text-[13.5px] font-extrabold text-neutral-900">Add your employees</span>
+          <span className="mt-[3px] block text-xs text-neutral-500">One at a time, or import a spreadsheet.</span>
+        </Link>
+        <Link
+          to="/invitations"
+          className="rounded-[14px] border border-neutral-200 bg-[#FDFCFB] p-[15px] transition-colors hover:border-brand-500"
+        >
+          <span className="flex size-[34px] items-center justify-center rounded-xl bg-success-soft text-success-500">
+            <MessageSquare className="size-[17px]" aria-hidden="true" />
+          </span>
+          <span className="mt-[11px] block text-[13.5px] font-extrabold text-neutral-900">Invite your team</span>
+          <span className="mt-[3px] block text-xs text-neutral-500">Tell the branch that ShiftOS is live.</span>
+        </Link>
+      </div>
+
+      <button
+        type="button"
         onClick={() =>
           completeMutation.mutate({
             metadata: { ...(activeOrganization?.metadata ?? {}), onboardingCompletedAt: new Date().toISOString() }
           })
         }
+        disabled={completeMutation.isPending}
+        className="mt-5 h-12 w-full max-w-[320px] cursor-pointer rounded-[13px] bg-brand-500 text-[14.5px] font-bold text-white shadow-[0_14px_30px_-16px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600 disabled:cursor-progress disabled:bg-[#F5A98A]"
       >
-        Go to dashboard
-      </Button>
-
-      <div className="mt-2 w-full border-t border-neutral-200 pt-4 text-left">
-        <p className="mb-2 text-center text-xs font-semibold uppercase tracking-[0.1em] text-neutral-500">Good next steps</p>
-        <div className="flex flex-col gap-2">
-          <Link
-            to="/schedules"
-            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
-          >
-            Create your first schedule
-          </Link>
-          <Link
-            to="/employees"
-            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
-          >
-            Add your first employee
-          </Link>
-        </div>
-      </div>
+        {completeMutation.isPending ? 'Saving…' : 'Go to dashboard →'}
+      </button>
     </div>
   );
 }

@@ -7,6 +7,18 @@ module.exports = {
   content: ['./index.html', './src/**/*.{ts,tsx}', '../../packages/ui/src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      /* Half-step + odd sizes the marketing handoff uses (18/22/26/34/38/52px
+         rhythm) but Tailwind's default scale skips. Mirrors the design file's
+         spacing steps; update together with packages/ui/src/tokens.ts. */
+      spacing: {
+        '4.5': '1.125rem',
+        '5.5': '1.375rem',
+        '6.5': '1.625rem',
+        '7.5': '1.875rem',
+        '8.5': '2.125rem',
+        '9.5': '2.375rem',
+        13: '3.25rem'
+      },
       colors: {
         brand: {
           50: '#FDF0E9',
