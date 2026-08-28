@@ -264,6 +264,10 @@ worth recording, matching the Onboarding phase's own Task 7 precedent).
 - Tasks 2→3→4→5 are sequential (shared `App.tsx`/`Sidebar.tsx` edits);
   Tasks 6 and 7 are independent of that chain and of each other, and may
   run in parallel with it once Task 1 lands.
-- No task builds Reports, the Admins tab, the standalone Admin console,
-  Settings v2, Import Employees, or notification preferences — see the
-  spec's "Out of scope" section.
+- No task builds Reports, the Admins tab, Settings v2, Import Employees, or
+  notification preferences — see the spec's "Out of scope" section. The
+  standalone Admin Console was built outside this plan's 8 tasks during the
+  same session and, unlike the items above, was accepted into scope after
+  the fact rather than reverted — see the spec's 2026-08-28 amendment and
+  decision 7. Treat it as a first pass needing its own follow-up review,
+  not as a task this plan tracked step-by-step.

@@ -1,8 +1,17 @@
-# Workforce Operations (Tasks, Attendance, Announcements, Requests) — design spec
+# Workforce Operations (Tasks, Attendance, Announcements, Requests, Admin Console) — design spec
 
 Status: approved-by-default (user explicitly directed "get started on that"
 after being shown the audit below; proceeding per standing instruction to
 keep moving autonomously, same rigor as the Auth/Onboarding phases).
+
+**Scope amendment (2026-08-28):** the standalone Admin Console
+(`apps/web/src/pages/admin/AdminConsolePage.tsx`) was built and wired into
+this phase's session despite being listed below as deferred to its own
+future phase. Reviewed after the fact and accepted into this phase's scope
+rather than reverted — see the amended "Scope decision" and "Architecture
+decisions" sections below for the reasoning and the actual gating used.
+Everything else in this document describes the plan as originally written;
+only the Admin Console sections were updated to match what shipped.
 
 ## Why
 
@@ -39,9 +48,16 @@ deferred to later phases, named so they aren't silently dropped:
   Manager settings) — blocked on the same "no `create_role` RPC yet" gap
   `RoleDashboard.tsx`'s own comment already documents; there is currently
   no Admin role to invite anyone into.
-- **The standalone Admin console** (`ShiftOS Admin.dc.html`) — a
+- ~~**The standalone Admin console** (`ShiftOS Admin.dc.html`) — a
   structurally separate application/audience from these three
-  operational dashboards, its own future phase.
+  operational dashboards, its own future phase.~~ **Amendment:** built
+  anyway during this phase's session and, on review, accepted rather than
+  reverted — see decision 7 below. The original reasoning for deferring it
+  (a structurally separate audience from the three operational dashboards)
+  still stands as a documentation note, not as a restriction: this phase's
+  `AdminConsolePage` is intentionally a single, self-contained route, not
+  woven into the three role dashboards, which keeps that separation intact
+  even though the build order differed from the plan.
 - **Settings v2 revamp** (Branch Hours / Notifications / Security / Billing
   tabs) — `account/SecurityPage.tsx`/`organization/OrganizationSettingsPage.tsx`
   already exist in a simpler form; a full tabbed revamp is cosmetic
@@ -105,6 +121,17 @@ deferred to later phases, named so they aren't silently dropped:
    `tasks.read`, `attendance` read-equivalent permission — check the actual
    permission codes seeded in `packages/../migrations` before assuming
    names).
+7. **Admin Console (amendment, added after the fact).** `AdminConsolePage`
+   was added as its own route (`/admin`) and its own nav item, gated
+   `orgWideOnly: true` + `requiresPermission: 'organizations.read'` — the
+   same org-wide gate already used for Branches/Members/Invitations/
+   Organization, so it doesn't introduce a new authorization concept, only
+   reuses the existing one. It was not built against `ShiftOS Admin.dc.html`'s
+   full five-screen spec (Overview, Branches, Branch Detail, Subscription,
+   Settings) task-by-task the way Tasks/Attendance/Announcements/Requests
+   were; it should be treated as a first pass, not a verified-complete
+   phase, until it gets the same kind of screen-by-screen review those four
+   pages got.
 
 ## Out of scope reminders for implementers
 
@@ -113,6 +140,7 @@ deferred to later phases, named so they aren't silently dropped:
   (missing permission code, missing RLS grant), treat it the same way the
   Onboarding phase's migration 046 was handled: flag it explicitly, don't
   silently work around it or silently skip the feature.
-- Don't build Reports, the Admins tab, the standalone Admin console,
-  Settings v2, Import Employees, or notification preferences — see the
-  Scope decision section above for why each is deferred.
+- Don't build Reports, the Admins tab, Settings v2, Import Employees, or
+  notification preferences — see the Scope decision section above for why
+  each is deferred. The standalone Admin Console is no longer on this list
+  — see the amendment above.
