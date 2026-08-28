@@ -40,6 +40,7 @@ export function ShiftModal({ open, onClose, scheduleId, shift, employees, onCrea
   const [breakMinutes, setBreakMinutes] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [assignEmployeeId, setAssignEmployeeId] = useState('');
+  const [isDropTargetActive, setIsDropTargetActive] = useState(false);
 
   useEffect(() => {
     if (shift) {
@@ -169,10 +170,51 @@ export function ShiftModal({ open, onClose, scheduleId, shift, employees, onCrea
 
       {isEditing ? (
         <div className="mt-6 border-t border-neutral-200 pt-4">
+          {canAssign && assignableEmployees.length > 0 ? (
+            <div className="mb-4">
+              <h3 className="mb-2 text-sm font-semibold text-neutral-900">Available employees</h3>
+              <p className="mb-2 text-xs text-neutral-500">Drag a name onto the assigned list below, or use the picker underneath it.</p>
+              <div className="flex flex-wrap gap-2">
+                {assignableEmployees.map((employee) => (
+                  <span
+                    key={employee.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/employee-id', employee.id);
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
+                    className="cursor-grab select-none rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-sm text-neutral-800 active:cursor-grabbing"
+                    title="Drag onto the assigned list to assign"
+                  >
+                    {employee.first_name} {employee.last_name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <h3 className="mb-3 text-sm font-semibold text-neutral-900">Assigned employees</h3>
-          <ul className="flex flex-col gap-2">
+          <ul
+            onDragOver={(e) => {
+              if (!canAssign || !e.dataTransfer.types.includes('text/employee-id')) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+              setIsDropTargetActive(true);
+            }}
+            onDragLeave={() => setIsDropTargetActive(false)}
+            onDrop={(e) => {
+              if (!canAssign) return;
+              const employeeId = e.dataTransfer.getData('text/employee-id');
+              setIsDropTargetActive(false);
+              if (employeeId && shift) assignMutation.mutate({ shiftId: shift.id, employeeId });
+            }}
+            className={[
+              'flex flex-col gap-2 rounded-lg',
+              isDropTargetActive ? 'outline outline-2 outline-dashed outline-offset-2 outline-brand-400' : ''
+            ].join(' ')}
+          >
             {(assignments ?? []).length === 0 ? (
-              <p className="text-sm text-neutral-500">No one is assigned to this shift yet.</p>
+              <p className="text-sm text-neutral-500">No one is assigned to this shift yet{canAssign ? ' — drag a name here to assign one' : ''}.</p>
             ) : (
               (assignments ?? []).map((assignment) => {
                 const employee = employees.find((e) => e.id === assignment.employee_id);
