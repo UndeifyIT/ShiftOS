@@ -84,13 +84,29 @@ function SuspenseRoute({ children }: { children: React.ReactNode }): React.React
 function OnboardingGate(): React.ReactElement {
   const { activeOrganization } = useSession();
   const isNewFlowOrg = Boolean(activeOrganization?.metadata?.onboardingStartedAt);
-  const { data: branches, isLoading } = useRpcQuery<Branch[]>('list_branches');
+  const { data: branches, isLoading, refetch } = useRpcQuery<Branch[]>('list_branches');
   // Decided once, on this gate's first successful load, and never
   // re-evaluated after that (see the comment above for why a new-flow org
   // must never fall back to the branch-count heuristic mid-wizard).
   const alreadySetUpRef = useRef<boolean | null>(null);
+  // A legacy org's very first list_branches read has been observed
+  // (intermittently, both for an established org and for a brand-new
+  // invitee's first-ever login) to sometimes come back empty even when the
+  // org genuinely already has branches — a client-side bootstrap-timing
+  // issue, not a data problem (verified directly against the database in
+  // both cases this was caught). Since wrongly locking in "not set up" here
+  // sends an already-onboarded org/user into the setup wizard, a first
+  // empty read for a legacy org gets one free refetch before being trusted.
+  const retriedEmptyReadRef = useRef(false);
   if (alreadySetUpRef.current === null && !isLoading && branches) {
-    alreadySetUpRef.current = isNewFlowOrg ? false : branches.length > 0;
+    if (isNewFlowOrg) {
+      alreadySetUpRef.current = false;
+    } else if (branches.length > 0 || retriedEmptyReadRef.current) {
+      alreadySetUpRef.current = branches.length > 0;
+    } else {
+      retriedEmptyReadRef.current = true;
+      void refetch();
+    }
   }
 
   if (isLoading || alreadySetUpRef.current === null) {
@@ -112,7 +128,7 @@ function OnboardingGate(): React.ReactElement {
 }
 
 export function App(): React.ReactElement {
-  const { status, errorMessage, refresh, activeOrganization } = useSession();
+  const { status, errorMessage, refresh, activeOrganization, myContext } = useSession();
 
   if (status === 'loading') {
     return <FullPageSpinner />;
@@ -173,7 +189,17 @@ export function App(): React.ReactElement {
     );
   }
 
-  if (status === 'ready' && !activeOrganization?.metadata?.onboardingCompletedAt) {
+  // Onboarding only ever applies to the org-wide Owner/Manager who created
+  // this organization (SignUpPage.tsx: "the person who signs up here always
+  // becomes the org Owner" — there is no other path to organization
+  // creation). An invited Supervisor/Employee joins a pre-existing
+  // organization and must never be routed into "set up your organization,"
+  // no matter what onboardingCompletedAt/branch state looks like: they
+  // didn't create it, typically lack the permissions (e.g. branches.read)
+  // the legacy branch-count heuristic below depends on, and would see a
+  // wizard for a setup step they have no way to complete.
+  const isOrgWideMember = myContext?.branchAccess.isOrgWide ?? false;
+  if (status === 'ready' && isOrgWideMember && !activeOrganization?.metadata?.onboardingCompletedAt) {
     return (
       <SuspenseRoute>
         <OnboardingGate />
