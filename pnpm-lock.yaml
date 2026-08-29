@@ -312,6 +312,12 @@ importers:
       '@shiftos/api':
         specifier: workspace:*
         version: link:../api
+      '@shiftos/config':
+        specifier: workspace:*
+        version: link:../config
+      '@shiftos/constants':
+        specifier: workspace:*
+        version: link:../constants
       '@shiftos/database':
         specifier: workspace:*
         version: link:../database
@@ -3787,6 +3793,7 @@ packages:
   eslint@9.39.5:
     resolution: {integrity: sha512-DgZS62aPLXKlnxILS/AYCoRvHaZeXceIzlXPkkGGzJWSow1aEk0lbTlxUSlyjC8jcaKxAdOnTDz+o1JFSBsyjw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'

@@ -27,6 +27,7 @@ interface NavItem {
   orgWideOnly?: boolean;
 }
 
+// If you add or remove a route here, also update APP_ROUTES in packages/constants/src/index.ts — the AI assistant's navigate tool checks paths against that list, not this one (a frontend file can't be imported from the backend).
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/schedules', label: 'Scheduling', icon: CalendarDays, requiresPermission: 'schedules.read' },

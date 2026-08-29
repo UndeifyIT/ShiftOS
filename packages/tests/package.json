@@ -6,6 +6,7 @@
   "dependencies": {
     "@shiftos/api": "workspace:*",
     "@shiftos/config": "workspace:*",
+    "@shiftos/constants": "workspace:*",
     "@shiftos/database": "workspace:*",
     "@shiftos/services": "workspace:*",
     "@shiftos/errors": "workspace:*"

@@ -34,3 +34,29 @@ export const DATABASE_TABLES = {
   auditLogs: 'audit_logs',
   securityEvents: 'security_events'
 } as const;
+
+/**
+ * Every real in-app route the AI assistant's `navigate` tool is allowed to
+ * send a user to (packages/api/src/operations/assistant.ts's
+ * isAllowedRoute()) — kept in sync by hand with
+ * apps/web/src/layout/Sidebar.tsx's NAV_ITEMS[].to, since a frontend .tsx
+ * file can't be imported from this backend-and-frontend-shared package.
+ * Adding a new page to Sidebar.tsx's NAV_ITEMS should add its path here
+ * too if the assistant should be able to navigate to it.
+ */
+export const APP_ROUTES = [
+  '/',
+  '/schedules',
+  '/employees',
+  '/tasks',
+  '/attendance',
+  '/announcements',
+  '/requests',
+  '/branches',
+  '/members',
+  '/invitations',
+  '/organization',
+  '/admin',
+  '/profile',
+  '/security'
+] as const;
