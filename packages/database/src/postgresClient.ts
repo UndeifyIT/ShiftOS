@@ -1,6 +1,28 @@
-import { Pool, type PoolClient, type PoolConfig } from 'pg';
+import { Pool, types as pgTypes, type PoolClient, type PoolConfig } from 'pg';
 import type { DatabaseClient, DatabaseConfig } from './index';
 import { DatabaseError, ShiftOSError } from '@shiftos/errors';
+
+/**
+ * Postgres OID for the bare `date` type (no time, no zone). `pg`'s default
+ * parser for it constructs a JS `Date` at *local* midnight in the server
+ * process's own timezone (a documented node-postgres behavior, not a bug in
+ * `pg` itself) — so `date '2026-08-17'` becomes `2026-08-16T23:00:00.000Z`
+ * on a server running UTC+1, and a different wrong instant on any other
+ * offset. Every repository already types these columns as `string`
+ * (`start_date: string`, etc.); this makes the runtime value match that
+ * contract instead of silently depending on the server's and every
+ * client's timezone agreeing (which is true by coincidence in local dev,
+ * not guaranteed — or even likely — in a real deployment). Every other OID
+ * keeps `pg`'s own default parser, unaffected.
+ */
+const DATE_OID = 1082;
+
+function createTypeParsers(): PoolConfig['types'] {
+  return {
+    getTypeParser: (oid: number, format?: string) =>
+      oid === DATE_OID ? (value: string) => value : pgTypes.getTypeParser(oid, format as 'text' | 'binary' | undefined)
+  };
+}
 
 class PostgresClient implements DatabaseClient {
   constructor(private pool: Pool) {}
@@ -102,7 +124,8 @@ export function createPostgresClient(config: DatabaseConfig): DatabaseClient {
     connectionString: config.connectionString,
     max: config.maxConnections,
     idleTimeoutMillis: config.idleTimeoutMillis,
-    ssl: isLocalHost(config.connectionString) ? undefined : { rejectUnauthorized: !allowInsecureTls }
+    ssl: isLocalHost(config.connectionString) ? undefined : { rejectUnauthorized: !allowInsecureTls },
+    types: createTypeParsers()
   };
 
   const pool = new Pool(poolConfig);
