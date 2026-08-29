@@ -256,6 +256,11 @@ function AcknowledgeButton({
   const { data } = useRpcQuery<{ acknowledged: boolean }>('has_acknowledged_announcement', { announcementId });
 
   const acknowledge = useRpcMutation<{ acknowledged: boolean }, { announcementId: string }>('acknowledge_announcement', {
+    // Without this, a successful acknowledge left the button showing
+    // "Acknowledge" (not the "Acknowledged" pill) until a full page
+    // reload — the mutation's own onDone only refetches the announcements
+    // list, never this card's own has_acknowledged_announcement query.
+    invalidates: ['has_acknowledged_announcement'],
     onSuccess: onDone,
     onError: (err) => error(err.message)
   });
