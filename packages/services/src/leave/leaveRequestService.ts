@@ -12,6 +12,19 @@ import { notify } from '../notifications/notificationService.js';
 
 const LEAVE_TYPES: readonly LeaveType[] = ['annual_leave', 'sick_leave', 'emergency_leave', 'unpaid_leave'];
 
+/**
+ * `start_date`/`end_date` are typed `string` (LeaveRequestRepository's own
+ * interface) but `pg` actually returns a `date` column as a native `Date`
+ * object at the driver level — a template literal would otherwise call its
+ * default `Date.toString()` ("Thu Jul 01 2027 00:00:00 GMT+0100 (West
+ * Africa Standard Time)") into these user-facing notification messages.
+ * JSON responses elsewhere already coerce this correctly via
+ * `Date.prototype.toJSON`, so this only needs handling here.
+ */
+function formatLeaveDate(value: string): string {
+  return new Date(value).toISOString().slice(0, 10);
+}
+
 export interface CreateLeaveRequestInput {
   employeeId: string;
   leaveType: LeaveType;
@@ -81,7 +94,7 @@ export class LeaveRequestService {
       this.context.organizationId,
       before.requested_by,
       'Leave request approved',
-      `Your ${before.leave_type.replace('_', ' ')} request for ${before.start_date} to ${before.end_date} was approved.`
+      `Your ${before.leave_type.replace('_', ' ')} request for ${formatLeaveDate(before.start_date)} to ${formatLeaveDate(before.end_date)} was approved.`
     );
     await this.context.audit('approve_leave_request', 'leave_request', leaveRequestId, before, updated);
     return updated;
@@ -102,7 +115,7 @@ export class LeaveRequestService {
       this.context.organizationId,
       before.requested_by,
       'Leave request rejected',
-      `Your ${before.leave_type.replace('_', ' ')} request for ${before.start_date} to ${before.end_date} was rejected: ${managerNotes.trim()}`,
+      `Your ${before.leave_type.replace('_', ' ')} request for ${formatLeaveDate(before.start_date)} to ${formatLeaveDate(before.end_date)} was rejected: ${managerNotes.trim()}`,
       'high'
     );
     await this.context.audit('reject_leave_request', 'leave_request', leaveRequestId, before, updated);
