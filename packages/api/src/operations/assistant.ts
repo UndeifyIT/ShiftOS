@@ -220,3 +220,58 @@ export function toSafeToolErrorMessage(error: unknown): string | null {
   }
   return null;
 }
+
+export interface OpenAiMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | null;
+  tool_call_id?: string;
+  tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[];
+}
+
+export interface OpenAiToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+export interface OpenAiChatCompletionResult {
+  content: string | null;
+  toolCalls: OpenAiToolCall[];
+}
+
+const OPENAI_CHAT_COMPLETIONS_URL = 'https://api.openai.com/v1/chat/completions';
+
+/**
+ * Raw fetch wrapper around OpenAI's chat completions endpoint — no `openai`
+ * npm package (design spec: a single well-documented JSON-over-HTTPS
+ * endpoint doesn't need one). Always sends the full ASSISTANT_TOOLS list;
+ * the model decides whether to use any of them.
+ */
+export async function callOpenAiChatCompletion(
+  apiKey: string,
+  model: string,
+  messages: OpenAiMessage[]
+): Promise<OpenAiChatCompletionResult> {
+  const response = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({ model, messages, tools: ASSISTANT_TOOLS })
+  });
+
+  const body = await response.json();
+
+  if (!response.ok) {
+    throw new Error(body?.error?.message ?? `OpenAI request failed with status ${response.status}`);
+  }
+
+  const message = body?.choices?.[0]?.message ?? {};
+  const rawToolCalls: { id: string; function: { name: string; arguments: string } }[] = message.tool_calls ?? [];
+
+  return {
+    content: message.content ?? null,
+    toolCalls: rawToolCalls.map((call) => ({ id: call.id, name: call.function.name, arguments: call.function.arguments }))
+  };
+}
