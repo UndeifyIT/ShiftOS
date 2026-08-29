@@ -198,7 +198,7 @@ const TOOL_OPERATIONS: Record<string, RpcOperation<unknown, unknown>> = {
 export const TOOL_OPERATION_NAMES: readonly string[] = Object.keys(TOOL_OPERATIONS);
 
 export function getToolOperation(name: string): RpcOperation<unknown, unknown> | undefined {
-  return TOOL_OPERATIONS[name];
+  return Object.prototype.hasOwnProperty.call(TOOL_OPERATIONS, name) ? TOOL_OPERATIONS[name] : undefined;
 }
 
 /** Defense in depth against the model emitting an arbitrary/external path — checked before a `navigate` tool call's path ever reaches the client. */
@@ -262,7 +262,8 @@ export async function callOpenAiChatCompletion(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`
     },
-    body: JSON.stringify({ model, messages, tools: ASSISTANT_TOOLS })
+    body: JSON.stringify({ model, messages, tools: ASSISTANT_TOOLS }),
+    signal: AbortSignal.timeout(30_000)
   });
 
   const body = await response.json();
@@ -281,6 +282,7 @@ export async function callOpenAiChatCompletion(
 }
 
 const MAX_TOOL_ROUNDS = 3;
+const MAX_TOOL_CALLS_PER_ROUND = 8;
 const NOT_CONFIGURED_ANSWER = "AI assistant isn't configured yet.";
 const COULD_NOT_ANSWER_FALLBACK = "I couldn't fully answer that — try rephrasing or asking something more specific.";
 
@@ -309,9 +311,10 @@ function systemPrompt(context: ApplicationContext, branches: { id: string; name:
  * no new authorization mechanism). `navigate` is handled specially — it is
  * never a real operation and never touches the tool dispatch table.
  */
-async function runToolCalls(
+export async function runToolCalls(
   context: ApplicationContext,
-  toolCalls: { id: string; name: string; arguments: string }[]
+  toolCalls: { id: string; name: string; arguments: string }[],
+  resolveOperation: (name: string) => RpcOperation<unknown, unknown> | undefined = getToolOperation
 ): Promise<{ toolMessages: OpenAiMessage[]; navigateTo?: string }> {
   const toolMessages: OpenAiMessage[] = [];
   let navigateTo: string | undefined;
@@ -319,7 +322,8 @@ async function runToolCalls(
   for (const call of toolCalls) {
     let args: Record<string, unknown> = {};
     try {
-      args = JSON.parse(call.arguments || '{}');
+      const parsed: unknown = JSON.parse(call.arguments || '{}');
+      args = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
     } catch {
       toolMessages.push({ role: 'tool', tool_call_id: call.id, content: 'invalid request: malformed arguments' });
       continue;
@@ -336,7 +340,7 @@ async function runToolCalls(
       continue;
     }
 
-    const operation = getToolOperation(call.name);
+    const operation = resolveOperation(call.name);
     if (!operation) {
       toolMessages.push({ role: 'tool', tool_call_id: call.id, content: 'invalid request: unknown tool' });
       continue;
@@ -366,7 +370,17 @@ export const askAssistant = defineRpc('ask_assistant', async (context: Applicati
     return { answer: NOT_CONFIGURED_ANSWER };
   }
 
-  const branches = (await listBranches.handler(context, undefined)) as { id: string; name: string }[];
+  let branches: { id: string; name: string }[] = [];
+  try {
+    branches = (await listBranches.handler(context, undefined)) as { id: string; name: string }[];
+  } catch (error) {
+    if (toSafeToolErrorMessage(error) === null) {
+      throw error;
+    }
+    // Caller lacks branches.read (e.g. the Employee role) — the assistant
+    // still works, it just can't resolve branch names to ids in the system
+    // prompt (systemPrompt already renders an empty branch list as 'none yet').
+  }
 
   const messages: OpenAiMessage[] = [
     { role: 'system', content: systemPrompt(context, branches) },
@@ -380,18 +394,24 @@ export const askAssistant = defineRpc('ask_assistant', async (context: Applicati
       return { answer: response.content ?? COULD_NOT_ANSWER_FALLBACK };
     }
 
+    const cappedToolCalls = response.toolCalls.slice(0, MAX_TOOL_CALLS_PER_ROUND);
+
     messages.push({
       role: 'assistant',
       content: response.content,
-      tool_calls: response.toolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.arguments } }))
+      tool_calls: cappedToolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.arguments } }))
     });
 
-    const { toolMessages, navigateTo } = await runToolCalls(context, response.toolCalls);
+    const { toolMessages, navigateTo } = await runToolCalls(context, cappedToolCalls);
     if (navigateTo) {
       return { answer: response.content ?? 'Taking you there now.', navigateTo };
     }
     messages.push(...toolMessages);
   }
 
-  return { answer: COULD_NOT_ANSWER_FALLBACK };
+  // The loop above always executes MAX_TOOL_ROUNDS rounds of tool-calling;
+  // this final call lets the model use the last round's tool results to
+  // produce an actual answer instead of discarding them.
+  const finalResponse = await callOpenAiChatCompletion(config.OPENAI_API_KEY, config.OPENAI_MODEL, messages);
+  return { answer: finalResponse.content ?? COULD_NOT_ANSWER_FALLBACK };
 });
