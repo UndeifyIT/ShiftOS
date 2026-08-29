@@ -56,6 +56,7 @@ import {
   getMyNotificationPreferences,
   setMyNotificationPreference
 } from './operations/notification.js';
+import { askAssistant } from './operations/assistant.js';
 
 /**
  * The full set of ShiftOS RPC operations, registered explicitly one at a
@@ -164,6 +165,7 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(markAllNotificationsRead);
   registry.register(getMyNotificationPreferences);
   registry.register(setMyNotificationPreference);
+  registry.register(askAssistant);
 
   registry.register(createDepartment);
   registry.register(getDepartment);

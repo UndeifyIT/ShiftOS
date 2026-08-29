@@ -1,6 +1,10 @@
 import { AuthorizationError, ValidationError } from '@shiftos/errors';
 import { APP_ROUTES } from '@shiftos/constants';
+import { loadConfig } from '@shiftos/config';
+import { defineRpc } from '../rpc.js';
 import type { RpcOperation } from '../rpc.js';
+import { asRecord, requiredStringField } from '../parse.js';
+import type { ApplicationContext } from '@shiftos/services';
 import { listBranches } from './branch.js';
 import { listEmployees } from './employee.js';
 import { listDepartments, countEmployeesInDepartment } from './department.js';
@@ -275,3 +279,119 @@ export async function callOpenAiChatCompletion(
     toolCalls: rawToolCalls.map((call) => ({ id: call.id, name: call.function.name, arguments: call.function.arguments }))
   };
 }
+
+const MAX_TOOL_ROUNDS = 3;
+const NOT_CONFIGURED_ANSWER = "AI assistant isn't configured yet.";
+const COULD_NOT_ANSWER_FALLBACK = "I couldn't fully answer that — try rephrasing or asking something more specific.";
+
+function systemPrompt(context: ApplicationContext, branches: { id: string; name: string }[]): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const branchList = branches.map((b) => `${b.name} (id: ${b.id})`).join(', ') || 'none yet';
+  const scope = context.branchAccess.isOrgWide
+    ? 'organization-wide (every branch)'
+    : `limited to branch id(s): ${context.branchAccess.branchIds.join(', ')}`;
+
+  return [
+    'You are the ShiftOS assistant, built into a workforce-scheduling app for shift-based teams (organizations, branches, employees, schedules, shifts, tasks, attendance, leave requests, announcements, shift swaps).',
+    `Today's date is ${today}.`,
+    `The person asking is scoped to: ${scope}.`,
+    `This organization's branches: ${branchList}.`,
+    'Only state facts or numbers that came from a tool result — never invent or estimate one.',
+    'If the request is clearly "take me to" / "show me the X screen" rather than a factual question, call the navigate tool instead of describing the screen in text.',
+    'If a tool call fails because it is "not permitted", tell the user plainly that they do not have access to that information — do not guess an answer instead.'
+  ].join(' ');
+}
+
+/**
+ * Runs the model's requested tool calls for one round, executing each real
+ * tool via its own already-permission-checked handler against the shared
+ * `context` (design spec: no second createApplicationContext() round trip,
+ * no new authorization mechanism). `navigate` is handled specially — it is
+ * never a real operation and never touches the tool dispatch table.
+ */
+async function runToolCalls(
+  context: ApplicationContext,
+  toolCalls: { id: string; name: string; arguments: string }[]
+): Promise<{ toolMessages: OpenAiMessage[]; navigateTo?: string }> {
+  const toolMessages: OpenAiMessage[] = [];
+  let navigateTo: string | undefined;
+
+  for (const call of toolCalls) {
+    let args: Record<string, unknown> = {};
+    try {
+      args = JSON.parse(call.arguments || '{}');
+    } catch {
+      toolMessages.push({ role: 'tool', tool_call_id: call.id, content: 'invalid request: malformed arguments' });
+      continue;
+    }
+
+    if (call.name === 'navigate') {
+      const path = typeof args.path === 'string' ? args.path : '';
+      if (isAllowedRoute(path)) {
+        navigateTo = path;
+        toolMessages.push({ role: 'tool', tool_call_id: call.id, content: 'navigating' });
+      } else {
+        toolMessages.push({ role: 'tool', tool_call_id: call.id, content: 'invalid request: not a real app route' });
+      }
+      continue;
+    }
+
+    const operation = getToolOperation(call.name);
+    if (!operation) {
+      toolMessages.push({ role: 'tool', tool_call_id: call.id, content: 'invalid request: unknown tool' });
+      continue;
+    }
+
+    try {
+      const result = await operation.handler(context, args);
+      toolMessages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) });
+    } catch (error) {
+      const safeMessage = toSafeToolErrorMessage(error);
+      if (safeMessage === null) {
+        throw error;
+      }
+      toolMessages.push({ role: 'tool', tool_call_id: call.id, content: safeMessage });
+    }
+  }
+
+  return { toolMessages, navigateTo };
+}
+
+export const askAssistant = defineRpc('ask_assistant', async (context: ApplicationContext, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  const question = requiredStringField(input, 'question');
+
+  const config = loadConfig();
+  if (!config.OPENAI_API_KEY) {
+    return { answer: NOT_CONFIGURED_ANSWER };
+  }
+
+  const branches = (await listBranches.handler(context, undefined)) as { id: string; name: string }[];
+
+  const messages: OpenAiMessage[] = [
+    { role: 'system', content: systemPrompt(context, branches) },
+    { role: 'user', content: question }
+  ];
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const response = await callOpenAiChatCompletion(config.OPENAI_API_KEY, config.OPENAI_MODEL, messages);
+
+    if (response.toolCalls.length === 0) {
+      return { answer: response.content ?? COULD_NOT_ANSWER_FALLBACK };
+    }
+
+    messages.push({
+      role: 'assistant',
+      content: response.content,
+      tool_calls: response.toolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.arguments } }))
+    });
+
+    const { toolMessages, navigateTo } = await runToolCalls(context, response.toolCalls);
+    if (navigateTo) {
+      return { answer: response.content ?? 'Taking you there now.', navigateTo };
+    }
+    messages.push(...toolMessages);
+  }
+
+  return { answer: COULD_NOT_ANSWER_FALLBACK };
+});
