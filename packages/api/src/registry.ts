@@ -9,6 +9,7 @@ import {
   createSchedule, getSchedule, updateSchedule, archiveSchedule, listSchedules,
   listScheduleVersions, getLatestScheduleVersion,
   createShift, getShift, updateShift, cancelShift, archiveShift, listShiftsForSchedule, listShiftsForEmployeeInSchedule,
+  listMyShiftAssignmentsInSchedule,
   assignEmployee, updateAssignmentStatus, removeAssignment, listAssignmentsForShift,
   publishSchedule
 } from './operations/scheduling.js';
@@ -107,6 +108,7 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(archiveShift);
   registry.register(listShiftsForSchedule);
   registry.register(listShiftsForEmployeeInSchedule);
+  registry.register(listMyShiftAssignmentsInSchedule);
   registry.register(assignEmployee);
   registry.register(updateAssignmentStatus);
   registry.register(removeAssignment);

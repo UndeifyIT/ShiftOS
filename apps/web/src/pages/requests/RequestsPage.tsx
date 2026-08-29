@@ -323,12 +323,20 @@ function RequestSwapComposer({ onError }: { onError: (message: string) => void }
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = (myShifts ?? []).filter((s) => s.shift_date >= today).slice(0, 8);
 
-  // Resolve this employee's own assignment per shift (clock-in endpoints key
-  // off the assignment id, and so does request_shift_swap).
-  const { data: firstAssignments } = useRpcQuery<ShiftAssignment[]>(
-    'list_assignments_for_shift',
-    upcoming[0] ? { shiftId: upcoming[0].id } : undefined,
-    { enabled: Boolean(upcoming[0]) }
+  // Resolve this employee's own assignment per shift — clock-in endpoints
+  // key off the assignment id, and so does request_shift_swap, not the
+  // shift id the dropdown lists shifts by. Batched in one call (the same
+  // listForShifts() query listShiftsForEmployeeInSchedule already runs
+  // server-side, just not discarded before it reaches the client this
+  // time) rather than one list_assignments_for_shift call per shift.
+  const { data: myAssignments } = useRpcQuery<ShiftAssignment[]>(
+    'list_my_shift_assignments_in_schedule',
+    currentSchedule && myEmployee ? { scheduleId: currentSchedule.id, employeeId: myEmployee.id } : undefined,
+    { enabled: Boolean(currentSchedule && myEmployee) }
+  );
+  const assignmentIdByShiftId = useMemo(
+    () => new Map((myAssignments ?? []).map((a) => [a.shift_id, a.id])),
+    [myAssignments]
   );
 
   const requestMutation = useRpcMutation<unknown, { shiftAssignmentId: string; targetEmployeeId?: string | null; notes?: string | null }>(
@@ -354,15 +362,11 @@ function RequestSwapComposer({ onError }: { onError: (message: string) => void }
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            const resolved =
-              assignmentId ||
-              firstAssignments?.find((a) => a.employee_id === myEmployee.id)?.id ||
-              '';
-            if (!resolved) {
+            if (!assignmentId) {
               onError("Couldn't resolve your assignment for that shift.");
               return;
             }
-            requestMutation.mutate({ shiftAssignmentId: resolved, notes: notes.trim() || null });
+            requestMutation.mutate({ shiftAssignmentId: assignmentId, notes: notes.trim() || null });
           }}
           className="rounded-2xl border border-neutral-200 bg-white p-4"
         >
@@ -374,10 +378,12 @@ function RequestSwapComposer({ onError }: { onError: (message: string) => void }
                 value={assignmentId}
                 onChange={(e) => setAssignmentId(e.target.value)}
                 placeholder="Select a shift"
-                options={upcoming.map((shift) => ({
-                  value: shift.id,
-                  label: `${new Date(shift.shift_date).toLocaleDateString()} · ${shift.start_time}–${shift.end_time}`
-                }))}
+                options={upcoming
+                  .filter((shift) => assignmentIdByShiftId.has(shift.id))
+                  .map((shift) => ({
+                    value: assignmentIdByShiftId.get(shift.id)!,
+                    label: `${new Date(shift.shift_date).toLocaleDateString()} · ${shift.start_time}–${shift.end_time}`
+                  }))}
               />
             </label>
           </div>

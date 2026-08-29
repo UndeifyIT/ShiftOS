@@ -321,6 +321,32 @@ export class SchedulingService {
     return shifts.filter((shift) => assignedShiftIds.has(shift.id));
   }
 
+  /**
+   * The shift_assignment rows behind listShiftsForEmployeeInSchedule()'s
+   * shifts — that method computes exactly this via the same
+   * listForShifts() batch query, then discards the assignment ids and
+   * returns only the shifts. A caller that needs to act on a specific
+   * shift (request_shift_swap, clock_in — both key off shift_assignment_id,
+   * not shift_id) had no batched way to get them; the alternative is one
+   * list_assignments_for_shift call per shift, exactly the N+1 this
+   * method's sibling was already written to avoid.
+   */
+  async listMyShiftAssignmentsInSchedule(scheduleId: string, employeeId: string): Promise<ShiftAssignment[]> {
+    assertUuid(scheduleId, 'scheduleId');
+    assertUuid(employeeId, 'employeeId');
+    await this.context.requirePermission('shifts.read');
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+
+    const shifts = await this.shifts.findByBranchAndDateRange(this.context.organizationId, schedule.branch_id, schedule.start_date, schedule.end_date);
+    if (shifts.length === 0) return [];
+
+    const assignments = await this.assignments.listForShifts(this.context.organizationId, shifts.map((shift) => shift.id));
+    return assignments.filter(
+      (a) => a.employee_id === employeeId && a.assignment_status !== 'cancelled' && a.assignment_status !== 'declined'
+    );
+  }
+
   // ==================== Shift assignments ====================
 
   async assignEmployee(shiftId: string, employeeId: string): Promise<ShiftAssignment> {
