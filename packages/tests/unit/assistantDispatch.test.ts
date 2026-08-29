@@ -16,4 +16,11 @@ describe('tool dispatch table', () => {
     expect(getToolOperation('navigate')).toBeUndefined();
     expect(getToolOperation('not_a_real_tool')).toBeUndefined();
   });
+
+  it('does not resolve inherited Object.prototype keys as tool operations', () => {
+    expect(getToolOperation('constructor')).toBeUndefined();
+    expect(getToolOperation('toString')).toBeUndefined();
+    expect(getToolOperation('__proto__')).toBeUndefined();
+    expect(getToolOperation('hasOwnProperty')).toBeUndefined();
+  });
 });
