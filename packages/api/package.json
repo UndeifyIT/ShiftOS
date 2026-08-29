@@ -7,6 +7,8 @@
   "types": "dist/index.d.ts",
   "dependencies": {
     "@shiftos/auth": "workspace:*",
+    "@shiftos/config": "workspace:*",
+    "@shiftos/constants": "workspace:*",
     "@shiftos/database": "workspace:*",
     "@shiftos/errors": "workspace:*",
     "@shiftos/repositories": "workspace:*",

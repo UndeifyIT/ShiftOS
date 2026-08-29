@@ -10,3 +10,4 @@ export * from './operations/scheduling.js';
 export * from './operations/context.js';
 export * from './operations/membership.js';
 export * from './operations/user.js';
+export * from './operations/assistant.js';

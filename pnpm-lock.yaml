@@ -145,6 +145,12 @@ importers:
       '@shiftos/auth':
         specifier: workspace:*
         version: link:../auth
+      '@shiftos/config':
+        specifier: workspace:*
+        version: link:../config
+      '@shiftos/constants':
+        specifier: workspace:*
+        version: link:../constants
       '@shiftos/database':
         specifier: workspace:*
         version: link:../database
