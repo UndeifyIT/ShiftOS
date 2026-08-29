@@ -4,6 +4,7 @@ import {
   ShiftRepository,
   ShiftAssignmentRepository,
   EmployeeRepository,
+  UserRepository,
   publishScheduleWithVersion,
   type Schedule,
   type ScheduleVersion,
@@ -78,6 +79,7 @@ export class SchedulingService {
   private readonly shifts: ShiftRepository;
   private readonly assignments: ShiftAssignmentRepository;
   private readonly employees: EmployeeRepository;
+  private readonly users: UserRepository;
 
   constructor(private readonly context: ApplicationContext) {
     this.schedules = new ScheduleRepository(context.client);
@@ -85,6 +87,13 @@ export class SchedulingService {
     this.shifts = new ShiftRepository(context.client);
     this.assignments = new ShiftAssignmentRepository(context.client);
     this.employees = new EmployeeRepository(context.client);
+    this.users = new UserRepository(context.client);
+  }
+
+  /** Resolves "me" the same way attendance/announcements self-service does — email match to an employee record, never a client-supplied employeeId. */
+  private async resolveMyEmployee() {
+    const user = await this.users.getByIdOrThrow(this.context.userId);
+    return this.employees.findByEmail(this.context.organizationId, user.email);
   }
 
   // ==================== Schedules ====================
@@ -330,11 +339,21 @@ export class SchedulingService {
    * not shift_id) had no batched way to get them; the alternative is one
    * list_assignments_for_shift call per shift, exactly the N+1 this
    * method's sibling was already written to avoid.
+   *
+   * Unlike that sibling (a Manager/Supervisor coverage-lookup method that
+   * intentionally takes an arbitrary employeeId), this one is caller-scoped
+   * only — the name promises "my" assignments, so it resolves the caller's
+   * own employee record server-side rather than trusting a client-supplied
+   * employeeId, which would otherwise let any authenticated member with
+   * shifts.read enumerate another employee's shift_assignment ids.
    */
-  async listMyShiftAssignmentsInSchedule(scheduleId: string, employeeId: string): Promise<ShiftAssignment[]> {
+  async listMyShiftAssignmentsInSchedule(scheduleId: string): Promise<ShiftAssignment[]> {
     assertUuid(scheduleId, 'scheduleId');
-    assertUuid(employeeId, 'employeeId');
     await this.context.requirePermission('shifts.read');
+    const employee = await this.resolveMyEmployee();
+    if (!employee) {
+      return [];
+    }
     const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
     this.context.requireBranchAccess(schedule.branch_id);
 
@@ -343,7 +362,7 @@ export class SchedulingService {
 
     const assignments = await this.assignments.listForShifts(this.context.organizationId, shifts.map((shift) => shift.id));
     return assignments.filter(
-      (a) => a.employee_id === employeeId && a.assignment_status !== 'cancelled' && a.assignment_status !== 'declined'
+      (a) => a.employee_id === employee.id && a.assignment_status !== 'cancelled' && a.assignment_status !== 'declined'
     );
   }
 

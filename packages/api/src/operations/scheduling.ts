@@ -115,10 +115,7 @@ export const listShiftsForEmployeeInSchedule = defineRpc('list_shifts_for_employ
 
 export const listMyShiftAssignmentsInSchedule = defineRpc('list_my_shift_assignments_in_schedule', async (context, rawInput: unknown) => {
   const input = asRecord(rawInput);
-  return new SchedulingService(context).listMyShiftAssignmentsInSchedule(
-    requiredStringField(input, 'scheduleId'),
-    requiredStringField(input, 'employeeId')
-  );
+  return new SchedulingService(context).listMyShiftAssignmentsInSchedule(requiredStringField(input, 'scheduleId'));
 });
 
 // ---- Shift assignments ----

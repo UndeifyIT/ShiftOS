@@ -331,7 +331,7 @@ function RequestSwapComposer({ onError }: { onError: (message: string) => void }
   // time) rather than one list_assignments_for_shift call per shift.
   const { data: myAssignments } = useRpcQuery<ShiftAssignment[]>(
     'list_my_shift_assignments_in_schedule',
-    currentSchedule && myEmployee ? { scheduleId: currentSchedule.id, employeeId: myEmployee.id } : undefined,
+    currentSchedule ? { scheduleId: currentSchedule.id } : undefined,
     { enabled: Boolean(currentSchedule && myEmployee) }
   );
   const assignmentIdByShiftId = useMemo(
