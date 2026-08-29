@@ -1,5 +1,18 @@
 import { AuthorizationError, ValidationError } from '@shiftos/errors';
 import { APP_ROUTES } from '@shiftos/constants';
+import type { RpcOperation } from '../rpc.js';
+import { listBranches } from './branch.js';
+import { listEmployees } from './employee.js';
+import { listDepartments, countEmployeesInDepartment } from './department.js';
+import { listSchedules, listShiftsForSchedule } from './scheduling.js';
+import { listTasks } from './task.js';
+import { listAnnouncements } from './announcement.js';
+import { listMyAttendance, listAttendanceForBranchAndRange } from './attendance.js';
+import { listMyLeave, listPendingLeave } from './leave.js';
+import { listMyShiftSwaps, listOpenShiftSwaps, listPendingShiftSwapApprovals } from './shiftSwap.js';
+import { listMyNotifications } from './notification.js';
+import { listMembers, listInvitations } from './membership.js';
+import { getAttendanceSummaryReport, getTaskCompletionReport, getLeaveUsageReport } from './reporting.js';
 
 /** One OpenAI "function" tool definition — the shape OpenAI's chat completions `tools` array expects. */
 export interface AssistantToolSchema {
@@ -146,6 +159,43 @@ export const ASSISTANT_TOOLS: AssistantToolSchema[] = [
     ['startDate', 'endDate']
   )
 ];
+
+/**
+ * Maps each real (non-navigate) tool name to the actual RpcOperation it
+ * executes — the same operation object registry.ts registers at the top
+ * level, reused here rather than re-implemented, so a tool call and a
+ * normal UI-triggered call to the same RPC run identical code, including
+ * identical permission/branch-scoping checks.
+ */
+const TOOL_OPERATIONS: Record<string, RpcOperation<unknown, unknown>> = {
+  list_branches: listBranches as RpcOperation<unknown, unknown>,
+  list_employees: listEmployees as RpcOperation<unknown, unknown>,
+  list_departments: listDepartments as RpcOperation<unknown, unknown>,
+  count_employees_in_department: countEmployeesInDepartment as RpcOperation<unknown, unknown>,
+  list_schedules: listSchedules as RpcOperation<unknown, unknown>,
+  list_shifts_for_schedule: listShiftsForSchedule as RpcOperation<unknown, unknown>,
+  list_tasks: listTasks as RpcOperation<unknown, unknown>,
+  list_announcements: listAnnouncements as RpcOperation<unknown, unknown>,
+  list_my_attendance: listMyAttendance as RpcOperation<unknown, unknown>,
+  list_attendance_for_branch_and_range: listAttendanceForBranchAndRange as RpcOperation<unknown, unknown>,
+  list_my_leave: listMyLeave as RpcOperation<unknown, unknown>,
+  list_pending_leave: listPendingLeave as RpcOperation<unknown, unknown>,
+  list_my_shift_swaps: listMyShiftSwaps as RpcOperation<unknown, unknown>,
+  list_open_shift_swaps: listOpenShiftSwaps as RpcOperation<unknown, unknown>,
+  list_pending_shift_swap_approvals: listPendingShiftSwapApprovals as RpcOperation<unknown, unknown>,
+  list_my_notifications: listMyNotifications as RpcOperation<unknown, unknown>,
+  list_members: listMembers as RpcOperation<unknown, unknown>,
+  list_invitations: listInvitations as RpcOperation<unknown, unknown>,
+  get_attendance_summary_report: getAttendanceSummaryReport as RpcOperation<unknown, unknown>,
+  get_task_completion_report: getTaskCompletionReport as RpcOperation<unknown, unknown>,
+  get_leave_usage_report: getLeaveUsageReport as RpcOperation<unknown, unknown>
+};
+
+export const TOOL_OPERATION_NAMES: readonly string[] = Object.keys(TOOL_OPERATIONS);
+
+export function getToolOperation(name: string): RpcOperation<unknown, unknown> | undefined {
+  return TOOL_OPERATIONS[name];
+}
 
 /** Defense in depth against the model emitting an arbitrary/external path — checked before a `navigate` tool call's path ever reaches the client. */
 export function isAllowedRoute(path: string): boolean {
