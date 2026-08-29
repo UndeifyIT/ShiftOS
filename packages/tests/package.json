@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@shiftos/api": "workspace:*",
+    "@shiftos/config": "workspace:*",
     "@shiftos/database": "workspace:*",
     "@shiftos/services": "workspace:*",
     "@shiftos/errors": "workspace:*"

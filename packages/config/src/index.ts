@@ -17,6 +17,14 @@ export interface AppConfig {
    * createAdminClient), not silently degrade.
    */
   SUPABASE_SERVICE_ROLE_KEY?: string;
+  /**
+   * Optional: the AI assistant (packages/api/src/operations/assistant.ts)
+   * checks for this itself and returns a typed "not configured" result
+   * when absent, rather than the app failing to boot without it.
+   */
+  OPENAI_API_KEY?: string;
+  /** Defaults to a cheap, tool-calling-capable model — no reason to default larger for short Q&A + tool selection. */
+  OPENAI_MODEL: string;
 }
 
 const requiredVariables = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'DATABASE_URL'] as const;
@@ -87,7 +95,9 @@ export function loadConfig(): AppConfig {
     DATABASE_URL: requireEnv('DATABASE_URL'),
     NODE_ENV: (process.env.NODE_ENV as AppConfig['NODE_ENV']) ?? 'development',
     LOG_LEVEL: (process.env.LOG_LEVEL as AppConfig['LOG_LEVEL']) ?? 'info',
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || undefined
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || undefined,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY || undefined,
+    OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o-mini'
   };
 
   return config;
