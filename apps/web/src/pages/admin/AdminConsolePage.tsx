@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcQuery } from '../../lib/useRpc.js';
+import { AssistantPanel } from '../../components/assistant/AssistantPanel.js';
 import { DashStat, InitialsAvatar, StatusPill } from '../dashboard/dashboardWidgets.js';
 import type { Branch, Department, Employee, Invitation, Member } from '../../types/domain.js';
 
@@ -88,8 +89,6 @@ export default function AdminConsolePage(): React.ReactElement {
   const [detailBranchId, setDetailBranchId] = useState<string | null>(null);
   const [branchFilter, setBranchFilter] = useState<'all' | 'active' | 'archived'>('all');
   const [employeeSearch, setEmployeeSearch] = useState('');
-  const [askQuery, setAskQuery] = useState('');
-  const [askResult, setAskResult] = useState<string | null>(null);
 
   const canReadBranches = hasPermission('branches.read');
   const canReadEmployees = hasPermission('employees.read');
@@ -144,30 +143,6 @@ export default function AdminConsolePage(): React.ReactElement {
     setScreen('branch-detail');
   };
 
-  // The design's "Ask ShiftOS" card, answered read-only from the live org data.
-  const runAsk = (raw?: string) => {
-    const query = (raw ?? askQuery).toLowerCase();
-    let result: string | null = null;
-    if (query.includes('branch')) {
-      result = `${orgName} has ${(branches ?? []).length} branch(es): ${(branches ?? [])
-        .map((b) => b.name)
-        .join(', ') || 'none yet'}.`;
-    } else if (query.includes('employee') || query.includes('people') || query.includes('staff')) {
-      result = `${activeEmployees.length} active employees across ${(branches ?? []).length} branch(es). Largest branch: ${
-        branchSummaries.slice().sort((a, b) => b.employeeCount - a.employeeCount)[0]?.branch.name ?? '—'
-      }.`;
-    } else if (query.includes('invitation')) {
-      result = `${pendingInvitations.length} invitation(s) are still pending acceptance.`;
-    } else if (query.includes('subscription') || query.includes('seat') || query.includes('billing') || query.includes('plan')) {
-      result = `You're using ${seatPct}% of your ${SEAT_CAP}-seat employee capacity (${activeEmployees.length} employees). Billing itself isn't connected yet.`;
-    } else if (query.trim()) {
-      result = `I can answer from your live organization data — try asking about branches, employees, invitations or subscription.`;
-    }
-    setAskResult(result);
-  };
-
-  const askChips = ['How many branches?', 'How many employees?', 'Any pending invitations?', 'Subscription usage'];
-
   return (
     <div className="px-4 pb-10 pt-[72px] sm:px-6 lg:px-8">
       {/* Screen tabs — the design's top segmented control */}
@@ -195,47 +170,9 @@ export default function AdminConsolePage(): React.ReactElement {
                 Read-only
               </span>
             </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                runAsk();
-              }}
-              className="relative mt-[15px] flex flex-wrap items-center gap-2 rounded-[14px] border border-[#3B322C] bg-[#1A1613] py-[7px] pl-[15px] pr-2"
-            >
-              <input
-                value={askQuery}
-                onChange={(e) => setAskQuery(e.target.value)}
-                placeholder="Ask a question or give a command…"
-                aria-label="Ask ShiftOS"
-                className="min-w-0 flex-[1_1_240px] border-0 bg-transparent text-sm text-white outline-none placeholder:text-[#8B7F77]"
-              />
-              <button
-                type="submit"
-                className="h-10 shrink-0 cursor-pointer rounded-[11px] bg-brand-500 px-[19px] text-[13px] font-bold text-white transition-colors hover:bg-brand-600"
-              >
-                Ask
-              </button>
-            </form>
-            <div className="mt-[11px] flex flex-wrap gap-[7px]">
-              {askChips.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => {
-                    setAskQuery(chip);
-                    runAsk(chip);
-                  }}
-                  className="h-8 cursor-pointer rounded-full border border-[#3B322C] bg-transparent px-[13px] text-[11.5px] font-bold text-[#DED5CF] transition-colors hover:border-brand-500 hover:text-white"
-                >
-                  {chip}
-                </button>
-              ))}
+            <div className="mt-[15px]">
+              <AssistantPanel onClose={() => {}} />
             </div>
-            {askResult ? (
-              <div className="mt-3.5 rounded-2xl bg-white p-[14px_16px] text-neutral-900">
-                <p className="text-[12.5px] leading-normal">{askResult}</p>
-              </div>
-            ) : null}
           </section>
 
           <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5">

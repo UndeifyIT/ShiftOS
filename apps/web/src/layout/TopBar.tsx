@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell } from 'lucide-react';
+import { Bell, Sparkles } from 'lucide-react';
 import { Avatar, IconButton } from '@shiftos/ui';
 import { useSession } from '../auth/SessionProvider.js';
+import { AssistantPanel } from '../components/assistant/AssistantPanel.js';
 import { useSignedAvatarUrl } from '../lib/avatars.js';
 import { useRpcMutation, useRpcQuery } from '../lib/useRpc.js';
 import type { Notification } from '../types/domain.js';
@@ -30,6 +31,7 @@ export function TopBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }): Re
   const [menuOpen, setMenuOpen] = useState(false);
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const navigate = useNavigate();
 
   const activeOrg = organizations.find((org) => org.id === myContext?.organizationId);
@@ -95,6 +97,24 @@ export function TopBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }): Re
       </div>
 
       <div className="flex items-center gap-2">
+        <div className="relative">
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded={assistantOpen}
+            aria-label="Ask ShiftOS"
+            onClick={() => setAssistantOpen((open) => !open)}
+            className="flex h-9 w-9 items-center justify-center rounded-md text-neutral-600 hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+          >
+            <Sparkles size={18} aria-hidden="true" />
+          </button>
+          {assistantOpen ? (
+            <div className="absolute right-0 z-20 mt-1">
+              <AssistantPanel onClose={() => setAssistantOpen(false)} />
+            </div>
+          ) : null}
+        </div>
+
         {canReadNotifications ? (
           <div className="relative">
             <button
