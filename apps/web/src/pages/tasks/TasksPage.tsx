@@ -501,6 +501,7 @@ export default function TasksPage(): React.ReactElement {
   const canArchive = hasPermission('tasks.archive');
   const canUpdate = hasPermission('tasks.update');
   const canReadEmployees = hasPermission('employees.read');
+  const canReadBranches = hasPermission('branches.read');
 
   const [branchId, setBranchId] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | TaskStatus>('all');
@@ -516,7 +517,7 @@ export default function TasksPage(): React.ReactElement {
   const [reopenTarget, setReopenTarget] = useState<Task | null>(null);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
 
-  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canRead });
+  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canReadBranches });
   const { data: employees } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canRead && canReadEmployees });
 
   const myEmployeeRecord = useMemo(

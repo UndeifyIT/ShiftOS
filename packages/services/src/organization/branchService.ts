@@ -54,11 +54,23 @@ export class BranchService {
     return this.branches.patch(this.context.organizationId, branchId, input as Partial<Branch>);
   }
 
+  /**
+   * Deactivates the branch (is_active = false) rather than soft-deleting it
+   * (deleted_at) — the Admin Console's own UI promises archived branches
+   * stay listed and their data stays available ("This branch is archived —
+   * its data stays available"), and its Active/Archived filter tabs already
+   * expect list_branches to keep returning every non-hard-deleted branch.
+   * The generic TenantScopedRepository.archive()/softDelete() path used
+   * elsewhere in this codebase is the wrong tool here: it sets deleted_at,
+   * which removes the row from every list query and branch-access
+   * resolution, with no way back. Reactivating is just update_branch with
+   * isActive: true — already supported, no new RPC needed.
+   */
   async archiveBranch(branchId: string): Promise<Branch> {
     assertUuid(branchId, 'branchId');
     await this.context.requirePermission('branches.archive');
     const before = await this.branches.getByIdOrThrow(this.context.organizationId, branchId);
-    const archived = await this.branches.archive(this.context.organizationId, branchId);
+    const archived = await this.branches.patch(this.context.organizationId, branchId, { is_active: false } as Partial<Branch>);
     await this.context.audit('archive_branch', 'branch', branchId, before, archived);
     return archived;
   }
