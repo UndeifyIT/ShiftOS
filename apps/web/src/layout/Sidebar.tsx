@@ -36,11 +36,11 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/attendance', label: 'Attendance', icon: Clock, requiresPermission: 'attendance.read' },
   { to: '/announcements', label: 'Announcements', icon: Megaphone, requiresPermission: 'announcements.read' },
   { to: '/requests', label: 'Requests', icon: ArrowLeftRight, requiresPermission: 'swaps.read' },
-  { to: '/branches', label: 'Branches', icon: Building2, requiresPermission: 'branches.read', orgWideOnly: true },
-  { to: '/members', label: 'Members & Roles', icon: Shield, requiresPermission: 'org.members.manage', orgWideOnly: true },
-  { to: '/invitations', label: 'Invitations', icon: Mail, requiresPermission: 'org.members.manage', orgWideOnly: true },
-  { to: '/organization', label: 'Organization', icon: Settings, requiresPermission: 'organizations.read', orgWideOnly: true },
-  { to: '/admin', label: 'Admin Console', icon: ShieldCheck, requiresPermission: 'organizations.read', orgWideOnly: true }
+  { to: '/branches', label: 'Branches', icon: Building2, requiresPermission: 'branches.read' },
+  { to: '/members', label: 'Members & Roles', icon: Shield, requiresPermission: 'org.members.manage' },
+  { to: '/invitations', label: 'Invitations', icon: Mail, requiresPermission: 'org.members.manage' },
+  { to: '/organization', label: 'Organization', icon: Settings, requiresPermission: 'organizations.read' },
+  { to: '/admin', label: 'Admin Console', icon: ShieldCheck, requiresPermission: 'organizations.read' }
 ];
 
 /** Resolves the permission-filtered nav — shared by the desktop sidebar and the mobile tab bar/More sheet (design's mobileTabs + moreItems). */
