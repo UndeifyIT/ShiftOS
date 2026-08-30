@@ -176,7 +176,7 @@ export default function InvitationsPage(): React.ReactElement {
         error={error ? (error as Error).message : undefined}
         onRetry={() => void refetch()}
         emptyTitle="No invitations yet"
-        emptyDescription="Invite a Supervisor or Employee to give them their own ShiftOS sign-in."
+        emptyDescription="Invite a Supervisor, Employee, or Admin to give them their own ShiftOS sign-in."
       />
 
       <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite a member" description="They'll receive a real invitation email to set up their own account.">
