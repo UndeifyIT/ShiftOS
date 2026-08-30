@@ -11,7 +11,14 @@ describe('askAssistant when OPENAI_API_KEY is not configured', () => {
     process.env.SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_ANON_KEY = 'anon-key';
     process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db';
-    delete process.env.OPENAI_API_KEY;
+    // Set to '' rather than delete: loadConfig()'s parseDotenv() re-reads
+    // the real .env file on every call and fills in any key NOT already
+    // present in process.env -- so `delete` here gets silently overwritten
+    // by a real OPENAI_API_KEY value once one is configured in .env for
+    // actual use (as it now is), defeating this test's whole premise. An
+    // empty string is still present as a key (parseDotenv leaves it alone)
+    // and is still falsy, so the "not configured" branch still triggers.
+    process.env.OPENAI_API_KEY = '';
   });
 
   afterEach(() => {

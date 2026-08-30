@@ -14,8 +14,16 @@ describe('loadConfig OpenAI fields', () => {
     for (const [key, value] of Object.entries(REQUIRED_ENV)) {
       process.env[key] = value;
     }
-    delete process.env.OPENAI_API_KEY;
-    delete process.env.OPENAI_MODEL;
+    // Set to '' rather than delete: loadConfig()'s parseDotenv() re-reads
+    // the real .env file on every call and fills in any key NOT already
+    // present in process.env (`!(key in process.env)`) -- so `delete` here
+    // would get silently overwritten by a real OPENAI_API_KEY value on a
+    // machine that has one configured in .env for actual use. An empty
+    // string is still present as a key (parseDotenv leaves it alone) and
+    // is still falsy, so loadConfig()'s `|| undefined`/`|| 'gpt-4o-mini'`
+    // fallbacks behave identically to a genuinely-unset variable.
+    process.env.OPENAI_API_KEY = '';
+    process.env.OPENAI_MODEL = '';
   });
 
   afterEach(() => {
