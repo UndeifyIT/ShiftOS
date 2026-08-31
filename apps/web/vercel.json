@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/rpc/:path*", "destination": "https://shiftos-backend-api.onrender.com/rpc/:path*" }
+  ]
+}
