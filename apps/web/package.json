@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.json && vite build",
+    "build": "pnpm -w exec tsc -b && tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "test": "jest --config jest.config.web.js"
   },
