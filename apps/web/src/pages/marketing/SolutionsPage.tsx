@@ -68,14 +68,14 @@ export default function SolutionsPage(): React.ReactElement {
           {PROBLEMS.map((p) => (
             <article key={p.problem} className="flex flex-wrap overflow-hidden rounded-2xl border border-neutral-200 bg-white">
               <div className="min-w-[260px] flex-1 basis-[300px] border-b border-neutral-100 bg-[#FDFCFB] p-5.5 sm:border-b-0 sm:border-r">
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-error-600">The problem</p>
-                <h2 className="mt-2 text-lg font-extrabold tracking-[-0.02em] text-neutral-900">{p.problem}</h2>
-                <p className="mt-2 text-[13.5px] text-neutral-500">{p.pain}</p>
+                <p className="text-[12.5px] font-extrabold uppercase tracking-[0.1em] text-error-600">The problem</p>
+                <h2 className="mt-2 text-xl font-extrabold tracking-[-0.02em] text-neutral-900">{p.problem}</h2>
+                <p className="mt-2 text-base text-neutral-500">{p.pain}</p>
               </div>
               <div className="min-w-[260px] flex-1 basis-[320px] p-5.5">
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-success-600">In ShiftOS</p>
-                <p className="mt-2 text-sm font-bold text-neutral-900">{p.fix}</p>
-                <p className="mt-2 text-[13px] text-neutral-500">{p.detail}</p>
+                <p className="text-[12.5px] font-extrabold uppercase tracking-[0.1em] text-success-600">In ShiftOS</p>
+                <p className="mt-2 text-base font-bold text-neutral-900">{p.fix}</p>
+                <p className="mt-2 text-base text-neutral-500">{p.detail}</p>
               </div>
             </article>
           ))}
@@ -84,12 +84,12 @@ export default function SolutionsPage(): React.ReactElement {
         <h2 className="mt-11 font-display text-[1.6rem] font-extrabold tracking-[-0.025em] text-neutral-900">
           Built for teams that work in shifts
         </h2>
-        <p className="mt-2 text-sm text-neutral-500">The same operating model fits any business where people rotate through a location.</p>
+        <p className="mt-2 text-base text-neutral-500">The same operating model fits any business where people rotate through a location.</p>
         <div className="mt-4.5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {INDUSTRIES.map((i) => (
             <div key={i.name} className="rounded-xl border border-neutral-200 bg-white p-4">
-              <p className="text-sm font-extrabold text-neutral-900">{i.name}</p>
-              <p className="mt-1 text-[12.5px] text-neutral-500">{i.note}</p>
+              <p className="text-base font-extrabold text-neutral-900">{i.name}</p>
+              <p className="mt-1 text-sm text-neutral-500">{i.note}</p>
             </div>
           ))}
         </div>
