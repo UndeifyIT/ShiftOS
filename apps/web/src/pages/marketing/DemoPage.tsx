@@ -39,7 +39,7 @@ type FormState = 'idle' | 'busy' | 'sent';
 type FieldErrors = Partial<Record<'fullName' | 'organization' | 'workEmail' | 'whatsapp' | 'employees' | 'businessType' | 'preferredDate', string>>;
 
 const INPUT_BASE =
-  'h-11 w-full rounded-xl border bg-white px-[13px] text-[13.5px] text-neutral-900 outline-none transition-colors placeholder:text-neutral-400 focus:border-brand-500';
+  'h-11 w-full rounded-xl border bg-white px-[13px] text-base text-neutral-900 outline-none transition-colors placeholder:text-neutral-400 focus:border-brand-500';
 
 export default function DemoPage(): React.ReactElement {
   const [state, setState] = React.useState<FormState>('idle');
@@ -91,7 +91,7 @@ export default function DemoPage(): React.ReactElement {
       <div className="mx-auto flex max-w-7xl flex-wrap items-start gap-8 px-4 pb-16 pt-[52px] sm:px-6">
         {/* Copy */}
         <div className="min-w-[280px] flex-1 basis-[360px]">
-          <span className="inline-flex items-center rounded-full bg-brand-soft px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.1em] text-brand-deep">
+          <span className="inline-flex items-center rounded-full bg-brand-soft px-3 py-1.5 text-[12.5px] font-extrabold uppercase tracking-[0.1em] text-brand-deep">
             30-minute live demo
           </span>
           <h1 className="mt-4 font-display text-[2.625rem] font-extrabold leading-[1.08] tracking-[-0.035em] text-neutral-900">
@@ -108,15 +108,15 @@ export default function DemoPage(): React.ReactElement {
                   <d.icon className="size-[18px]" aria-hidden="true" />
                 </span>
                 <span>
-                  <span className="block text-sm font-extrabold text-neutral-900">{d.title}</span>
-                  <span className="block text-[12.5px] text-neutral-500">{d.body}</span>
+                  <span className="block text-base font-extrabold text-neutral-900">{d.title}</span>
+                  <span className="block text-base text-neutral-500">{d.body}</span>
                 </span>
               </li>
             ))}
           </ul>
           <div className="mt-6.5 rounded-2xl border border-neutral-200 bg-[#FDFCFB] p-4.5">
-            <p className="text-[13px] font-extrabold text-neutral-900">Prefer to write instead?</p>
-            <p className="mt-1.5 text-[13px] text-neutral-500">
+            <p className="text-base font-extrabold text-neutral-900">Prefer to write instead?</p>
+            <p className="mt-1.5 text-base text-neutral-500">
               Email{' '}
               <a href="mailto:hello@shiftos.app" className="font-bold text-brand-deep hover:text-brand-500">
                 hello@shiftos.app
@@ -137,15 +137,15 @@ export default function DemoPage(): React.ReactElement {
               <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-success-500 text-[19px] font-extrabold text-white">
                 &#10003;
               </span>
-              <p className="mt-3 text-[15px] font-extrabold text-neutral-900">Request received</p>
-              <p className="mt-1.5 text-[13px] text-neutral-600">
+              <p className="mt-3 text-base font-extrabold text-neutral-900">Request received</p>
+              <p className="mt-1.5 text-base text-neutral-600">
                 We'll confirm your slot by email within one business day. Nothing is scheduled until you get that
                 confirmation.
               </p>
               <button
                 type="button"
                 onClick={reset}
-                className="mt-3.5 h-[38px] rounded-xl border border-success-500/40 bg-white px-4 text-[12.5px] font-bold text-neutral-900 transition-colors hover:border-success-500"
+                className="mt-3.5 h-[38px] rounded-xl border border-success-500/40 bg-white px-4 text-sm font-bold text-neutral-900 transition-colors hover:border-success-500"
               >
                 Send another request
               </button>
@@ -153,13 +153,13 @@ export default function DemoPage(): React.ReactElement {
           ) : (
             <>
               <h2 className="m-0 text-center text-[22px] font-extrabold text-neutral-900">Book your free demo</h2>
-              <p className="mb-5 mt-1.5 text-center text-[13px] text-neutral-500">
+              <p className="mb-5 mt-1.5 text-center text-base text-neutral-500">
                 Tell us about your operation and we'll tailor the walkthrough.
               </p>
 
               <div className="grid gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))]">
                 <label>
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">
+                  <span className="mb-1.5 block text-sm font-bold text-neutral-900">
                     Full name<span className="text-brand-500"> *</span>
                   </span>
                   <input
@@ -170,11 +170,11 @@ export default function DemoPage(): React.ReactElement {
                     aria-invalid={!!errors.fullName}
                     className={inputClass(errors.fullName)}
                   />
-                  {errors.fullName ? <span className="mt-1.5 block text-[11.5px] font-semibold text-error-500">{errors.fullName}</span> : null}
+                  {errors.fullName ? <span className="mt-1.5 block text-[13px] font-semibold text-error-500">{errors.fullName}</span> : null}
                 </label>
 
                 <label>
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">
+                  <span className="mb-1.5 block text-sm font-bold text-neutral-900">
                     Organization name<span className="text-brand-500"> *</span>
                   </span>
                   <input
@@ -186,12 +186,12 @@ export default function DemoPage(): React.ReactElement {
                     className={inputClass(errors.organization)}
                   />
                   {errors.organization ? (
-                    <span className="mt-1.5 block text-[11.5px] font-semibold text-error-500">{errors.organization}</span>
+                    <span className="mt-1.5 block text-[13px] font-semibold text-error-500">{errors.organization}</span>
                   ) : null}
                 </label>
 
                 <label>
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">Branch name</span>
+                  <span className="mb-1.5 block text-sm font-bold text-neutral-900">Branch name</span>
                   <input
                     type="text"
                     value={values.branchName}
@@ -202,7 +202,7 @@ export default function DemoPage(): React.ReactElement {
                 </label>
 
                 <label>
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">
+                  <span className="mb-1.5 block text-sm font-bold text-neutral-900">
                     Work email<span className="text-brand-500"> *</span>
                   </span>
                   <input
@@ -214,12 +214,12 @@ export default function DemoPage(): React.ReactElement {
                     className={inputClass(errors.workEmail)}
                   />
                   {errors.workEmail ? (
-                    <span className="mt-1.5 block text-[11.5px] font-semibold text-error-500">{errors.workEmail}</span>
+                    <span className="mt-1.5 block text-[13px] font-semibold text-error-500">{errors.workEmail}</span>
                   ) : null}
                 </label>
 
                 <label>
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">
+                  <span className="mb-1.5 block text-sm font-bold text-neutral-900">
                     WhatsApp number<span className="text-brand-500"> *</span>
                   </span>
                   <input
@@ -231,12 +231,12 @@ export default function DemoPage(): React.ReactElement {
                     className={inputClass(errors.whatsapp)}
                   />
                   {errors.whatsapp ? (
-                    <span className="mt-1.5 block text-[11.5px] font-semibold text-error-500">{errors.whatsapp}</span>
+                    <span className="mt-1.5 block text-[13px] font-semibold text-error-500">{errors.whatsapp}</span>
                   ) : null}
                 </label>
 
                 <label>
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">
+                  <span className="mb-1.5 block text-sm font-bold text-neutral-900">
                     Number of employees<span className="text-brand-500"> *</span>
                   </span>
                   <select
@@ -255,12 +255,12 @@ export default function DemoPage(): React.ReactElement {
                     ))}
                   </select>
                   {errors.employees ? (
-                    <span className="mt-1.5 block text-[11.5px] font-semibold text-error-500">{errors.employees}</span>
+                    <span className="mt-1.5 block text-[13px] font-semibold text-error-500">{errors.employees}</span>
                   ) : null}
                 </label>
 
                 <label className="sm:col-span-full">
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">
+                  <span className="mb-1.5 block text-sm font-bold text-neutral-900">
                     Business type<span className="text-brand-500"> *</span>
                   </span>
                   <input
@@ -272,12 +272,12 @@ export default function DemoPage(): React.ReactElement {
                     className={inputClass(errors.businessType)}
                   />
                   {errors.businessType ? (
-                    <span className="mt-1.5 block text-[11.5px] font-semibold text-error-500">{errors.businessType}</span>
+                    <span className="mt-1.5 block text-[13px] font-semibold text-error-500">{errors.businessType}</span>
                   ) : null}
                 </label>
 
                 <label className="sm:col-span-full">
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">
+                  <span className="mb-1.5 block text-sm font-bold text-neutral-900">
                     Preferred date<span className="text-brand-500"> *</span>
                   </span>
                   <input
@@ -288,12 +288,12 @@ export default function DemoPage(): React.ReactElement {
                     className={inputClass(errors.preferredDate)}
                   />
                   {errors.preferredDate ? (
-                    <span className="mt-1.5 block text-[11.5px] font-semibold text-error-500">{errors.preferredDate}</span>
+                    <span className="mt-1.5 block text-[13px] font-semibold text-error-500">{errors.preferredDate}</span>
                   ) : null}
                 </label>
 
                 <label className="sm:col-span-full">
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">
+                  <span className="mb-1.5 block text-sm font-bold text-neutral-900">
                     Anything else we should know?{' '}
                     <span className="font-medium text-neutral-400">(optional)</span>
                   </span>
@@ -302,7 +302,7 @@ export default function DemoPage(): React.ReactElement {
                     value={values.notes}
                     onChange={set('notes')}
                     placeholder="Tell us about your branches, goals or any specific challenges…"
-                    className="w-full resize-y rounded-xl border border-neutral-300 px-[13px] py-2.5 text-[13.5px] text-neutral-900 outline-none transition-colors placeholder:text-neutral-400 focus:border-brand-500"
+                    className="w-full resize-y rounded-xl border border-neutral-300 px-[13px] py-2.5 text-base text-neutral-900 outline-none transition-colors placeholder:text-neutral-400 focus:border-brand-500"
                   />
                 </label>
               </div>
@@ -312,13 +312,13 @@ export default function DemoPage(): React.ReactElement {
                 disabled={state === 'busy'}
                 className={
                   state === 'busy'
-                    ? 'mt-4.5 h-12 w-full cursor-progress rounded-[13px] bg-[#F5A98A] text-[14.5px] font-bold text-white'
-                    : 'mt-4.5 h-12 w-full cursor-pointer rounded-[13px] bg-brand-500 text-[14.5px] font-bold text-white shadow-[0_14px_30px_-16px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600'
+                    ? 'mt-4.5 h-12 w-full cursor-progress rounded-[13px] bg-[#F5A98A] text-base font-bold text-white'
+                    : 'mt-4.5 h-12 w-full cursor-pointer rounded-[13px] bg-brand-500 text-base font-bold text-white shadow-[0_14px_30px_-16px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600'
                 }
               >
                 {state === 'busy' ? 'Sending request…' : 'Book my free demo \u2192'}
               </button>
-              <p className="mt-3 text-center text-[11.5px] text-neutral-400">
+              <p className="mt-3 text-center text-[13px] text-neutral-400">
                 We respect your privacy. Your information is only used to arrange the demo.
               </p>
             </>

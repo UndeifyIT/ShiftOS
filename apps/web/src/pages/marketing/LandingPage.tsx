@@ -200,7 +200,7 @@ export default function LandingPage(): React.ReactElement {
         <div className="relative mx-auto grid max-w-7xl items-center gap-11 px-4 py-14 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:py-16">
           <div className="max-w-xl">
             <span
-              className="animate-so-in inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white px-3.5 py-1.5 text-[10.5px] font-extrabold uppercase tracking-[0.11em] text-brand-deep"
+              className="animate-so-in inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white px-3.5 py-1.5 text-[12.5px] font-extrabold uppercase tracking-[0.11em] text-brand-deep"
             >
               <span className="animate-so-pulse-dot size-[7px] rounded-full bg-brand-500" />
               Built for retail &middot; made for people
@@ -230,13 +230,13 @@ export default function LandingPage(): React.ReactElement {
                 Book a demo
               </Link>
             </div>
-            <p className="animate-so-in mt-3.5 text-xs text-neutral-400" style={{ animationDelay: '.24s' }}>
+            <p className="animate-so-in mt-3.5 text-sm text-neutral-400" style={{ animationDelay: '.24s' }}>
               30-day trial &middot; no credit card required &middot; cancel anytime
             </p>
 
             <ul className="animate-so-in mt-6 flex flex-col gap-2" style={{ animationDelay: '.3s' }}>
               {HERO_POINTS.map((point) => (
-                <li key={point} className="flex items-center gap-2 text-[12.5px] font-semibold text-neutral-600">
+                <li key={point} className="flex items-center gap-2 text-base font-semibold text-neutral-600">
                   <span className="flex size-[17px] shrink-0 items-center justify-center rounded-full bg-success-soft text-[10px] font-extrabold text-success-600">
                     &#10003;
                   </span>
@@ -366,9 +366,9 @@ export default function LandingPage(): React.ReactElement {
 
         <div className="border-t border-neutral-100 bg-white/60">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-4 sm:px-6">
-            <span className="text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-neutral-400">Built for</span>
+            <span className="text-[12.5px] font-extrabold uppercase tracking-[0.12em] text-neutral-400">Built for</span>
             {INDUSTRIES.map((i) => (
-              <span key={i} className="text-[12.5px] font-bold text-neutral-600">
+              <span key={i} className="text-sm font-bold text-neutral-600">
                 {i}
               </span>
             ))}
@@ -386,7 +386,7 @@ export default function LandingPage(): React.ReactElement {
               <br />
               Everyone in sync.
             </h2>
-            <p className="mt-3.5 max-w-[400px] text-[14.5px] leading-relaxed text-neutral-500">
+            <p className="mt-3.5 max-w-[400px] text-base leading-relaxed text-neutral-500">
               ShiftOS gives managers, supervisors and staff the view each of them actually needs &mdash; nothing more.
             </p>
           </div>
@@ -397,10 +397,10 @@ export default function LandingPage(): React.ReactElement {
                   <r.icon className="size-[19px]" aria-hidden="true" />
                 </span>
                 <h3 className="mt-3.5 text-base font-extrabold text-neutral-900">{r.title}</h3>
-                <p className="mt-1 text-[12.5px] text-neutral-400">{r.role}</p>
+                <p className="mt-1 text-sm text-neutral-400">{r.role}</p>
                 <ul className="mt-3 flex flex-col gap-1.5">
                   {r.points.map((p) => (
-                    <li key={p} className="flex gap-2 text-[13px] text-neutral-600">
+                    <li key={p} className="flex gap-2 text-base text-neutral-600">
                       <span className="text-brand-500">&middot;</span>
                       {p}
                     </li>
@@ -422,13 +422,13 @@ export default function LandingPage(): React.ReactElement {
               <br />
               Manage anything.
             </h2>
-            <p className="mt-3.5 text-[14.5px] leading-relaxed text-neutral-500">
+            <p className="mt-3.5 text-base leading-relaxed text-neutral-500">
               From one dashboard a supervisor runs the whole day: attendance against the published schedule, tasks,
               handover notes and announcements.
             </p>
             <ul className="mt-4.5 flex flex-col gap-2.5">
               {VISIBILITY_POINTS.map((p) => (
-                <li key={p} className="flex gap-2.5 text-[13.5px] text-neutral-600">
+                <li key={p} className="flex gap-2.5 text-base text-neutral-600">
                   <span className="font-extrabold text-brand-500">&rarr;</span>
                   {p}
                 </li>
@@ -627,15 +627,15 @@ export default function LandingPage(): React.ReactElement {
             <h2 className="mt-3 font-display text-[2.1rem] font-extrabold leading-[1.12] tracking-[-0.03em] text-neutral-900">
               Staff stay updated, anytime, anywhere.
             </h2>
-            <p className="mt-3.5 max-w-[520px] text-[14.5px] leading-relaxed text-neutral-500">
+            <p className="mt-3.5 max-w-[520px] text-base leading-relaxed text-neutral-500">
               Staff open ShiftOS before and after a shift &mdash; not during it. Their next shift, tasks, notices and
               requests are ready when they check.
             </p>
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {STAFF_POINTS.map((s) => (
                 <div key={s.title} className="rounded-xl border border-neutral-200 bg-white p-3.5">
-                  <p className="text-[13px] font-extrabold text-neutral-900">{s.title}</p>
-                  <p className="mt-1 text-[12.5px] text-neutral-500">{s.body}</p>
+                  <p className="text-base font-extrabold text-neutral-900">{s.title}</p>
+                  <p className="mt-1 text-sm text-neutral-500">{s.body}</p>
                 </div>
               ))}
             </div>
@@ -652,8 +652,8 @@ export default function LandingPage(): React.ReactElement {
           {FEATURE_GRID.map((f) => (
             <div key={f.title} className="rounded-2xl border border-neutral-200 bg-white p-5 transition-shadow hover:shadow-lift">
               <f.icon className="size-[18px] text-brand-deep" aria-hidden="true" />
-              <h3 className="mt-3 text-[14.5px] font-extrabold text-neutral-900">{f.title}</h3>
-              <p className="mt-1 text-[12.5px] text-neutral-500">{f.body}</p>
+              <h3 className="mt-3 text-base font-extrabold text-neutral-900">{f.title}</h3>
+              <p className="mt-1 text-sm text-neutral-500">{f.body}</p>
             </div>
           ))}
         </div>
@@ -672,19 +672,19 @@ export default function LandingPage(): React.ReactElement {
           <h2 className="relative font-display text-[2.1rem] font-extrabold leading-[1.12] tracking-[-0.03em]">
             Publish next week before you close tonight.
           </h2>
-          <p className="relative mx-auto mt-3 max-w-[520px] text-[15px] opacity-90">
+          <p className="relative mx-auto mt-3 max-w-[520px] text-base opacity-90">
             Set up your branch, import your team and build the first schedule in one sitting. No card, no contract.
           </p>
           <div className="relative mt-6 flex flex-wrap justify-center gap-2.5">
             <Link
               to="/sign-up"
-              className="inline-flex h-[50px] items-center gap-2 rounded-2xl bg-white px-6 text-[15px] font-extrabold text-brand-deep hover:bg-brand-50"
+              className="inline-flex h-[50px] items-center gap-2 rounded-2xl bg-white px-6 text-base font-extrabold text-brand-deep hover:bg-brand-50"
             >
               Start free trial <ArrowRight className="size-4" />
             </Link>
             <Link
               to="/pricing"
-              className="inline-flex h-[50px] items-center rounded-2xl border border-white/55 bg-transparent px-5 text-[15px] font-bold text-white hover:bg-white/10"
+              className="inline-flex h-[50px] items-center rounded-2xl border border-white/55 bg-transparent px-5 text-base font-bold text-white hover:bg-white/10"
             >
               See pricing
             </Link>

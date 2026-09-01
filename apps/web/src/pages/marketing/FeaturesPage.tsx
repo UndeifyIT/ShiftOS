@@ -124,13 +124,13 @@ export default function FeaturesPage(): React.ReactElement {
                 </span>
                 <div>
                   <h2 className="text-lg font-extrabold tracking-[-0.02em] text-neutral-900">{c.title}</h2>
-                  <p className="mt-1.5 text-[13.5px] text-neutral-500">{c.body}</p>
-                  <p className="mt-2 text-[11.5px] font-bold text-neutral-400">{c.who}</p>
+                  <p className="mt-1.5 text-base text-neutral-500">{c.body}</p>
+                  <p className="mt-2 text-[13px] font-bold text-neutral-400">{c.who}</p>
                 </div>
               </div>
               <ul className="grid min-w-[260px] flex-1 basis-[300px] grid-cols-1 gap-x-4.5 gap-y-2 sm:grid-cols-2">
                 {c.points.map((p) => (
-                  <li key={p} className="flex gap-2 text-[13px] text-neutral-600">
+                  <li key={p} className="flex gap-2 text-base text-neutral-600">
                     <span className="font-extrabold text-success-600">&#10003;</span>
                     {p}
                   </li>
