@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Building2, CalendarDays, Check, Folder, MessageSquare, Store, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Building2, CalendarDays, Check, Folder, MessageSquare, Store, Users } from 'lucide-react';
 import { Shifty } from '../../components/shifty/Shifty.js';
 import { ShiftyMascot } from '../../components/shifty/mascot.js';
 import { Logo } from '../../marketing/Logo.js';
@@ -294,6 +295,13 @@ export function OnboardingWizardShell({ currentStep, children }: OnboardingWizar
             </div>
 
             <div className="ml-auto flex flex-wrap items-center gap-2.5">
+              <Link
+                to="/"
+                className="inline-flex items-center gap-[7px] rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-xs font-bold text-neutral-500 transition-colors hover:border-brand-300"
+              >
+                <ArrowLeft className="size-3.5" aria-hidden="true" />
+                Back to home
+              </Link>
               <a
                 href="mailto:hello@shiftos.app"
                 className="inline-flex items-center gap-[7px] rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-xs font-bold text-neutral-500 transition-colors hover:border-brand-300"
