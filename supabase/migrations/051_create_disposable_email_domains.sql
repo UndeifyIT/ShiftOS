@@ -56441,6 +56441,7 @@ CREATE OR REPLACE FUNCTION public.is_disposable_email_domain(p_email text)
 RETURNS boolean
 LANGUAGE sql
 STABLE
+SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.disposable_email_domains
