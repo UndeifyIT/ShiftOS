@@ -1,0 +1,47 @@
+-- 053_revoke_default_grants_disposable_email_domains.sql
+-- Migration: close a TRUNCATE-shaped hole on the disposable-email blocklist
+-- Found by the Task 5 final audit for the auth abuse protection feature
+-- (design spec: docs/superpowers/specs/2026-09-02-auth-abuse-protection-design.md).
+-- The audit's own report lived in this plan's SDD workspace, which is
+-- deleted once the branch is finished -- cited here against the spec doc,
+-- which stays in the repo.
+--
+-- migration 051's own comment claimed anon/authenticated get "no policy and
+-- no SELECT grant, so client-side table access remains fully default-deny" --
+-- that was wrong about the grants. Supabase's schema-wide default privileges
+-- give anon/authenticated full DELETE/INSERT/REFERENCES/SELECT/TRIGGER/
+-- TRUNCATE/UPDATE on every new table in `public` unless explicitly revoked,
+-- and 051 never revoked them for this table (051 only ever added a grant for
+-- supabase_auth_admin, and never touched the pre-existing defaults for the
+-- other two roles).
+--
+-- Not exploitable through the Data API today: RLS is enabled with no
+-- permissive policy for anon/authenticated, so SELECT/INSERT/UPDATE/DELETE
+-- all deny for them regardless of the grant, and PostgREST has no way to
+-- issue a TRUNCATE. But RLS does not apply to TRUNCATE at all -- for that
+-- one verb the table-level grant is the only control that exists, and this
+-- table's design (RLS as the sole protection layer) provides no backstop for
+-- it. A TRUNCATE would silently empty the 56,359-row blocklist, after which
+-- is_disposable_email_domain() returns false for every address and the
+-- entire signup-blocking feature fails open with no error and no
+-- security_events signal anywhere.
+--
+-- This revoke is provably behavior-preserving: RLS already denies
+-- anon/authenticated every row-level operation on this table, so nothing
+-- that works today stops working. Mirrors exactly what migration 052 already
+-- does for signup_attempts.
+--
+-- Deliberately NOT applied to public.security_events, which carries the
+-- same default grants but (unlike this table) has permissive policies
+-- declared TO public that the application genuinely relies on for
+-- anon/authenticated inserts and selects -- revoking there would break the
+-- app. security_events' own TRUNCATE exposure is a separate, pre-existing
+-- issue unrelated to this feature.
+-- REVOKE is naturally idempotent (revoking an already-absent privilege is a
+-- silent no-op, not an error), matching this repo's existing convention of
+-- leaving inherently-idempotent statements (e.g. ENABLE ROW LEVEL SECURITY)
+-- unwrapped rather than adding a no-op guard around them.
+REVOKE ALL ON public.disposable_email_domains FROM anon, authenticated;
+
+COMMENT ON TABLE public.disposable_email_domains IS
+  'Global disposable/temporary-email-domain blocklist (see migration 051). RLS default-deny plus explicit REVOKE (053) for anon/authenticated -- only readable by supabase_auth_admin via is_disposable_email_domain().';

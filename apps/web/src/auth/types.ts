@@ -32,6 +32,8 @@ export interface MyContext {
   permissions: string[];
   branchAccess: BranchAccess;
   accessibleOrganizationIds: string[];
+  /** True when this account's own email domain is on the signup-blocking list — advisory UI only, never enforced post-signup. */
+  emailFlaggedDisposable: boolean;
 }
 
 export type SessionStatus =

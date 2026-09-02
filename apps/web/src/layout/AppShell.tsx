@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { MoreHorizontal, UserCircle } from 'lucide-react';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
+import { MoreHorizontal, UserCircle, X } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar, useNavItems } from './Sidebar.js';
 import { TopBar } from './TopBar.js';
@@ -116,6 +116,49 @@ function MobileTabBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }): Rea
   );
 }
 
+/**
+ * A nudge for accounts whose own email domain is on the signup-blocking list
+ * (getMyContext's emailFlaggedDisposable — packages/api/src/operations/
+ * context.ts). Dismissal is plain component state, not persisted anywhere:
+ * AppShell stays mounted for the life of an authenticated session, so this
+ * lasts for "this session" as specified, and disappears back to shown on the
+ * next full bootstrap (sign-out/sign-in, or a page reload).
+ *
+ * There is no self-service email-change flow yet — ProfilePage.tsx's own
+ * email field is disabled with a "contact your administrator" hint (Task 5
+ * audit finding: an earlier version of this copy told the user to "update it
+ * in Settings → Profile", which is a dead end since that field can't be
+ * edited there). Points at the real, current remedy instead.
+ */
+function DisposableEmailNotice(): React.ReactElement | null {
+  const { myContext } = useSession();
+  const [dismissed, setDismissed] = useState(false);
+
+  if (!myContext?.emailFlaggedDisposable || dismissed) {
+    return null;
+  }
+
+  return (
+    <div role="alert" className="mx-3 mt-3 flex items-start gap-3 rounded-xl border border-[#F3D9AE] bg-warning-50 px-4 py-3 text-sm text-[#7A4F10] sm:mx-4">
+      <p className="min-w-0 flex-1">
+        Your account&apos;s email domain isn&apos;t accepted for new signups. To keep receiving account emails reliably, contact your administrator to update it, or see{' '}
+        <Link to="/profile" className="font-semibold underline underline-offset-2">
+          Settings → Profile
+        </Link>{' '}
+        for details.
+      </p>
+      <button
+        type="button"
+        onClick={() => setDismissed(true)}
+        aria-label="Dismiss"
+        className="shrink-0 cursor-pointer rounded-md p-0.5 text-[#7A4F10]/70 transition-colors hover:bg-[#7A4F10]/10 hover:text-[#7A4F10]"
+      >
+        <X className="size-4" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
 export function AppShell(): React.ReactElement {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -141,6 +184,7 @@ export function AppShell(): React.ReactElement {
           <TopBar onOpenMobileNav={() => setMobileNavOpen(true)} />
         </div>
         <main id="main-content" className="flex-1 overflow-y-auto pb-[72px] pt-[68px] min-[860px]:pb-0 sm:pt-[72px]">
+          <DisposableEmailNotice />
           <Outlet />
         </main>
         <MobileTabBar onOpenMobileNav={() => setMobileNavOpen(true)} />

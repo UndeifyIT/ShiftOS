@@ -104,6 +104,19 @@ export default function SignUpPage(): React.ReactElement {
         const message = signUpError.message.toLowerCase();
         if (message.includes('already registered') || message.includes('already exists')) {
           setError('An account with this email already exists.');
+        } else if (message.includes('permanent email address')) {
+          // hook_before_user_created (052_create_signup_abuse_hook.sql) rejected a
+          // disposable-email domain. The substring is used purely as a detector —
+          // the copy shown is the spec's exact literal, never signUpError.message,
+          // because GoTrue can wrap or prefix a hook's error text (e.g.
+          // "500: Error running hook...") and echoing that wrapper to the user
+          // would leak internals through a match that still fires.
+          setError('Please use a permanent email address to create your account.');
+        } else if (message.includes('too many attempts')) {
+          // Same hook, its rate-limit rejection — same detector-only reasoning as
+          // above. Checked before the generic 'too many' match below, which would
+          // otherwise catch this text too and show the wrong (rewritten) copy.
+          setError('Too many attempts. Please wait a few minutes and try again.');
         } else if (message.includes('rate limit') || message.includes('too many') || message.includes('email send')) {
           setError('Too many sign-up attempts for this email right now. Please wait a few minutes and try again.');
         } else {

@@ -1,0 +1,83 @@
+-- 054_revoke_truncate_delete_security_events.sql
+-- Migration: close the same TRUNCATE-shaped hole on public.security_events
+-- that migration 053 closed on public.disposable_email_domains.
+-- Found by the final whole-branch review of the auth abuse protection feature
+-- (design spec: docs/superpowers/specs/2026-09-02-auth-abuse-protection-design.md).
+-- That review's own report lives in this plan's SDD workspace, which is
+-- deleted once the branch is finished -- cited here against the spec doc,
+-- which stays in the repo.
+--
+-- THE GAP
+-- public.security_events (created in 016, hardened into an append-only table
+-- in 024) still carries Supabase's schema-wide default privileges for anon
+-- and authenticated: DELETE, INSERT, REFERENCES, SELECT, TRIGGER, TRUNCATE,
+-- UPDATE. Nothing has ever revoked them, because until now the table's
+-- protection was reasoned about purely in terms of RLS plus 024's trigger.
+-- Neither of those covers TRUNCATE:
+--   * RLS does not apply to TRUNCATE at all -- it is a table-level command,
+--     not a row-level one, so no policy is ever consulted.
+--   * 024's trg_security_events_block_mutation is BEFORE UPDATE OR DELETE
+--     FOR EACH ROW. TRUNCATE does not fire row-level triggers, so the
+--     append-only backstop that makes UPDATE/DELETE unconditionally
+--     impossible is simply not in the path for TRUNCATE.
+-- For that one verb the table-level grant is the only control that exists,
+-- and it is currently granted. A TRUNCATE would silently erase the entire
+-- security audit trail -- including this feature's own
+-- DISPOSABLE_EMAIL_SIGNUP_BLOCKED / SIGNUP_RATE_LIMITED rows -- with no
+-- error and no surviving record that it happened.
+--
+-- Not reachable through the Data API today (PostgREST has no way to issue a
+-- TRUNCATE), exactly as was true for 053's table. The point of both
+-- migrations is the same: do not leave a destructive verb resting on the
+-- absence of an API surface when a one-line REVOKE removes it outright.
+--
+-- WHY THIS IS NARROWER THAN 053's `REVOKE ALL`
+-- disposable_email_domains has no permissive policy for anon/authenticated
+-- at all, so REVOKE ALL there was provably a no-op on working behavior.
+-- security_events is different, and the difference is load-bearing: 024
+-- created security_events_select and security_events_insert declared TO
+-- public, and the application genuinely depends on them -- every audit write
+-- the app makes through securityEventRepository, and every read of the
+-- security trail, runs as anon or authenticated. A REVOKE ALL here would
+-- take SELECT and INSERT away and break audit logging across the whole app.
+-- So SELECT and INSERT are deliberately kept.
+--
+-- WHAT IS REVOKED, AND WHY IT IS BEHAVIOR-PRESERVING
+--   TRUNCATE   -- the actual gap above. Nothing in this repo truncates this
+--                 table; the table is documented and enforced as append-only.
+--   DELETE     -- already impossible for these roles twice over (no DELETE
+--                 policy, so RLS default-denies; and 024's trigger raises
+--                 unconditionally). Revoking it removes the standing grant so
+--                 the guarantee no longer rests solely on those two layers.
+--                 Verified against the code: packages/repositories/src/audit/
+--                 securityEventRepository.ts overrides update/delete/deleteById
+--                 to throw "security_events is append-only; records cannot be
+--                 deleted" -- the application has no delete path to break.
+--   REFERENCES -- lets a role create a foreign key pointing at this table,
+--                 which would then constrain what can be written to it. No
+--                 table in this schema references security_events, and no
+--                 client role should ever be able to add one.
+--   TRIGGER    -- lets a role attach its own trigger to the table. On an
+--                 append-only audit table that is an obvious tampering
+--                 surface (a BEFORE INSERT trigger can rewrite or suppress
+--                 the row being logged). Nothing grants a client role a
+--                 reason to attach triggers here.
+--   UPDATE     -- sits in exactly the same position as DELETE: no UPDATE
+--                 policy (RLS default-deny) plus 024's trigger already make
+--                 it unconditionally impossible in practice. Revoking it is
+--                 equally behavior-preserving, for the identical reason.
+-- None of DELETE/REFERENCES/TRIGGER/UPDATE is used anywhere in this repo for
+-- this table (checked by search across the whole worktree), and none of
+-- them can be issued through PostgREST in the first place.
+--
+-- REVOKE is naturally idempotent (revoking an already-absent privilege is a
+-- silent no-op, not an error), matching this repo's existing convention of
+-- leaving inherently-idempotent statements unwrapped rather than adding a
+-- no-op guard around them. This migration adds, drops and alters no policy:
+-- security_events_select and security_events_insert are untouched.
+REVOKE TRUNCATE, DELETE, REFERENCES, TRIGGER, UPDATE
+  ON public.security_events
+  FROM anon, authenticated;
+
+COMMENT ON TABLE public.security_events IS
+  'Append-only security event log (see migrations 016, 024). anon/authenticated keep only SELECT and INSERT, both gated by the RLS policies added in 024; TRUNCATE/DELETE/REFERENCES/TRIGGER/UPDATE were revoked in 054 because RLS and the append-only trigger do not cover TRUNCATE (and, for defense in depth, the same standing-grant argument applies to UPDATE even though the trigger already blocks it).';
