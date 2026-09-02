@@ -30,8 +30,17 @@
 -- ---------------------------------------------------------------------------
 -- One row per attempt -- not per created user -- so that counting rows in a
 -- time window IS the rate check; no counter column to increment, no race on an
--- upsert. Blocked attempts are recorded too, so a burst of disposable-domain
--- attempts from one IP also trips the rate limit on subsequent tries.
+-- upsert.
+--
+-- Which attempts get a row (the distinction matters -- see the hook below):
+--   * allowed signups                      -> recorded
+--   * signups blocked as disposable-domain -> recorded, so a burst of
+--     disposable-domain attempts from one IP also trips the rate limit on
+--     subsequent tries
+--   * signups blocked because the IP is ALREADY rate-limited -> NOT recorded,
+--     deliberately. Recording those would push the window forward on every
+--     rejected retry and let a legitimate user lock themselves out
+--     indefinitely by following the error message's own advice to retry.
 --
 -- Retention: not addressed here. The table grows one row per signup attempt
 -- and has no pruning job yet; at this project's signup volume that is
@@ -204,14 +213,23 @@ DECLARE
   c_window         constant interval := interval '10 minutes';
   c_max_attempts   constant integer  := 8;
 BEGIN
-  v_email := event -> 'user' ->> 'email';
+  -- btrim is defense in depth only: GoTrue normalizes and trims the address
+  -- before it ever reaches this hook, so surrounding whitespace is
+  -- unreachable via a real signup. It matters for any OTHER caller of this
+  -- function (a test, a future backend path, a manual invocation), where an
+  -- untrimmed address would otherwise yield a domain like ' gmail.com' that
+  -- matches nothing in the blocklist and would silently bypass the check.
+  -- Trimming whitespace is not "normalizing the local part" -- leading and
+  -- trailing spaces are not part of any real address, and '+alias' handling
+  -- and case folding of the local part remain deliberately absent.
+  v_email := btrim(event -> 'user' ->> 'email');
 
   -- Normalize the DOMAIN ONLY. The local part is never touched -- no '+alias'
   -- stripping, no case folding -- per the design spec's explicit guardrail.
   IF v_email IS NULL OR position('@' in v_email) = 0 THEN
     v_domain := NULL;
   ELSE
-    v_domain := lower(split_part(v_email, '@', 2));
+    v_domain := lower(btrim(split_part(v_email, '@', 2)));
   END IF;
 
   -- Parse the caller IP defensively. A missing or unparseable ip_address must
@@ -265,9 +283,26 @@ BEGIN
       AND created_at > now() - c_window;
 
     IF v_recent_count >= c_max_attempts THEN
-      INSERT INTO public.signup_attempts (ip_address, email_domain)
-      VALUES (v_ip, v_domain);
-
+      -- DELIBERATELY NO signup_attempts INSERT ON THIS BRANCH.
+      --
+      -- Recording the blocked retry would stamp a fresh created_at inside the
+      -- window, pushing the window forward on every rejected attempt. A
+      -- legitimate user behind shared NAT who does exactly what the error
+      -- message tells them to do -- "wait a few minutes and try again" --
+      -- would reset their own countdown by retrying, and could lock
+      -- themselves out indefinitely. That directly contradicts the design
+      -- spec's core anti-lockout principle ("do not accidentally block
+      -- legitimate users"), which is the binding authority here.
+      --
+      -- The row would be redundant anyway: the threshold has already been
+      -- crossed by real prior attempts, so recording a rejected retry adds no
+      -- signal to the count -- it only extends the lockout. The window
+      -- therefore expires ~10 minutes after the last REAL (non-blocked)
+      -- attempt, which is the intended behavior.
+      --
+      -- The SIGNUP_RATE_LIMITED audit row below is still written on every
+      -- blocked attempt, so the security trail keeps full visibility of the
+      -- retries even though the rate-limit counter does not.
       INSERT INTO public.security_events
         (organization_id, user_id, event_type, details, ip_address)
       VALUES
