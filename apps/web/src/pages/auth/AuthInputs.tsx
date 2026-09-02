@@ -31,6 +31,29 @@ export function AuthInput({ invalid = false, className = '', ...rest }: AuthInpu
   );
 }
 
+export interface AuthSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  invalid?: boolean;
+}
+
+export function AuthSelect({ invalid = false, className = '', children, ...rest }: AuthSelectProps): React.ReactElement {
+  return (
+    <select
+      {...rest}
+      className={[
+        'h-[46px] w-full rounded-xl border bg-white px-[13px] text-[13.5px] text-neutral-900 outline-none transition-colors focus:border-brand-500',
+        !rest.value ? 'text-neutral-400' : '',
+        invalid ? 'border-error-500 bg-[#FEF7F5]' : 'border-neutral-300',
+        rest.disabled ? 'cursor-not-allowed border-neutral-200 bg-[#F7F4F1] text-neutral-500' : '',
+        className
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {children}
+    </select>
+  );
+}
+
 export function AuthSubmit({
   loading = false,
   loadingLabel,

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Building2, Calendar, Lock, MessageSquare, Users } from 'lucide-react';
+import { Building2, Calendar, Info, Lock, MessageSquare, Users } from 'lucide-react';
 import { FormField } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { checklistFor, strengthFor } from '../../lib/password.js';
@@ -152,6 +152,14 @@ export default function SignUpPage(): React.ReactElement {
     >
       <h2 className="text-center text-[22px] font-extrabold tracking-[-0.02em] text-neutral-900">Create your account</h2>
       <p className="mt-2 text-center text-[13px] text-neutral-500">Start your 30-day free trial. Cancel anytime.</p>
+
+      <div className="mt-4.5 flex gap-[11px] rounded-[14px] border border-[#F7DFD1] bg-brand-soft p-[13px_14px] text-brand-800">
+        <Info className="size-[18px] shrink-0" aria-hidden="true" />
+        <p className="text-[12.5px] leading-relaxed">
+          <span className="font-extrabold">This account creates a new organization.</span> Sign up here only if you're a manager
+          or branch head. Supervisors and employees should wait for an invitation email instead of creating their own account.
+        </p>
+      </div>
 
       <form onSubmit={handleSubmit} noValidate className="mt-[18px] flex flex-col gap-[15px]">
         {Object.keys(fieldErrors).length > 0 ? (

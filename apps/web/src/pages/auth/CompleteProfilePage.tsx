@@ -5,7 +5,9 @@ import { useSession } from '../../auth/SessionProvider.js';
 import { removeAvatar, uploadUserAvatar } from '../../lib/avatars.js';
 import { isNetworkError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
-import { AuthBanner, AuthInput, AuthSubmit } from './AuthInputs.js';
+import { AuthBanner, AuthInput, AuthSelect, AuthSubmit } from './AuthInputs.js';
+
+const JOB_ROLES = ['Manager', 'Supervisor', 'Admin', 'Employee'] as const;
 
 /** Drives the photo tile below — mirrors the 4-state widget in the design
  * handoff (`ShiftOS Auth.dc.html`'s Complete Profile `photo` state). Upload
@@ -305,8 +307,17 @@ export default function CompleteProfilePage(): React.ReactElement {
         <FormField label="Phone Number" htmlFor="phone" required>
           {(fieldProps) => <AuthInput {...fieldProps} type="tel" autoComplete="tel" placeholder="+234 802 345 6789" value={phone} onChange={(e) => setPhone(e.target.value)} />}
         </FormField>
-        <FormField label="Job Title" htmlFor="jobTitle" hint="Optional">
-          {(fieldProps) => <AuthInput {...fieldProps} placeholder="Floor Supervisor" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />}
+        <FormField label="Job Role" htmlFor="jobTitle" hint="Optional">
+          {(fieldProps) => (
+            <AuthSelect {...fieldProps} value={jobTitle} onChange={(e) => setJobTitle(e.target.value)}>
+              <option value="">Select your role</option>
+              {JOB_ROLES.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </AuthSelect>
+          )}
         </FormField>
 
         {error ? (
