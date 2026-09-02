@@ -10,6 +10,8 @@ export interface UserProfile {
 export interface BranchAccess {
   isOrgWide: boolean;
   branchIds: string[];
+  /** The one accessible branch, or null when org-wide (sees everything) or scoped to zero/several branches. */
+  singleBranchId: string | null;
 }
 
 export interface MyContext {

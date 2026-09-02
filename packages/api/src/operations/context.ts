@@ -63,6 +63,15 @@ export const getMyContext = defineRpc('get_my_context', async (context) => {
     }
   }
 
+  // Task 10's shared "what's the one branch this caller is scoped to"
+  // concept (docs/superpowers/specs/2026-09-03-onboarding-ux-audit-design.md
+  // §2 Phase 10): non-null only when the caller has exactly one accessible
+  // branch AND isn't org-wide — an org-wide/Owner caller with a single
+  // existing branch still sees everything, they're not "single-branch", so
+  // they must get null too, same as a caller with zero or several branches.
+  const singleBranchId =
+    !context.branchAccess.isOrgWide && context.branchAccess.branchIds.length === 1 ? context.branchAccess.branchIds[0]! : null;
+
   return {
     userId: context.userId,
     organizationId: context.organizationId,
@@ -70,7 +79,7 @@ export const getMyContext = defineRpc('get_my_context', async (context) => {
     roleId: context.roleId,
     roleName: context.roleName,
     permissions: Array.from(context.permissions),
-    branchAccess: context.branchAccess,
+    branchAccess: { ...context.branchAccess, singleBranchId },
     accessibleOrganizationIds: context.accessibleOrganizationIds,
     emailFlaggedDisposable
   };
