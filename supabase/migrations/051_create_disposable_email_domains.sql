@@ -56455,3 +56455,38 @@ $$;
 -- Before User Created auth hook (which runs as that role) can call it.
 GRANT EXECUTE ON FUNCTION public.is_disposable_email_domain(text)
   TO supabase_auth_admin, authenticated, anon;
+
+-- EXECUTE on the function alone is NOT sufficient for supabase_auth_admin to
+-- get a correct answer: is_disposable_email_domain() is LANGUAGE sql STABLE
+-- (deliberately not SECURITY DEFINER -- it never needs to escalate privilege
+-- beyond a boolean lookup), so its internal SELECT runs as whichever role
+-- called the function, subject to that role's own RLS. supabase_auth_admin
+-- does NOT have BYPASSRLS (verified live: `SELECT rolbypassrls FROM
+-- pg_roles WHERE rolname = 'supabase_auth_admin'` -> false), and the table
+-- has RLS enabled with zero permissive policies (default-deny). Without this
+-- grant, the function's internal SELECT would be silently blocked by RLS for
+-- that role and is_disposable_email_domain() would always return false when
+-- called from the Before User Created auth hook -- defeating the entire
+-- signup-blocking check without ever raising an error. This grant does not
+-- reopen the table to anon/authenticated (no policy is added for them, and
+-- no SELECT grant is given to them either) -- only supabase_auth_admin, the
+-- single role the hook runs as, gets row-level read access.
+GRANT SELECT ON public.disposable_email_domains TO supabase_auth_admin;
+
+-- The GRANT above is necessary but NOT sufficient by itself: Postgres RLS
+-- with zero policies is default-deny for every role that lacks BYPASSRLS
+-- (and is not the table owner), regardless of table-level privilege grants.
+-- supabase_auth_admin does not have BYPASSRLS (verified live). Empirically
+-- confirmed this session on a disposable test role scoped identically
+-- (EXECUTE + this same GRANT SELECT, no policy): is_disposable_email_domain
+-- still silently returned false for a known disposable domain with no
+-- error -- exactly the load-bearing bug this migration fixes. A permissive
+-- SELECT policy naming the role explicitly is required in addition to the
+-- grant. Scoped to supabase_auth_admin only -- anon/authenticated get no
+-- policy and no SELECT grant, so client-side table access remains fully
+-- default-deny as originally designed.
+CREATE POLICY disposable_email_domains_select_auth_admin
+  ON public.disposable_email_domains
+  FOR SELECT
+  TO supabase_auth_admin
+  USING (true);
