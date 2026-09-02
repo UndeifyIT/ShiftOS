@@ -51,9 +51,20 @@ function isCommentOnly(block) {
 // semicolons (e.g. `AS $$ SELECT ...; $$;`) into invalid fragments -- a real
 // bug this script never hit before because it only ever ran a hand-filtered
 // subset of statements (bulk INSERTs) that happened to contain no dollar
-// quoting. Fixed here so this script is genuinely safe to reuse against any
-// future migration file, function bodies included.
-const DOLLAR_TAG_RE = /^\$[A-Za-z_]*\$/;
+// quoting. Fixed here for dollar-quoted bodies (including function bodies),
+// which is what every migration in this repo so far actually uses.
+//
+// Known gap, not yet handled: an ordinary '...' string literal containing a
+// ';' (e.g. an INSERT with a free-text value like 'foo;bar') will still be
+// mis-split, since there is no quote-tracking for single-quoted strings here
+// -- only for $tag$ dollar-quoting. None of this repo's migrations do that
+// today, so this is a latent risk for a *future* migration, not a bug in
+// anything this script has actually run. Add '...'-aware tracking (watching
+// for escaped '' inside a quoted string) before trusting this script against
+// a migration with such data.
+// Postgres dollar-quote tags follow identifier rules: letters/underscore
+// first, letters/digits/underscores after (e.g. `$body_v2$` is valid).
+const DOLLAR_TAG_RE = /^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/;
 
 function splitSqlStatements(text) {
   const statements = [];
