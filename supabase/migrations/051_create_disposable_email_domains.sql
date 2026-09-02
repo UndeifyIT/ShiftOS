@@ -16,12 +16,22 @@
 -- No organization/tenant scoping: this is a global platform list, not
 -- tenant data, so there is no organization_id column.
 --
--- RLS: enabled with deliberately NO permissive policy for anon/authenticated
--- -- this table is only ever read by is_disposable_email_domain() below
--- (executed by supabase_auth_admin from the Before User Created auth hook,
--- or by service-role/migration tooling), never by a direct client query.
--- RLS defaults to deny with no matching policy, which is exactly the
--- behavior wanted here.
+-- RLS: enabled, default-deny for anon/authenticated (no policy for either --
+-- migration 053 additionally revokes their default table-level grants
+-- outright, since RLS alone does not cover TRUNCATE). This table is only
+-- ever read by is_disposable_email_domain() below, or by service-role/
+-- migration tooling -- never by a direct client query.
+--
+-- supabase_auth_admin (the role Supabase Auth uses to invoke the Before
+-- User Created hook) DOES get an explicit SELECT policy below (this
+-- migration originally shipped without it, then hand-fixed once the RLS
+-- trap it caused was found -- see the fuller history above the policy
+-- itself, further down). Do not remove it: is_disposable_email_domain() is
+-- LANGUAGE sql (not SECURITY DEFINER), so its internal SELECT runs as the
+-- calling role, subject to that role's own RLS -- supabase_auth_admin does
+-- not have BYPASSRLS, so without this policy the function would silently
+-- always return false for the hook, defeating the entire signup-blocking
+-- feature with no error anywhere.
 
 CREATE TABLE IF NOT EXISTS public.disposable_email_domains (
   domain text PRIMARY KEY,
@@ -29,10 +39,6 @@ CREATE TABLE IF NOT EXISTS public.disposable_email_domains (
 );
 
 ALTER TABLE public.disposable_email_domains ENABLE ROW LEVEL SECURITY;
-
--- Deliberately no CREATE POLICY here: no permissive policy means RLS
--- default-deny applies to anon and authenticated alike. Do not add a
--- SELECT policy for either role -- see comment block above.
 
 INSERT INTO public.disposable_email_domains (domain) VALUES
   ('0-00.usa.cc'),
