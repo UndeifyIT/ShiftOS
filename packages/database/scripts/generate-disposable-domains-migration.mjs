@@ -194,6 +194,24 @@ function main() {
     throw new Error('mailchecker.blacklist() returned zero domains -- refusing to write an empty blocklist.');
   }
 
+  // MIGRATION_PATH points at 051, which has already been applied to production.
+  // Re-running this script to refresh the blocklist would silently rewrite that
+  // applied file in place: the new domains would live in a migration Postgres
+  // has already recorded as run, so they would never actually reach any
+  // database, and nothing would say so. Refuse instead of no-opping.
+  if (fs.existsSync(MIGRATION_PATH)) {
+    throw new Error(
+      `Refusing to overwrite ${MIGRATION_PATH}: that migration already exists and has been applied.\n` +
+        'Rewriting an applied migration in place means the refreshed blocklist never reaches any database.\n' +
+        'To refresh the list, do one of:\n' +
+        '  (a) temporarily point MIGRATION_PATH/TS_OUTPUT_PATH in this script at scratch paths, review the\n' +
+        '      diff against the applied file, then commit the new domains as a NEW numbered migration; or\n' +
+        '  (b) edit this script\'s MIGRATION_PATH constant to the next unused migration number (and\n' +
+        '      TS_OUTPUT_PATH if you want the .generated.ts written elsewhere) for this one run.\n' +
+        'Either way the result must be a new migration file -- this repo\'s migrations are append-only.'
+    );
+  }
+
   fs.mkdirSync(path.dirname(MIGRATION_PATH), { recursive: true });
   fs.writeFileSync(MIGRATION_PATH, buildMigrationSql(domains), 'utf8');
   console.log(`Wrote ${MIGRATION_PATH} (${domains.length} domains, ${buildInsertStatements(domains).length} INSERT statements)`);
