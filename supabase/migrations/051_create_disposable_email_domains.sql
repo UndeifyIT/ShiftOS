@@ -56484,10 +56484,26 @@ GRANT SELECT ON public.disposable_email_domains TO supabase_auth_admin;
 -- error -- exactly the load-bearing bug this migration fixes. A permissive
 -- SELECT policy naming the role explicitly is required in addition to the
 -- grant. Scoped to supabase_auth_admin only -- anon/authenticated get no
--- policy and no SELECT grant, so client-side table access remains fully
--- default-deny as originally designed.
-CREATE POLICY disposable_email_domains_select_auth_admin
-  ON public.disposable_email_domains
-  FOR SELECT
-  TO supabase_auth_admin
-  USING (true);
+-- policy, so RLS still denies them every row-level operation regardless of
+-- the table-level grants they hold by Supabase's schema-wide defaults (see
+-- migration 053, which revokes those defaults outright rather than relying
+-- on RLS alone -- RLS does not cover TRUNCATE, so the grant itself matters).
+--
+-- PostgreSQL has no `CREATE POLICY IF NOT EXISTS`; guarded here (unlike the
+-- bare CREATE POLICY this migration originally shipped with) so this file
+-- stays safely re-runnable, matching the DO-block idiom migration 052 uses
+-- for its own policies.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'disposable_email_domains'
+      AND policyname = 'disposable_email_domains_select_auth_admin')
+  THEN
+    CREATE POLICY disposable_email_domains_select_auth_admin
+      ON public.disposable_email_domains
+      FOR SELECT
+      TO supabase_auth_admin
+      USING (true);
+  END IF;
+END$$;

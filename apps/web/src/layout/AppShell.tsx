@@ -122,10 +122,13 @@ function MobileTabBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }): Rea
  * context.ts). Dismissal is plain component state, not persisted anywhere:
  * AppShell stays mounted for the life of an authenticated session, so this
  * lasts for "this session" as specified, and disappears back to shown on the
- * next full bootstrap (sign-out/sign-in, or a page reload). There is no
- * self-service email-change flow yet (ProfilePage.tsx's email field is
- * disabled with a "contact your administrator" hint) — this links to
- * /profile as the closest existing destination rather than building one.
+ * next full bootstrap (sign-out/sign-in, or a page reload).
+ *
+ * There is no self-service email-change flow yet — ProfilePage.tsx's own
+ * email field is disabled with a "contact your administrator" hint (Task 5
+ * audit finding: an earlier version of this copy told the user to "update it
+ * in Settings → Profile", which is a dead end since that field can't be
+ * edited there). Points at the real, current remedy instead.
  */
 function DisposableEmailNotice(): React.ReactElement | null {
   const { myContext } = useSession();
@@ -138,11 +141,11 @@ function DisposableEmailNotice(): React.ReactElement | null {
   return (
     <div role="alert" className="mx-3 mt-3 flex items-start gap-3 rounded-xl border border-[#F3D9AE] bg-warning-50 px-4 py-3 text-sm text-[#7A4F10] sm:mx-4">
       <p className="min-w-0 flex-1">
-        Your account&apos;s email domain isn&apos;t accepted for new signups. To keep receiving account emails reliably, update it in{' '}
+        Your account&apos;s email domain isn&apos;t accepted for new signups. To keep receiving account emails reliably, contact your administrator to update it, or see{' '}
         <Link to="/profile" className="font-semibold underline underline-offset-2">
           Settings → Profile
-        </Link>
-        .
+        </Link>{' '}
+        for details.
       </p>
       <button
         type="button"

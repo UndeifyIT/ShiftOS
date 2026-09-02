@@ -47,7 +47,7 @@ export default function SignInPage(): React.ReactElement {
         setError(
           isNetworkError(signInError)
             ? "Couldn't reach ShiftOS. Check your connection and try again."
-            : 'Incorrect email or password.'
+            : 'Invalid email or password.'
         );
       }
     } catch (err) {
@@ -117,7 +117,7 @@ export default function SignInPage(): React.ReactElement {
         {error ? (
           <AuthBanner
             tone={error.includes("reach ShiftOS") || error.includes('connection') ? 'warn' : 'bad'}
-            title={error.includes("reach ShiftOS") || error.includes('connection') ? "Couldn't reach ShiftOS" : 'Email or password is incorrect'}
+            title={error.includes("reach ShiftOS") || error.includes('connection') ? "Couldn't reach ShiftOS" : 'Invalid email or password'}
             body={error}
           />
         ) : null}
