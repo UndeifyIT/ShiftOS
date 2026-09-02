@@ -62,27 +62,22 @@
 --                 surface (a BEFORE INSERT trigger can rewrite or suppress
 --                 the row being logged). Nothing grants a client role a
 --                 reason to attach triggers here.
--- None of DELETE/REFERENCES/TRIGGER is used anywhere in this repo for this
--- table (checked by search across the whole worktree), and none of them can
--- be issued through PostgREST in the first place.
---
--- UPDATE is deliberately NOT revoked by this migration. It sits in exactly
--- the same position as DELETE -- no UPDATE policy (RLS default-deny) plus
--- 024's trigger -- so revoking it would be equally safe and equally
--- defense-in-depth. It is left alone only because this fix wave's scope
--- named TRUNCATE/DELETE/REFERENCES/TRIGGER explicitly, and this repo's
--- convention is that a security migration does exactly what its review
--- authorized and no more. Revoking UPDATE is a clean, behavior-preserving
--- follow-up whenever someone wants it.
+--   UPDATE     -- sits in exactly the same position as DELETE: no UPDATE
+--                 policy (RLS default-deny) plus 024's trigger already make
+--                 it unconditionally impossible in practice. Revoking it is
+--                 equally behavior-preserving, for the identical reason.
+-- None of DELETE/REFERENCES/TRIGGER/UPDATE is used anywhere in this repo for
+-- this table (checked by search across the whole worktree), and none of
+-- them can be issued through PostgREST in the first place.
 --
 -- REVOKE is naturally idempotent (revoking an already-absent privilege is a
 -- silent no-op, not an error), matching this repo's existing convention of
 -- leaving inherently-idempotent statements unwrapped rather than adding a
 -- no-op guard around them. This migration adds, drops and alters no policy:
 -- security_events_select and security_events_insert are untouched.
-REVOKE TRUNCATE, DELETE, REFERENCES, TRIGGER
+REVOKE TRUNCATE, DELETE, REFERENCES, TRIGGER, UPDATE
   ON public.security_events
   FROM anon, authenticated;
 
 COMMENT ON TABLE public.security_events IS
-  'Append-only security event log (see migrations 016, 024). anon/authenticated keep only SELECT and INSERT, both gated by the RLS policies added in 024; TRUNCATE/DELETE/REFERENCES/TRIGGER were revoked in 054 because RLS and the append-only trigger do not cover TRUNCATE.';
+  'Append-only security event log (see migrations 016, 024). anon/authenticated keep only SELECT and INSERT, both gated by the RLS policies added in 024; TRUNCATE/DELETE/REFERENCES/TRIGGER/UPDATE were revoked in 054 because RLS and the append-only trigger do not cover TRUNCATE (and, for defense in depth, the same standing-grant argument applies to UPDATE even though the trigger already blocks it).';
