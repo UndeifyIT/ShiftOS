@@ -8,6 +8,7 @@
   "dependencies": {
     "@shiftos/errors": "workspace:*",
     "@shiftos/types": "workspace:*",
+    "mailchecker": "^6.0.21",
     "pg": "^8.11.0"
   },
   "devDependencies": {
