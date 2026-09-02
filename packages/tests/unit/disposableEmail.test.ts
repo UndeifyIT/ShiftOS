@@ -67,4 +67,20 @@ describe('normalizeEmail', () => {
       domain: 'example.com',
     });
   });
+
+  it('takes the domain between the first and second "@", matching Postgres split_part', () => {
+    // Postgres: split_part('a@b@ZZZ.com', '@', 2) -> 'b'. This function must
+    // agree, not return 'zzz.com' (the old lastIndexOf('@') behavior). Such an
+    // address is invalid and GoTrue rejects it upstream, but the two layers
+    // must not disagree about what "the domain" is.
+    const multi = normalizeEmail('a@B@ZZZ.com');
+    expect(multi.domain).toBe('b');
+    // The remainder past the second '@' is preserved verbatim, not dropped.
+    expect(multi.email).toBe('a@b@ZZZ.com');
+  });
+
+  it('returns an empty domain for a trailing "@", matching Postgres split_part', () => {
+    // Postgres: split_part('user@', '@', 2) -> ''.
+    expect(normalizeEmail('user@')).toEqual({ email: 'user@', domain: '' });
+  });
 });
