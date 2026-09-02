@@ -21,9 +21,9 @@ import { Eyebrow } from '../../marketing/components.js';
  */
 
 const TONE_CLASSES: Record<string, string> = {
-  primary: 'bg-brand-soft text-brand-deep',
+  primary: 'bg-brand-soft text-brand-800',
   info: 'bg-info-50 text-info-600',
-  ok: 'bg-success-soft text-success-600',
+  ok: 'bg-success-soft text-success-text',
   warn: 'bg-warning-soft text-warning-600',
   violet: 'bg-[#F3EEFE] text-[#7C3AED]'
 };
@@ -111,7 +111,7 @@ export default function FeaturesPage(): React.ReactElement {
         <h1 className="mt-3.5 max-w-[720px] font-display text-[2.75rem] font-extrabold leading-[1.08] tracking-[-0.035em] text-neutral-900">
           Everything a shift-based business actually runs on.
         </h1>
-        <p className="mt-4 max-w-[620px] text-base text-neutral-500">
+        <p className="mt-4 max-w-[620px] text-base text-neutral-600">
           Nine capabilities, one operating model: Organization &rarr; Branch &rarr; Department &rarr; Manager, Supervisor and Staff.
         </p>
 
@@ -124,14 +124,14 @@ export default function FeaturesPage(): React.ReactElement {
                 </span>
                 <div>
                   <h2 className="text-lg font-extrabold tracking-[-0.02em] text-neutral-900">{c.title}</h2>
-                  <p className="mt-1.5 text-base text-neutral-500">{c.body}</p>
-                  <p className="mt-2 text-[13px] font-bold text-neutral-400">{c.who}</p>
+                  <p className="mt-1.5 text-base text-neutral-600">{c.body}</p>
+                  <p className="mt-2 text-[13px] font-bold text-neutral-600">{c.who}</p>
                 </div>
               </div>
               <ul className="grid min-w-[260px] flex-1 basis-[300px] grid-cols-1 gap-x-4.5 gap-y-2 sm:grid-cols-2">
                 {c.points.map((p) => (
                   <li key={p} className="flex gap-2 text-base text-neutral-600">
-                    <span className="font-extrabold text-success-600">&#10003;</span>
+                    <span className="font-extrabold text-success-text">&#10003;</span>
                     {p}
                   </li>
                 ))}

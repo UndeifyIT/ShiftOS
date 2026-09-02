@@ -82,7 +82,7 @@ export function MarketingNav(): React.ReactElement {
                   <li key={item.label}>
                     <Link to={item.to} onClick={() => setOpen(false)} className="flex items-center justify-between py-3 text-sm font-semibold">
                       {item.label}
-                      <X className="size-3.5 rotate-45 text-neutral-400" aria-hidden="true" />
+                      <X className="size-3.5 rotate-45 text-neutral-600" aria-hidden="true" />
                     </Link>
                   </li>
                 ))}

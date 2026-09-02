@@ -321,7 +321,9 @@ h4 {
     gap: 0.5rem;
     border-radius: 999px;
     background-color: theme('colors.brand.soft');
-    color: theme('colors.brand.deep');
+    /* brand.deep (700) only reaches 4.49:1 on this soft background --
+       WCAG AA needs 4.5:1 for this size text. brand.800 clears it (6.13:1). */
+    color: theme('colors.brand.800');
     padding: 0.375rem 0.75rem;
     font-size: 0.78rem;
     font-weight: 800;

@@ -35,15 +35,15 @@ import { Section } from '../../marketing/components.js';
 const HERO_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const SHIFT_STYLE: Record<string, { top: string; bottom: string; fg: string; bg: string }> = {
-  A: { top: '7:30a', bottom: '5:00p', fg: 'text-success-600', bg: 'bg-success-soft' },
+  A: { top: '7:30a', bottom: '5:00p', fg: 'text-success-text', bg: 'bg-success-soft' },
   B: { top: '11:30a', bottom: '10:30p', fg: 'text-[#7C3AED]', bg: 'bg-[#F3EEFE]' },
   C: { top: '2:30p', bottom: '10:30p', fg: 'text-info-600', bg: 'bg-info-50' }
 };
 
 const HERO_ROWS = [
-  { name: 'Christian Chikwelu', role: 'Manager', pattern: 'AAAAAAA', fg: 'text-brand-deep', bg: 'bg-brand-soft' },
+  { name: 'Christian Chikwelu', role: 'Manager', pattern: 'AAAAAAA', fg: 'text-brand-800', bg: 'bg-brand-soft' },
   { name: 'Sado Courage Joel', role: 'Supervisor', pattern: 'ACOCACC', fg: 'text-info-600', bg: 'bg-info-50' },
-  { name: 'Victoria Odibenua', role: 'Cashier', pattern: 'ACDBACA', fg: 'text-success-600', bg: 'bg-success-soft' },
+  { name: 'Victoria Odibenua', role: 'Cashier', pattern: 'ACDBACA', fg: 'text-success-text', bg: 'bg-success-soft' },
   { name: 'Michael Chiamaka', role: 'Cashier', pattern: 'CAOCCBA', fg: 'text-[#7C3AED]', bg: 'bg-[#F3EEFE]' }
 ];
 
@@ -105,21 +105,21 @@ const VISIBILITY_POINTS = [
 const DASH_NAV = ["Today's Shift", 'Schedules', 'Employees', 'Attendance', 'Tasks', 'Reports'];
 
 const DASH_STATS = [
-  { value: '17', label: 'Present', className: 'text-success-600' },
+  { value: '17', label: 'Present', className: 'text-success-text' },
   { value: '2', label: 'Late', className: 'text-warning-600' },
   { value: '1', label: 'Absent', className: 'text-error-600' },
   { value: '20', label: 'Scheduled', className: 'text-neutral-900' }
 ];
 
 const DASH_ATTENDANCE_ROWS = [
-  { name: 'John Doe', role: 'Sales Associate', status: 'Present', time: '08:04', tone: 'success', avatarFg: 'text-brand-deep', avatarBg: 'bg-brand-soft' },
+  { name: 'John Doe', role: 'Sales Associate', status: 'Present', time: '08:04', tone: 'success', avatarFg: 'text-brand-800', avatarBg: 'bg-brand-soft' },
   { name: 'Mary Johnson', role: 'Cashier', status: 'Late', time: '08:15', tone: 'warning', avatarFg: 'text-info-600', avatarBg: 'bg-info-50' },
-  { name: 'Michael Brown', role: 'Stock Clerk', status: 'Present', time: '08:02', tone: 'success', avatarFg: 'text-success-600', avatarBg: 'bg-success-soft' },
+  { name: 'Michael Brown', role: 'Stock Clerk', status: 'Present', time: '08:02', tone: 'success', avatarFg: 'text-success-text', avatarBg: 'bg-success-soft' },
   { name: 'James Carter', role: 'Baker', status: 'Absent', time: '—', tone: 'error', avatarFg: 'text-[#7C3AED]', avatarBg: 'bg-[#F3EEFE]' }
 ];
 
 const STATUS_PILL_CLASSES: Record<string, string> = {
-  success: 'bg-success-soft text-success-600',
+  success: 'bg-success-soft text-success-text',
   warning: 'bg-warning-soft text-warning-600',
   error: 'bg-error-50 text-error-600'
 };
@@ -132,7 +132,7 @@ const STAFF_POINTS = [
 ];
 
 const PHONE_CARDS = [
-  { title: '3 tasks for today', body: 'Shelf check · price labels · returns', icon: CheckCircle2, fg: 'text-success-600', bg: 'bg-success-soft' },
+  { title: '3 tasks for today', body: 'Shelf check · price labels · returns', icon: CheckCircle2, fg: 'text-success-text', bg: 'bg-success-soft' },
   { title: '1 notice to read', body: 'Stocktake weekend — closes 6 PM Sat', icon: Bell, fg: 'text-warning-600', bg: 'bg-warning-soft' },
   { title: 'Swap request pending', body: 'Mon 20 · with Michael Brown', icon: Repeat2, fg: 'text-[#7C3AED]', bg: 'bg-[#F3EEFE]' }
 ];
@@ -174,7 +174,7 @@ const PHONE_REQUESTS = [
     meta: 'Approved 12 May by Sarah Johnson',
     tag: 'Approved',
     icon: CheckCircle2,
-    fg: 'text-success-600',
+    fg: 'text-success-text',
     bg: 'bg-success-soft'
   }
 ];
@@ -217,7 +217,7 @@ export default function LandingPage(): React.ReactElement {
               </span>
               .
             </h1>
-            <p className="animate-so-in mt-5 max-w-[490px] text-[16.5px] leading-relaxed text-neutral-500" style={{ animationDelay: '.12s' }}>
+            <p className="animate-so-in mt-5 max-w-[490px] text-[16.5px] leading-relaxed text-neutral-600" style={{ animationDelay: '.12s' }}>
               Scheduling, attendance, tasks and announcements for shift-based teams. Supervisors publish the week in
               minutes, managers see every branch, staff always know where they stand.
             </p>
@@ -230,14 +230,14 @@ export default function LandingPage(): React.ReactElement {
                 Book a demo
               </Link>
             </div>
-            <p className="animate-so-in mt-3.5 text-sm text-neutral-400" style={{ animationDelay: '.24s' }}>
+            <p className="animate-so-in mt-3.5 text-sm text-neutral-600" style={{ animationDelay: '.24s' }}>
               30-day trial &middot; no credit card required &middot; cancel anytime
             </p>
 
             <ul className="animate-so-in mt-6 flex flex-col gap-2" style={{ animationDelay: '.3s' }}>
               {HERO_POINTS.map((point) => (
                 <li key={point} className="flex items-center gap-2 text-base font-semibold text-neutral-600">
-                  <span className="flex size-[17px] shrink-0 items-center justify-center rounded-full bg-success-soft text-[10px] font-extrabold text-success-600">
+                  <span className="flex size-[17px] shrink-0 items-center justify-center rounded-full bg-success-soft text-[10px] font-extrabold text-success-text">
                     &#10003;
                   </span>
                   {point}
@@ -255,18 +255,18 @@ export default function LandingPage(): React.ReactElement {
                   <span className="size-[9px] rounded-full bg-[#F5DFC0]" />
                   <span className="size-[9px] rounded-full bg-[#CDE9D8]" />
                 </span>
-                <span className="flex h-6 flex-1 items-center justify-center rounded-lg bg-neutral-100 text-[10px] font-bold text-neutral-400">
+                <span className="flex h-6 flex-1 items-center justify-center rounded-lg bg-neutral-100 text-[10px] font-bold text-neutral-600">
                   app.shiftos.com/schedules
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-2 px-3.5 pb-2.5 pt-3">
                 <span className="text-[12.5px] font-extrabold text-neutral-900">May 12 &ndash; May 18</span>
-                <span className="flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-[9.5px] font-extrabold text-success-600">
+                <span className="flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-[9.5px] font-extrabold text-success-text">
                   <span className="animate-so-pulse-dot size-1.5 rounded-full bg-success-500" />
                   Live
                 </span>
                 <span className="ml-auto flex gap-1.5">
-                  <span className="inline-flex h-6 items-center rounded-lg border border-neutral-200 px-2.5 text-[9.5px] font-bold text-neutral-500">
+                  <span className="inline-flex h-6 items-center rounded-lg border border-neutral-200 px-2.5 text-[9.5px] font-bold text-neutral-600">
                     AI Assist
                   </span>
                   <span className="inline-flex h-6 items-center rounded-lg bg-brand-500 px-2.5 text-[9.5px] font-bold text-white">
@@ -281,9 +281,9 @@ export default function LandingPage(): React.ReactElement {
                 />
                 <div className="overflow-x-auto">
                 <div className="grid min-w-[520px] grid-cols-[86px_repeat(7,minmax(0,1fr))] border-b border-neutral-100">
-                  <span className="px-2.5 py-2 text-[9px] font-extrabold uppercase tracking-[0.08em] text-neutral-400">Employee</span>
+                  <span className="px-2.5 py-2 text-[9px] font-extrabold uppercase tracking-[0.08em] text-neutral-600">Employee</span>
                   {HERO_DAYS.map((d) => (
-                    <span key={d} className="px-0.5 py-2 text-center text-[9.5px] font-extrabold text-neutral-500">
+                    <span key={d} className="px-0.5 py-2 text-center text-[9.5px] font-extrabold text-neutral-600">
                       {d}
                     </span>
                   ))}
@@ -302,14 +302,14 @@ export default function LandingPage(): React.ReactElement {
                       </span>
                       <span className="min-w-0">
                         <span className="block truncate text-[9.5px] font-bold text-neutral-900">{row.name}</span>
-                        <span className="block text-[8.5px] text-neutral-400">{row.role}</span>
+                        <span className="block text-[8.5px] text-neutral-600">{row.role}</span>
                       </span>
                     </span>
                     {row.pattern.split('').map((ch, i) => {
                       if (ch === 'O') {
                         return (
                           <span key={i} className="flex items-center px-0.5 py-1">
-                            <span className="block w-full rounded-md border border-dashed border-neutral-200 bg-neutral-50 py-1 text-center text-[8px] font-extrabold text-neutral-400">
+                            <span className="block w-full rounded-md border border-dashed border-neutral-200 bg-neutral-50 py-1 text-center text-[8px] font-extrabold text-neutral-600">
                               OFF
                             </span>
                           </span>
@@ -343,22 +343,22 @@ export default function LandingPage(): React.ReactElement {
             </div>
 
             <div className="animate-so-float absolute -left-4 bottom-10 hidden items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 shadow-lift sm:flex">
-              <span className="flex size-[30px] items-center justify-center rounded-lg bg-success-soft text-success-600">
+              <span className="flex size-[30px] items-center justify-center rounded-lg bg-success-soft text-success-text">
                 <CheckCircle2 className="size-4" aria-hidden="true" />
               </span>
               <span>
                 <span className="block text-[11px] font-extrabold text-neutral-900">Attendance 100%</span>
-                <span className="block text-[9.5px] text-neutral-400">Morning shift &middot; 20 of 20 marked</span>
+                <span className="block text-[9.5px] text-neutral-600">Morning shift &middot; 20 of 20 marked</span>
               </span>
             </div>
 
             <div className="animate-so-toast absolute -right-2 -top-3 hidden items-center gap-2 rounded-xl border border-brand-100 bg-white px-3 py-2.5 shadow-lift sm:flex">
-              <span className="flex size-[26px] items-center justify-center rounded-full bg-brand-soft text-brand-deep">
+              <span className="flex size-[26px] items-center justify-center rounded-full bg-brand-soft text-brand-800">
                 <Bell className="size-3.5" aria-hidden="true" />
               </span>
               <span>
                 <span className="block text-[11px] font-extrabold text-neutral-900">Schedule published</span>
-                <span className="block text-[9.5px] text-neutral-400">23 people notified</span>
+                <span className="block text-[9.5px] text-neutral-600">23 people notified</span>
               </span>
             </div>
           </div>
@@ -366,7 +366,7 @@ export default function LandingPage(): React.ReactElement {
 
         <div className="border-t border-neutral-100 bg-white/60">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-4 sm:px-6">
-            <span className="text-[12.5px] font-extrabold uppercase tracking-[0.12em] text-neutral-400">Built for</span>
+            <span className="text-[12.5px] font-extrabold uppercase tracking-[0.12em] text-neutral-600">Built for</span>
             {INDUSTRIES.map((i) => (
               <span key={i} className="text-sm font-bold text-neutral-600">
                 {i}
@@ -386,7 +386,7 @@ export default function LandingPage(): React.ReactElement {
               <br />
               Everyone in sync.
             </h2>
-            <p className="mt-3.5 max-w-[400px] text-base leading-relaxed text-neutral-500">
+            <p className="mt-3.5 max-w-[400px] text-base leading-relaxed text-neutral-600">
               ShiftOS gives managers, supervisors and staff the view each of them actually needs &mdash; nothing more.
             </p>
           </div>
@@ -397,7 +397,7 @@ export default function LandingPage(): React.ReactElement {
                   <r.icon className="size-[19px]" aria-hidden="true" />
                 </span>
                 <h3 className="mt-3.5 text-base font-extrabold text-neutral-900">{r.title}</h3>
-                <p className="mt-1 text-sm text-neutral-400">{r.role}</p>
+                <p className="mt-1 text-sm text-neutral-600">{r.role}</p>
                 <ul className="mt-3 flex flex-col gap-1.5">
                   {r.points.map((p) => (
                     <li key={p} className="flex gap-2 text-base text-neutral-600">
@@ -422,7 +422,7 @@ export default function LandingPage(): React.ReactElement {
               <br />
               Manage anything.
             </h2>
-            <p className="mt-3.5 text-base leading-relaxed text-neutral-500">
+            <p className="mt-3.5 text-base leading-relaxed text-neutral-600">
               From one dashboard a supervisor runs the whole day: attendance against the published schedule, tasks,
               handover notes and announcements.
             </p>
@@ -444,7 +444,7 @@ export default function LandingPage(): React.ReactElement {
                   <span className="size-2 rounded-full bg-[#F5DFC0]" />
                   <span className="size-2 rounded-full bg-[#CDE9D8]" />
                 </span>
-                <span className="flex h-[22px] flex-1 items-center justify-center rounded-md bg-neutral-100 text-[9.5px] font-bold text-neutral-400">
+                <span className="flex h-[22px] flex-1 items-center justify-center rounded-md bg-neutral-100 text-[9.5px] font-bold text-neutral-600">
                   app.shiftos.com/attendance
                 </span>
               </div>
@@ -454,7 +454,7 @@ export default function LandingPage(): React.ReactElement {
                     <span
                       key={label}
                       className={`truncate rounded-md px-1.5 py-1 text-[8.5px] font-bold ${
-                        label === 'Attendance' ? 'bg-brand-500 text-white' : 'text-neutral-400'
+                        label === 'Attendance' ? 'bg-brand-500 text-white' : 'text-neutral-600'
                       }`}
                     >
                       {label}
@@ -464,13 +464,13 @@ export default function LandingPage(): React.ReactElement {
                 <div className="min-w-0 flex-1 bg-[#FDFCFB] p-3">
                   <div className="flex flex-wrap items-baseline gap-2">
                     <span className="text-[13px] font-extrabold text-neutral-900">Attendance</span>
-                    <span className="text-[9.5px] text-neutral-400">Morning shift &middot; May 16</span>
+                    <span className="text-[9.5px] text-neutral-600">Morning shift &middot; May 16</span>
                   </div>
                   <div className="mt-2.5 flex gap-2">
                     {DASH_STATS.map((s) => (
                       <span key={s.label} className="flex-1 rounded-lg border border-neutral-100 bg-white px-2 py-1.5">
                         <span className={`block text-[15px] font-extrabold leading-tight ${s.className}`}>{s.value}</span>
-                        <span className="block text-[8.5px] text-neutral-500">{s.label}</span>
+                        <span className="block text-[8.5px] text-neutral-600">{s.label}</span>
                       </span>
                     ))}
                   </div>
@@ -485,10 +485,10 @@ export default function LandingPage(): React.ReactElement {
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[9.5px] font-bold text-neutral-900">{r.name}</span>
-                          <span className="block text-[8.5px] text-neutral-400">{r.role}</span>
+                          <span className="block text-[8.5px] text-neutral-600">{r.role}</span>
                         </span>
                         <span className={`rounded-full px-2 py-0.5 text-[8.5px] font-extrabold ${STATUS_PILL_CLASSES[r.tone]}`}>{r.status}</span>
-                        <span className="w-11 text-right text-[9px] font-bold text-neutral-500">{r.time}</span>
+                        <span className="w-11 text-right text-[9px] font-bold text-neutral-600">{r.time}</span>
                       </div>
                     ))}
                   </div>
@@ -525,7 +525,7 @@ export default function LandingPage(): React.ReactElement {
                 <div className="relative min-h-0 flex-1 overflow-hidden">
                   <div className="animate-so-phone-scroll h-full px-3 pb-5 pt-3">
                   <p className="text-[15px] font-extrabold tracking-[-0.025em] text-neutral-900">Good morning, John</p>
-                  <p className="mt-0.5 text-[10.5px] text-neutral-400">Morning shift starts in 2 minutes</p>
+                  <p className="mt-0.5 text-[10.5px] text-neutral-600">Morning shift starts in 2 minutes</p>
 
                   <div className="mt-3 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-deep p-3.5 text-white">
                     <span className="block text-[9.5px] font-extrabold uppercase tracking-[0.1em] opacity-85">Next shift</span>
@@ -541,7 +541,7 @@ export default function LandingPage(): React.ReactElement {
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block text-[10.5px] font-bold text-neutral-900">{p.title}</span>
-                          <span className="block text-[9.5px] text-neutral-400">{p.body}</span>
+                          <span className="block text-[9.5px] text-neutral-600">{p.body}</span>
                         </span>
                       </span>
                     ))}
@@ -554,7 +554,7 @@ export default function LandingPage(): React.ReactElement {
                   <div className="mt-2 flex flex-col gap-2">
                     {PHONE_UPCOMING.map((u) => (
                       <span key={u.date} className="flex items-center gap-2.5 rounded-xl border border-neutral-100 bg-white px-2.5 py-2.5">
-                        <span className="w-[52px] shrink-0 text-[9.5px] font-bold leading-tight text-neutral-500">{u.date}</span>
+                        <span className="w-[52px] shrink-0 text-[9.5px] font-bold leading-tight text-neutral-600">{u.date}</span>
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-1.5">
                             <span className="text-[11.5px] font-extrabold text-neutral-900">{u.time}</span>
@@ -566,7 +566,7 @@ export default function LandingPage(): React.ReactElement {
                               {u.tag}
                             </span>
                           </span>
-                          <span className="block text-[9.5px] text-neutral-400">{u.where}</span>
+                          <span className="block text-[9.5px] text-neutral-600">{u.where}</span>
                         </span>
                       </span>
                     ))}
@@ -582,7 +582,7 @@ export default function LandingPage(): React.ReactElement {
                     <div className="flex items-center gap-2 border-b border-neutral-100 bg-white px-3 py-2.5">
                       <span className="text-[11px] font-bold text-brand-deep">&larr; Home</span>
                       <span className="ml-auto text-[12.5px] font-extrabold text-neutral-900">My requests</span>
-                      <span className="ml-auto text-[10px] text-neutral-400">2 open</span>
+                      <span className="ml-auto text-[10px] text-neutral-600">2 open</span>
                     </div>
                     <div className="flex flex-col gap-2 px-3 pt-3">
                       {PHONE_REQUESTS.map((q) => (
@@ -592,7 +592,7 @@ export default function LandingPage(): React.ReactElement {
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block text-[10.5px] font-extrabold leading-snug text-neutral-900">{q.title}</span>
-                            <span className="mt-0.5 block text-[9.5px] text-neutral-400">{q.meta}</span>
+                            <span className="mt-0.5 block text-[9.5px] text-neutral-600">{q.meta}</span>
                           </span>
                           <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[8.5px] font-extrabold ${q.fg} ${q.bg}`}>{q.tag}</span>
                         </span>
@@ -627,7 +627,7 @@ export default function LandingPage(): React.ReactElement {
             <h2 className="mt-3 font-display text-[2.1rem] font-extrabold leading-[1.12] tracking-[-0.03em] text-neutral-900">
               Staff stay updated, anytime, anywhere.
             </h2>
-            <p className="mt-3.5 max-w-[520px] text-base leading-relaxed text-neutral-500">
+            <p className="mt-3.5 max-w-[520px] text-base leading-relaxed text-neutral-600">
               Staff open ShiftOS before and after a shift &mdash; not during it. Their next shift, tasks, notices and
               requests are ready when they check.
             </p>
@@ -635,7 +635,7 @@ export default function LandingPage(): React.ReactElement {
               {STAFF_POINTS.map((s) => (
                 <div key={s.title} className="rounded-xl border border-neutral-200 bg-white p-3.5">
                   <p className="text-base font-extrabold text-neutral-900">{s.title}</p>
-                  <p className="mt-1 text-sm text-neutral-500">{s.body}</p>
+                  <p className="mt-1 text-sm text-neutral-600">{s.body}</p>
                 </div>
               ))}
             </div>
@@ -653,7 +653,7 @@ export default function LandingPage(): React.ReactElement {
             <div key={f.title} className="rounded-2xl border border-neutral-200 bg-white p-5 transition-shadow hover:shadow-lift">
               <f.icon className="size-[18px] text-brand-deep" aria-hidden="true" />
               <h3 className="mt-3 text-base font-extrabold text-neutral-900">{f.title}</h3>
-              <p className="mt-1 text-sm text-neutral-500">{f.body}</p>
+              <p className="mt-1 text-sm text-neutral-600">{f.body}</p>
             </div>
           ))}
         </div>

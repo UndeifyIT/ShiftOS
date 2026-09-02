@@ -16,7 +16,7 @@ const DEMO_POINTS = [
     title: 'Live walkthrough',
     body: 'See ShiftOS run a real shift end to end.',
     icon: PlayCircle,
-    tile: 'bg-brand-soft text-brand-deep'
+    tile: 'bg-brand-soft text-brand-800'
   },
   {
     title: 'Q&A session',
@@ -28,7 +28,7 @@ const DEMO_POINTS = [
     title: 'Tailored to you',
     body: 'We focus on your operation, not a generic deck.',
     icon: Users,
-    tile: 'bg-success-soft text-success-600'
+    tile: 'bg-success-soft text-success-text'
   }
 ];
 
@@ -39,7 +39,7 @@ type FormState = 'idle' | 'busy' | 'sent';
 type FieldErrors = Partial<Record<'fullName' | 'organization' | 'workEmail' | 'whatsapp' | 'employees' | 'businessType' | 'preferredDate', string>>;
 
 const INPUT_BASE =
-  'h-11 w-full rounded-xl border bg-white px-[13px] text-base text-neutral-900 outline-none transition-colors placeholder:text-neutral-400 focus:border-brand-500';
+  'h-11 w-full rounded-xl border bg-white px-[13px] text-base text-neutral-900 outline-none transition-colors placeholder:text-neutral-600 focus:border-brand-500';
 
 export default function DemoPage(): React.ReactElement {
   const [state, setState] = React.useState<FormState>('idle');
@@ -91,13 +91,13 @@ export default function DemoPage(): React.ReactElement {
       <div className="mx-auto flex max-w-7xl flex-wrap items-start gap-8 px-4 pb-16 pt-[52px] sm:px-6">
         {/* Copy */}
         <div className="min-w-[280px] flex-1 basis-[360px]">
-          <span className="inline-flex items-center rounded-full bg-brand-soft px-3 py-1.5 text-[12.5px] font-extrabold uppercase tracking-[0.1em] text-brand-deep">
+          <span className="inline-flex items-center rounded-full bg-brand-soft px-3 py-1.5 text-[12.5px] font-extrabold uppercase tracking-[0.1em] text-brand-800">
             30-minute live demo
           </span>
           <h1 className="mt-4 font-display text-[2.625rem] font-extrabold leading-[1.08] tracking-[-0.035em] text-neutral-900">
             See ShiftOS in action, built for <span className="text-brand-500">shift teams</span>.
           </h1>
-          <p className="mt-4 max-w-[480px] text-[15.5px] leading-relaxed text-neutral-500">
+          <p className="mt-4 max-w-[480px] text-[15.5px] leading-relaxed text-neutral-600">
             Book a free, personalized demo and see how ShiftOS handles scheduling, attendance, tasks and communication
             across your branches.
           </p>
@@ -109,14 +109,14 @@ export default function DemoPage(): React.ReactElement {
                 </span>
                 <span>
                   <span className="block text-base font-extrabold text-neutral-900">{d.title}</span>
-                  <span className="block text-base text-neutral-500">{d.body}</span>
+                  <span className="block text-base text-neutral-600">{d.body}</span>
                 </span>
               </li>
             ))}
           </ul>
           <div className="mt-6.5 rounded-2xl border border-neutral-200 bg-[#FDFCFB] p-4.5">
             <p className="text-base font-extrabold text-neutral-900">Prefer to write instead?</p>
-            <p className="mt-1.5 text-base text-neutral-500">
+            <p className="mt-1.5 text-base text-neutral-600">
               Email{' '}
               <a href="mailto:hello@shiftos.app" className="font-bold text-brand-deep hover:text-brand-500">
                 hello@shiftos.app
@@ -153,7 +153,7 @@ export default function DemoPage(): React.ReactElement {
           ) : (
             <>
               <h2 className="m-0 text-center text-[22px] font-extrabold text-neutral-900">Book your free demo</h2>
-              <p className="mb-5 mt-1.5 text-center text-base text-neutral-500">
+              <p className="mb-5 mt-1.5 text-center text-base text-neutral-600">
                 Tell us about your operation and we'll tailor the walkthrough.
               </p>
 
@@ -243,7 +243,7 @@ export default function DemoPage(): React.ReactElement {
                     value={values.employees}
                     onChange={set('employees')}
                     aria-invalid={!!errors.employees}
-                    className={`${inputClass(errors.employees)} ${values.employees ? '' : 'text-neutral-400'}`}
+                    className={`${inputClass(errors.employees)} ${values.employees ? '' : 'text-neutral-600'}`}
                   >
                     <option value="" disabled>
                       Select a range
@@ -295,14 +295,14 @@ export default function DemoPage(): React.ReactElement {
                 <label className="sm:col-span-full">
                   <span className="mb-1.5 block text-sm font-bold text-neutral-900">
                     Anything else we should know?{' '}
-                    <span className="font-medium text-neutral-400">(optional)</span>
+                    <span className="font-medium text-neutral-600">(optional)</span>
                   </span>
                   <textarea
                     rows={3}
                     value={values.notes}
                     onChange={set('notes')}
                     placeholder="Tell us about your branches, goals or any specific challenges…"
-                    className="w-full resize-y rounded-xl border border-neutral-300 px-[13px] py-2.5 text-base text-neutral-900 outline-none transition-colors placeholder:text-neutral-400 focus:border-brand-500"
+                    className="w-full resize-y rounded-xl border border-neutral-300 px-[13px] py-2.5 text-base text-neutral-900 outline-none transition-colors placeholder:text-neutral-600 focus:border-brand-500"
                   />
                 </label>
               </div>
@@ -318,7 +318,7 @@ export default function DemoPage(): React.ReactElement {
               >
                 {state === 'busy' ? 'Sending request…' : 'Book my free demo \u2192'}
               </button>
-              <p className="mt-3 text-center text-[13px] text-neutral-400">
+              <p className="mt-3 text-center text-[13px] text-neutral-600">
                 We respect your privacy. Your information is only used to arrange the demo.
               </p>
             </>

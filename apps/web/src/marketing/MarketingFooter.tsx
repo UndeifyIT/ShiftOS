@@ -58,7 +58,7 @@ export function MarketingFooter(): React.ReactElement {
           <div className="flex items-center gap-2">
             <LogoMark className="h-[30px] w-[30px]" />
           </div>
-          <p className="mt-3 max-w-[260px] text-[12.5px] text-neutral-500">
+          <p className="mt-3 max-w-[260px] text-[12.5px] text-neutral-600">
             Scheduling, communication and workforce management built for teams that run on shifts.
           </p>
           <div className="mt-3.5 flex gap-2">
@@ -67,7 +67,7 @@ export function MarketingFooter(): React.ReactElement {
                 key={s.label}
                 href="#"
                 aria-label={s.label}
-                className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 text-[11px] font-bold text-neutral-500 hover:border-brand-500 hover:text-brand-deep"
+                className="flex size-8 items-center justify-center rounded-lg border border-neutral-200 text-[11px] font-bold text-neutral-600 hover:border-brand-500 hover:text-brand-deep"
               >
                 {s.glyph}
               </a>
@@ -81,7 +81,7 @@ export function MarketingFooter(): React.ReactElement {
             <ul className="flex flex-col gap-2">
               {column.links.map((link) => (
                 <li key={link.label}>
-                  <Link to={link.to} className="text-[12.5px] text-neutral-500 hover:text-brand-deep">
+                  <Link to={link.to} className="text-[12.5px] text-neutral-600 hover:text-brand-deep">
                     {link.label}
                   </Link>
                 </li>
@@ -92,9 +92,9 @@ export function MarketingFooter(): React.ReactElement {
 
         <div className="min-w-[210px] flex-1 basis-[230px]">
           <p className="mb-2.5 text-[12.5px] font-extrabold text-neutral-900">Stay Updated</p>
-          <p className="mb-3 text-[12.5px] text-neutral-500">Product updates and shift-planning tips, straight to your inbox.</p>
+          <p className="mb-3 text-[12.5px] text-neutral-600">Product updates and shift-planning tips, straight to your inbox.</p>
           {subscribed ? (
-            <p role="status" className="text-[12.5px] font-bold text-success-600">
+            <p role="status" className="text-[12.5px] font-bold text-success-text">
               Thanks &mdash; you&rsquo;re on the list.
             </p>
           ) : (
@@ -126,7 +126,7 @@ export function MarketingFooter(): React.ReactElement {
         </div>
       </div>
       <div className="border-t border-neutral-100">
-        <div className="mx-auto flex max-w-7xl flex-wrap gap-3 px-4 py-4 text-xs text-neutral-400 sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap gap-3 px-4 py-4 text-xs text-neutral-600 sm:px-6">
           <span>&copy; {new Date().getFullYear()} ShiftOS. All rights reserved.</span>
           <span className="ml-auto flex gap-4">
             <Link to="/privacy" className="hover:text-brand-deep">

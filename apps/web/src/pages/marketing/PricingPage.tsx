@@ -114,7 +114,7 @@ function SegButton({
       onClick={onClick}
       className={[
         'rounded-lg px-[15px] py-2 text-[12.5px] font-bold transition-colors',
-        active ? 'bg-white text-neutral-900 shadow-[0_1px_3px_rgba(56,49,43,0.14)]' : 'text-neutral-400 hover:text-neutral-600'
+        active ? 'bg-white text-neutral-900 shadow-[0_1px_3px_rgba(56,49,43,0.14)]' : 'text-neutral-600 hover:text-neutral-700'
       ].join(' ')}
     >
       {children}
@@ -132,7 +132,7 @@ export default function PricingPage(): React.ReactElement {
         <h1 className="mt-3.5 max-w-[720px] font-display text-[2.75rem] font-extrabold leading-[1.08] tracking-[-0.035em] text-neutral-900">
           Simple pricing for every <span className="text-brand-500">retail business</span>
         </h1>
-        <p className="mt-4 text-base text-neutral-500">
+        <p className="mt-4 text-base text-neutral-600">
           No hidden charges. Start free today and upgrade only when your business grows.
         </p>
 
@@ -165,10 +165,10 @@ export default function PricingPage(): React.ReactElement {
                   </span>
                 ) : null}
                 <h2 className="mt-3.5 text-[22px] font-extrabold text-neutral-900">{p.name}</h2>
-                <p className="mt-1.5 min-h-[38px] text-[13px] text-neutral-500">{p.blurb}</p>
+                <p className="mt-1.5 min-h-[38px] text-[13px] text-neutral-600">{p.blurb}</p>
                 <p className="mt-3.5 text-[34px] font-extrabold tracking-[-0.03em] text-neutral-900">
                   {isProYearly ? '₦115,200' : p.priceMonthly}
-                  <span className="text-[13px] font-semibold text-neutral-400">{isProYearly ? '/year' : p.perMonthly}</span>
+                  <span className="text-[13px] font-semibold text-neutral-600">{isProYearly ? '/year' : p.perMonthly}</span>
                 </p>
                 <Link
                   to={p.ctaTo}
@@ -202,7 +202,7 @@ export default function PricingPage(): React.ReactElement {
                 <tr>
                   <th
                     scope="col"
-                    className="px-5.5 py-3 text-left text-[11.5px] font-extrabold uppercase tracking-[0.08em] text-neutral-400"
+                    className="px-5.5 py-3 text-left text-[11.5px] font-extrabold uppercase tracking-[0.08em] text-neutral-600"
                   >
                     Capability
                   </th>
@@ -223,7 +223,7 @@ export default function PricingPage(): React.ReactElement {
                     <th scope="row" className="border-t border-neutral-100 px-5.5 py-3 text-left font-bold text-neutral-900">
                       {row.label}
                     </th>
-                    <td className="border-t border-neutral-100 px-3.5 py-3 text-center text-neutral-500">{row.starter}</td>
+                    <td className="border-t border-neutral-100 px-3.5 py-3 text-center text-neutral-600">{row.starter}</td>
                     <td className="border-t border-neutral-100 px-3.5 py-3 text-center font-bold text-success-500">{row.pro}</td>
                     <td className="border-t border-neutral-100 px-3.5 py-3 text-center font-bold text-success-500">{row.ent}</td>
                   </tr>
@@ -240,7 +240,7 @@ export default function PricingPage(): React.ReactElement {
             {FAQS.map((f) => (
               <details key={f.q} className="rounded-2xl border border-neutral-200 bg-white px-4 py-3.5">
                 <summary className="cursor-pointer list-none text-[13.5px] font-bold text-neutral-900">{f.q}</summary>
-                <p className="mt-2.5 text-[13px] text-neutral-500">{f.a}</p>
+                <p className="mt-2.5 text-[13px] text-neutral-600">{f.a}</p>
               </details>
             ))}
           </div>

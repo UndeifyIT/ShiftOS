@@ -81,7 +81,7 @@ export function LegalPage({ kind }: { kind: LegalKind }): React.ReactElement {
         <h1 className="mt-3.5 font-display text-[38px] font-extrabold tracking-[-0.03em] text-neutral-900">
           {kind === 'Privacy' ? 'Privacy policy' : 'Terms & conditions'}
         </h1>
-        <p className="mt-2.5 text-[13px] text-neutral-400">
+        <p className="mt-2.5 text-[13px] text-neutral-600">
           Last updated {doc.updated} &middot; applies to all ShiftOS organizations
         </p>
         <nav aria-label="Legal documents" className="mt-3.5 inline-flex gap-[3px] rounded-xl bg-neutral-100 p-1">
@@ -91,7 +91,7 @@ export function LegalPage({ kind }: { kind: LegalKind }): React.ReactElement {
               'rounded-lg px-[15px] py-2 text-[12.5px] font-bold transition-colors',
               kind === 'Privacy'
                 ? 'bg-white text-neutral-900 shadow-[0_1px_3px_rgba(56,49,43,0.14)]'
-                : 'text-neutral-400 hover:text-neutral-600'
+                : 'text-neutral-600 hover:text-neutral-700'
             ].join(' ')}
           >
             Privacy
@@ -102,7 +102,7 @@ export function LegalPage({ kind }: { kind: LegalKind }): React.ReactElement {
               'rounded-lg px-[15px] py-2 text-[12.5px] font-bold transition-colors',
               kind === 'Terms'
                 ? 'bg-white text-neutral-900 shadow-[0_1px_3px_rgba(56,49,43,0.14)]'
-                : 'text-neutral-400 hover:text-neutral-600'
+                : 'text-neutral-600 hover:text-neutral-700'
             ].join(' ')}
           >
             Terms

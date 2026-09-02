@@ -21,8 +21,8 @@ export function IconCircle({
   size?: number;
 }): React.ReactElement {
   const toneClasses: Record<string, string> = {
-    brand: 'bg-brand-soft text-brand-deep',
-    success: 'bg-success-soft text-success-600',
+    brand: 'bg-brand-soft text-brand-800',
+    success: 'bg-success-soft text-success-text',
     info: 'bg-info-50 text-info-600',
     warning: 'bg-warning-soft text-brand-deep',
     neutral: 'bg-neutral-100 text-neutral-600'
@@ -75,7 +75,7 @@ export function SectionHeading({
       <h2 className="mt-4 font-display text-3xl font-semibold leading-[1.1] text-neutral-900 sm:text-4xl">
         {title} {highlight ? <span className="text-brand-700">{highlight}</span> : null}
       </h2>
-      {description ? <p className="mt-4 text-base leading-relaxed text-neutral-500">{description}</p> : null}
+      {description ? <p className="mt-4 text-base leading-relaxed text-neutral-600">{description}</p> : null}
     </div>
   );
 }

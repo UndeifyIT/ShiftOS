@@ -23,7 +23,7 @@ const CATEGORY_ORDER: Category[] = [
 const CAT_META: Record<Category, { icon: typeof BookOpen; tone: string; body: string }> = {
   'Getting Started': {
     icon: BookOpen,
-    tone: 'bg-brand-soft text-brand-deep',
+    tone: 'bg-brand-soft text-brand-800',
     body: 'Set up your organization, branch, supervisors and departments.'
   },
   Scheduling: {
@@ -38,7 +38,7 @@ const CAT_META: Record<Category, { icon: typeof BookOpen; tone: string; body: st
   },
   Operations: {
     icon: Clock,
-    tone: 'bg-success-soft text-success-600',
+    tone: 'bg-success-soft text-success-text',
     body: 'Attendance, swaps and the daily running of a shift.'
   },
   'Help & Documentation': {
@@ -123,7 +123,7 @@ export default function ResourcesPage(): React.ReactElement {
         <h1 className="mt-3.5 font-display text-[2.75rem] font-extrabold leading-[1.08] tracking-[-0.035em] text-neutral-900">
           Learn to run better shifts.
         </h1>
-        <p className="mt-4 max-w-[600px] text-base text-neutral-500">
+        <p className="mt-4 max-w-[600px] text-base text-neutral-600">
           Guides, templates and help articles for managers and supervisors. We publish only what we have actually
           written &mdash; nothing here is placeholder.
         </p>
@@ -139,8 +139,8 @@ export default function ResourcesPage(): React.ReactElement {
                   <meta.icon className="size-[19px]" aria-hidden="true" />
                 </span>
                 <h2 className="mt-3 text-lg font-extrabold text-neutral-900">{name}</h2>
-                <p className="mt-1 text-sm leading-relaxed text-neutral-500">{meta.body}</p>
-                <p className={`mt-3 text-sm font-bold ${n === 0 ? 'text-neutral-400' : 'text-success-500'}`}>
+                <p className="mt-1 text-sm leading-relaxed text-neutral-600">{meta.body}</p>
+                <p className={`mt-3 text-sm font-bold ${n === 0 ? 'text-neutral-600' : 'text-success-500'}`}>
                   {n === 0 ? 'Nothing published yet' : n === 1 ? '1 resource' : `${n} resources`}
                 </p>
                 <button
@@ -169,7 +169,7 @@ export default function ResourcesPage(): React.ReactElement {
                 'rounded-lg px-[15px] py-2 text-sm font-bold transition-colors',
                 f === cat
                   ? 'bg-neutral-900 text-white'
-                  : 'border border-neutral-200 bg-white text-neutral-500 hover:border-brand-300'
+                  : 'border border-neutral-200 bg-white text-neutral-600 hover:border-brand-300'
               ].join(' ')}
             >
               {f}
@@ -187,9 +187,9 @@ export default function ResourcesPage(): React.ReactElement {
                 <div className="min-w-[240px] flex-1 basis-[320px]">
                   <p className="text-[12.5px] font-extrabold uppercase tracking-[0.08em] text-brand-deep">{r.type}</p>
                   <h3 className="mt-1.5 text-base font-extrabold text-neutral-900">{r.title}</h3>
-                  <p className="mt-1 text-sm text-neutral-500">{r.summary}</p>
+                  <p className="mt-1 text-sm text-neutral-600">{r.summary}</p>
                 </div>
-                <span className="ml-auto text-sm text-neutral-400">{r.readTime}</span>
+                <span className="ml-auto text-sm text-neutral-600">{r.readTime}</span>
                 <a href="#" className="text-sm font-bold text-neutral-900 hover:text-brand-deep">
                   Read &rarr;
                 </a>
@@ -199,7 +199,7 @@ export default function ResourcesPage(): React.ReactElement {
         ) : (
           <div className="mt-3.5 rounded-2xl border border-dashed border-neutral-300 bg-[#FDFCFB] px-5.5 py-[30px] text-center">
             <p className="text-base font-extrabold text-neutral-900">Nothing published in this category yet</p>
-            <p className="mx-auto mt-1.5 max-w-[400px] text-base text-neutral-500">
+            <p className="mx-auto mt-1.5 max-w-[400px] text-base text-neutral-600">
               We're still writing for {cat === 'All Resources' ? 'the library' : cat}. Browse all resources in the
               meantime.
             </p>
@@ -208,11 +208,11 @@ export default function ResourcesPage(): React.ReactElement {
 
         {/* Case studies teaser */}
         <section className="mt-6.5 rounded-lg border border-dashed border-neutral-300 bg-[#FDFCFB] px-6 py-9 text-center">
-          <span className="mx-auto flex size-[52px] items-center justify-center rounded-2xl bg-brand-soft text-brand-deep">
+          <span className="mx-auto flex size-[52px] items-center justify-center rounded-2xl bg-brand-soft text-brand-800">
             <BookOpen className="size-[22px]" aria-hidden="true" />
           </span>
           <h3 className="mt-4 text-lg font-extrabold text-neutral-900">Case studies are coming</h3>
-          <p className="mx-auto mt-2 max-w-[440px] text-base text-neutral-500">
+          <p className="mx-auto mt-2 max-w-[440px] text-base text-neutral-600">
             We won't publish customer stories until we have real ones to tell. If you'd like your branch featured, tell
             us and we'll get in touch.
           </p>
