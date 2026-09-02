@@ -17,10 +17,11 @@ import { defineRpc } from '../rpc.js';
  * be resolved at signup time alone — e.g. an org created before this feature
  * existed, or a domain added to the blocklist after the account already
  * existed). context.client here is the same superuser/BYPASSRLS Postgres
- * connection every other ApplicationContext query already runs through (see
- * packages/database/src/postgresClient.ts, packages/config's DATABASE_URL
- * doc comment) — not the supabase_auth_admin role the Before User Created
- * hook runs as, so the RLS trap that required an explicit policy for that
+ * connection every other ApplicationContext query already runs through
+ * (see packages/database/src/postgresClient.ts, and the `.env` DATABASE_URL's
+ * own `postgres.<project-ref>` username) — not the supabase_auth_admin role
+ * the Before User Created hook runs as, so the RLS trap that required an
+ * explicit policy for that
  * role (supabase/migrations/051) does not apply here; empirically confirmed
  * this session: `SELECT current_user, rolbypassrls FROM pg_roles WHERE
  * rolname = current_user` over this same DATABASE_URL returns
