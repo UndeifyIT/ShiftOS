@@ -175,7 +175,7 @@ Examples:
 Incorrect credentials:
 
 ```
-Email or password is incorrect.
+Invalid email or password.
 ```
 
 ---

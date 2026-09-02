@@ -1,6 +1,10 @@
 -- 053_revoke_default_grants_disposable_email_domains.sql
 -- Migration: close a TRUNCATE-shaped hole on the disposable-email blocklist
--- Found by the Task 5 audit (docs/superpowers/plans/2026-09-02-auth-abuse-protection.md).
+-- Found by the Task 5 final audit for the auth abuse protection feature
+-- (design spec: docs/superpowers/specs/2026-09-02-auth-abuse-protection-design.md).
+-- The audit's own report lived in this plan's SDD workspace, which is
+-- deleted once the branch is finished -- cited here against the spec doc,
+-- which stays in the repo.
 --
 -- migration 051's own comment claimed anon/authenticated get "no policy and
 -- no SELECT grant, so client-side table access remains fully default-deny" --

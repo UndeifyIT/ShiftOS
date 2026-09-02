@@ -60,16 +60,22 @@ function isCommentOnly(block) {
 // this splitter (before this fix) treated as real statement boundaries,
 // producing a fragment starting mid-sentence and a genuine Postgres syntax
 // error. Fixed by skipping to end-of-line whenever `--` is seen outside a
-// dollar-quoted body.
+// dollar-quoted body or an ordinary string.
 //
-// Known gap, still not handled: an ordinary '...' string literal containing
-// a ';' (e.g. an INSERT with a free-text value like 'foo;bar') will still be
-// mis-split, since there is no quote-tracking for single-quoted strings here
-// -- only for $tag$ dollar-quoting and now `--` comments. None of this
-// repo's migrations do that today, so this remains a latent risk for a
-// *future* migration, not a bug in anything this script has actually run.
-// Add '...'-aware tracking (watching for escaped '' inside a quoted string)
-// before trusting this script against a migration with such data.
+// That first fix introduced a real regression of its own, caught in review:
+// a `--` inside an ordinary '...' string literal (e.g. a COMMENT ON TABLE
+// whose text happens to contain "--", which 053 itself has) would also get
+// treated as a comment opener, swallowing the string's own closing quote
+// and the statement's real ';' terminator -- silently merging two
+// statements into one instead of raising an error. Migration 053 only
+// happened to survive this by accident (that COMMENT is the file's last
+// statement, so the swallowed ';' was recovered by the trailing-tail
+// fallback) -- a second statement after it would have broken. Fixed
+// properly this time: ordinary '...' strings are now tracked as their own
+// state (with '' as the standard SQL escape for a literal quote inside one),
+// and `--`/`;`/`$tag$` are all ignored while inside one, the same way they
+// already are inside a dollar-quoted body.
+//
 // Postgres dollar-quote tags follow identifier rules: letters/underscore
 // first, letters/digits/underscores after (e.g. `$body_v2$` is valid).
 const DOLLAR_TAG_RE = /^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/;
@@ -79,12 +85,28 @@ function splitSqlStatements(text) {
   let segmentStart = 0; // start index of the statement currently being built
   let i = 0;
   let dollarTag = null; // e.g. '$$' or '$body$' while inside a dollar-quoted string
+  let inString = false; // true while inside an ordinary '...' string literal
 
   while (i < text.length) {
     if (dollarTag) {
       const closeIndex = text.indexOf(dollarTag, i);
       i = closeIndex === -1 ? text.length : closeIndex + dollarTag.length;
       dollarTag = null;
+      continue;
+    }
+
+    if (inString) {
+      const ch = text[i];
+      if (ch === "'") {
+        // '' inside a string is an escaped literal quote, not the closer --
+        // stays in the string and consumes both characters.
+        if (text[i + 1] === "'") {
+          i += 2;
+          continue;
+        }
+        inString = false;
+      }
+      i += 1;
       continue;
     }
 
@@ -95,6 +117,12 @@ function splitSqlStatements(text) {
     }
 
     const ch = text[i];
+    if (ch === "'") {
+      inString = true;
+      i += 1;
+      continue;
+    }
+
     if (ch === '$') {
       // Only check a short lookahead window for a dollar-quote tag opener
       // (tags are a handful of chars, e.g. $$ or $body$) -- never slice the

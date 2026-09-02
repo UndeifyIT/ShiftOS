@@ -95,7 +95,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }): Re
 
   const signIn = useCallback(async (email: string, password: string): Promise<{ error: string | null }> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error ? 'Incorrect email or password.' : null };
+    return { error: error ? 'Invalid email or password.' : null };
   }, []);
 
   const signOut = useCallback(async (): Promise<void> => {

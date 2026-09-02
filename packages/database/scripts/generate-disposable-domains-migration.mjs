@@ -91,12 +91,21 @@ function buildMigrationSql(domains) {
 -- No organization/tenant scoping: this is a global platform list, not
 -- tenant data, so there is no organization_id column.
 --
--- RLS: enabled with deliberately NO permissive policy for anon/authenticated
--- -- this table is only ever read by is_disposable_email_domain() below
--- (executed by supabase_auth_admin from the Before User Created auth hook,
--- or by service-role/migration tooling), never by a direct client query.
--- RLS defaults to deny with no matching policy, which is exactly the
--- behavior wanted here.
+-- RLS: enabled, default-deny for anon/authenticated (no policy for either --
+-- migration 053 additionally revokes their default table-level grants
+-- outright, since RLS alone does not cover TRUNCATE). This table is only
+-- ever read by is_disposable_email_domain() below, or by service-role/
+-- migration tooling -- never by a direct client query.
+--
+-- supabase_auth_admin (the role Supabase Auth uses to invoke the Before
+-- User Created hook) DOES get an explicit SELECT policy below. Do not
+-- remove it: is_disposable_email_domain() is LANGUAGE sql (not SECURITY
+-- DEFINER), so its internal SELECT runs as the calling role, subject to
+-- that role's own RLS -- supabase_auth_admin does not have BYPASSRLS, so
+-- without this policy the function would silently always return false for
+-- the hook, defeating the entire signup-blocking feature with no error
+-- anywhere. This was found and fixed the hard way once already; regenerating
+-- this file must never drop it again.
 
 CREATE TABLE IF NOT EXISTS public.disposable_email_domains (
   domain text PRIMARY KEY,
@@ -105,9 +114,24 @@ CREATE TABLE IF NOT EXISTS public.disposable_email_domains (
 
 ALTER TABLE public.disposable_email_domains ENABLE ROW LEVEL SECURITY;
 
--- Deliberately no CREATE POLICY here: no permissive policy means RLS
--- default-deny applies to anon and authenticated alike. Do not add a
--- SELECT policy for either role -- see comment block above.
+-- PostgreSQL has no CREATE POLICY IF NOT EXISTS -- guarded here so this file
+-- stays safely re-runnable.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'disposable_email_domains'
+      AND policyname = 'disposable_email_domains_select_auth_admin')
+  THEN
+    CREATE POLICY disposable_email_domains_select_auth_admin
+      ON public.disposable_email_domains
+      FOR SELECT
+      TO supabase_auth_admin
+      USING (true);
+  END IF;
+END$$;
+
+GRANT SELECT ON public.disposable_email_domains TO supabase_auth_admin;
 
 ${insertStatements}
 
@@ -123,6 +147,7 @@ CREATE OR REPLACE FUNCTION public.is_disposable_email_domain(p_email text)
 RETURNS boolean
 LANGUAGE sql
 STABLE
+SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.disposable_email_domains
@@ -131,10 +156,15 @@ AS $$
 $$;
 
 -- The function only ever returns a boolean about a domain string -- no row
--- data from disposable_email_domains is exposed by it -- so it is safe to
--- grant broadly even though the underlying table stays locked down (no
--- policy) per the comment above. supabase_auth_admin needs EXECUTE so the
--- Before User Created auth hook (which runs as that role) can call it.
+-- data from disposable_email_domains is exposed by it -- so EXECUTE is safe
+-- to grant broadly. supabase_auth_admin needs it so the Before User Created
+-- auth hook (which runs as that role) can call it -- and, combined with the
+-- SELECT policy above, actually get a correct answer rather than a silent
+-- false. authenticated/anon also get EXECUTE for parity with the original
+-- design, even though migration 053 revokes their table-level access: a
+-- call from those roles now errors ("permission denied for table") instead
+-- of returning false, which is a safer failure mode than either accepting a
+-- silent false or leaving the function uncallable for them entirely.
 GRANT EXECUTE ON FUNCTION public.is_disposable_email_domain(text)
   TO supabase_auth_admin, authenticated, anon;
 `;
