@@ -4,7 +4,7 @@ import { Building2, CheckCircle2, Clock3, ShieldCheck, User, WifiOff, XCircle } 
 import { FormField } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { checklistFor, strengthFor } from '../../lib/password.js';
-import { isNetworkError } from '../../lib/authErrors.js';
+import { isNetworkError, parseAuthHashError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
 import { AuthBanner, AuthSubmit } from './AuthInputs.js';
 import { AuthStatusPanel } from './AuthStatusPanel.js';
@@ -24,9 +24,10 @@ interface PendingInvitation {
   invited_by_name: string;
   expires_at: string;
   status: 'pending' | 'accepted' | 'revoked' | 'expired';
+  has_other_pending_invitations: boolean;
 }
 
-type View = 'loading' | 'form' | 'expired' | 'used' | 'revoked' | 'not-found' | 'success' | 'network-error';
+type View = 'loading' | 'form' | 'expired' | 'used' | 'revoked' | 'not-found' | 'success' | 'network-error' | 'invalid-link' | 'multiple';
 
 /**
  * SHARED-005 — Accept Invitation / Account Setup (WF-002). The invite email
@@ -49,6 +50,26 @@ export default function AcceptInvitationPage(): React.ReactElement {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    // A bad/expired/consumed invite magic-link never establishes a session --
+    // Supabase Auth instead redirects back here with the failure encoded as a
+    // URL hash (e.g. #error=access_denied&error_code=otp_expired&...), which
+    // previously fell straight through to get_pending_invitation() finding no
+    // session/profile and landing on the generic "No invitation found" state.
+    // Detect and handle it explicitly, before the RPC call, so the message
+    // names the actual situation (an invalid link) rather than a vague
+    // not-found. The raw error_description is logged for debugging only,
+    // matching this codebase's existing console.error pattern for
+    // non-user-facing auth diagnostics (see CompleteProfilePage.tsx) -- never
+    // shown to the invitee. The hash is cleared from the URL so a refresh or
+    // copy-pasted link doesn't keep re-triggering it.
+    const hashError = parseAuthHashError(window.location.hash);
+    if (hashError) {
+      console.error('Accept-invitation link redirected with an auth error:', hashError);
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      setView('invalid-link');
+      return;
+    }
+
     let cancelled = false;
     void (async () => {
       try {
@@ -70,7 +91,9 @@ export default function AcceptInvitationPage(): React.ReactElement {
               ? 'revoked'
               : data.status !== 'pending'
                 ? 'used'
-                : 'form'
+                : data.has_other_pending_invitations
+                  ? 'multiple'
+                  : 'form'
         );
       } catch (err) {
         if (!cancelled) setView(isNetworkError(err) ? 'network-error' : 'not-found');
@@ -154,6 +177,28 @@ export default function AcceptInvitationPage(): React.ReactElement {
           body="We couldn't find a pending invitation for your account. Ask your administrator to send one."
           ctaLabel="Back to sign in"
           onCta={() => navigate('/sign-in')}
+        />
+      ) : view === 'invalid-link' ? (
+        <AuthStatusPanel
+          icon={XCircle}
+          tone="bad"
+          title="This invitation link is no longer valid"
+          body="Ask your organization to send you a new one."
+          ctaLabel="Back to sign in"
+          onCta={() => navigate('/sign-in')}
+        />
+      ) : view === 'multiple' ? (
+        <AuthStatusPanel
+          icon={Building2}
+          tone="warn"
+          title="You have more than one pending invitation"
+          body="We found invitations to more than one organization for this email address. Contact support so we can help you accept the right one."
+          ctaLabel="Contact support"
+          onCta={() => {
+            window.location.href = 'mailto:hello@shiftos.app';
+          }}
+          secondaryLabel="Back to sign in"
+          onSecondary={() => navigate('/sign-in')}
         />
       ) : view === 'expired' ? (
         <AuthStatusPanel
