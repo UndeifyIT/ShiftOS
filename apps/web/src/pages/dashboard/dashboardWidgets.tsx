@@ -72,18 +72,27 @@ export function StatusPill({ tone, children }: { tone: DashTone; children: React
   );
 }
 
+export interface DashStatAction {
+  label: string;
+  onClick?: () => void;
+  to?: string;
+}
+
 export function DashStat({
   label,
   value,
   meta,
   dotTone = 'primary',
-  loading = false
+  loading = false,
+  action
 }: {
   label: string;
   value: string | number;
   meta: string;
   dotTone?: DashTone;
   loading?: boolean;
+  /** Optional near-empty CTA (e.g. "Add employee") shown under the meta line — additive, no visual change when omitted. */
+  action?: DashStatAction;
 }): React.ReactElement {
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white px-[18px] py-4">
@@ -97,6 +106,64 @@ export function DashStat({
         <p className="mt-3 text-[30px] font-extrabold leading-none tracking-[-0.03em] text-neutral-900">{value}</p>
       )}
       <p className="mt-1.5 text-[11.5px] text-neutral-400">{meta}</p>
+      {action ? (
+        action.to ? (
+          <Link to={action.to} className="mt-1.5 inline-block text-[11.5px] font-bold text-brand-deep transition-colors hover:text-brand-500">
+            {action.label} →
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={action.onClick}
+            className="mt-1.5 block cursor-pointer text-[11.5px] font-bold text-brand-deep transition-colors hover:text-brand-500"
+          >
+            {action.label} →
+          </button>
+        )
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Compact empty-state block for a `DashPanel`'s body — the dashboard
+ * equivalent of the list pages' `EmptyState`, sized to sit inside an
+ * existing panel rather than replacing a whole page. Deliberately lighter
+ * than the boxed `@shiftos/ui` `EmptyState` (no dashed border/icon circle),
+ * since nothing else in this dashboard visual language uses that treatment.
+ */
+export function DashEmptyPanel({
+  title,
+  description,
+  actionLabel,
+  actionTo,
+  onAction
+}: {
+  title: string;
+  description?: string;
+  actionLabel?: string;
+  actionTo?: string;
+  onAction?: () => void;
+}): React.ReactElement {
+  return (
+    <div className="flex flex-col items-center gap-1 px-[18px] py-8 text-center">
+      <p className="text-[13px] font-bold text-neutral-700">{title}</p>
+      {description ? <p className="max-w-[320px] text-[12px] text-neutral-400">{description}</p> : null}
+      {actionLabel && (actionTo || onAction) ? (
+        actionTo ? (
+          <Link to={actionTo} className="mt-2 text-[12px] font-bold text-brand-deep transition-colors hover:text-brand-500">
+            {actionLabel} →
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={onAction}
+            className="mt-2 cursor-pointer text-[12px] font-bold text-brand-deep transition-colors hover:text-brand-500"
+          >
+            {actionLabel} →
+          </button>
+        )
+      ) : null}
     </div>
   );
 }

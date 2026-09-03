@@ -4,6 +4,7 @@ import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcQuery } from '../../lib/useRpc.js';
 import {
   CheckCircle,
+  DashEmptyPanel,
   DashHeader,
   DashPanel,
   DashStat,
@@ -92,9 +93,18 @@ export default function ManagerDashboardPage(): React.ReactElement {
           <DashStat
             label="Employees"
             value={activeEmployees.length}
-            meta={`across ${(branches ?? []).length} branch${(branches ?? []).length === 1 ? '' : 'es'}`}
+            meta={
+              (branches ?? []).length === 0
+                ? 'no branches yet to assign them to'
+                : `across ${(branches ?? []).length} branch${(branches ?? []).length === 1 ? '' : 'es'}`
+            }
             dotTone="primary"
             loading={employeesLoading}
+            action={
+              activeEmployees.length === 0 && canCreateEmployee && (branches ?? []).length > 0
+                ? { label: 'Add employee', to: '/employees/new' }
+                : undefined
+            }
           />
         ) : null}
         {canReadSchedules ? (
@@ -126,7 +136,12 @@ export default function ManagerDashboardPage(): React.ReactElement {
                   ))}
                 </div>
               ) : branchSummaries.length === 0 ? (
-                <p className="px-[18px] py-6 text-sm text-neutral-500">No branches yet.</p>
+                <DashEmptyPanel
+                  title="No branches yet"
+                  description="Open your first location to start assigning employees and building schedules."
+                  actionLabel={canCreateBranch ? 'Open a branch' : undefined}
+                  actionTo={canCreateBranch ? '/branches/new' : undefined}
+                />
               ) : (
                 <div className="flex flex-col">
                   {branchSummaries.map(({ branch, employeeCount, scheduleCount, pct }) => (
@@ -206,7 +221,23 @@ export default function ManagerDashboardPage(): React.ReactElement {
               </div>
               <div className="mt-3 flex flex-col gap-2.5">
                 {recentlyPublished.length === 0 ? (
-                  <p className="text-xs text-neutral-400">Nothing published across the organization yet.</p>
+                  <div>
+                    <p className="text-[12.5px] font-bold text-neutral-700">Nothing published yet</p>
+                    <p className="mt-0.5 text-xs text-neutral-400">
+                      {draftSchedules.length > 0
+                        ? `${draftSchedules.length} draft${draftSchedules.length === 1 ? '' : 's'} ready to review.`
+                        : 'Publish a schedule so the team can see their shifts.'}
+                    </p>
+                    {canCreateSchedule ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/schedules')}
+                        className="mt-2 cursor-pointer text-xs font-bold text-brand-deep transition-colors hover:text-brand-500"
+                      >
+                        Open scheduling →
+                      </button>
+                    ) : null}
+                  </div>
                 ) : (
                   recentlyPublished.map((schedule) => (
                     <button

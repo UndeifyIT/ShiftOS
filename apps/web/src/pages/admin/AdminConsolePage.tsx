@@ -182,6 +182,9 @@ export default function AdminConsolePage(): React.ReactElement {
               </span>
               <p className="mt-3.5 text-[26px] font-extrabold tracking-[-0.02em]">{(branches ?? []).length}</p>
               <p className="mt-1 text-xs text-neutral-500">Branches</p>
+              {!branchesLoading && (branches ?? []).length === 0 ? (
+                <p className="mt-1 text-[11px] text-neutral-400">None set up yet — check with your Manager.</p>
+              ) : null}
             </div>
             <div className="rounded-2xl border border-neutral-200 bg-white p-[18px]">
               <span className="flex size-[34px] items-center justify-center rounded-xl bg-info-50 text-info-600">
@@ -189,6 +192,11 @@ export default function AdminConsolePage(): React.ReactElement {
               </span>
               <p className="mt-3.5 text-[26px] font-extrabold tracking-[-0.02em]">{activeEmployees.length}</p>
               <p className="mt-1 text-xs text-neutral-500">Employees</p>
+              {!employeesLoading && activeEmployees.length === 0 ? (
+                <p className="mt-1 text-[11px] text-neutral-400">
+                  {(branches ?? []).length === 0 ? 'No branches to staff yet.' : 'None added yet.'}
+                </p>
+              ) : null}
             </div>
             <div className="rounded-2xl border border-neutral-200 bg-white p-[18px]">
               <span className="flex size-[34px] items-center justify-center rounded-xl bg-success-soft text-success-600">
@@ -212,7 +220,7 @@ export default function AdminConsolePage(): React.ReactElement {
               <div className="min-w-0 flex-[1_1_220px]">
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.06em] text-neutral-400">Subscription</p>
                 <p className="mt-2 text-[22px] font-extrabold tracking-[-0.02em]">
-                  Trial <span className="text-[13px] font-bold text-neutral-500">₦0 / month</span>
+                  Free trial <span className="text-[13px] font-bold text-neutral-500">— no charge while you're trying ShiftOS</span>
                 </p>
                 <p className="mt-1.5 text-[12.5px] text-neutral-500">
                   {activeEmployees.length} of {SEAT_CAP} employee seats used — billing isn't connected yet
@@ -475,7 +483,14 @@ export default function AdminConsolePage(): React.ReactElement {
             {employeesLoading ? (
               <p className="px-[18px] py-5 text-sm text-neutral-500">Loading employees…</p>
             ) : filteredDetailEmployees.length === 0 ? (
-              <p className="px-[18px] py-6 text-sm text-neutral-500">No employees match.</p>
+              <div className="px-[18px] py-6 text-center">
+                <p className="text-sm font-bold text-neutral-700">
+                  {employeeSearch.trim() ? `No employees match "${employeeSearch.trim()}"` : 'No employees at this branch yet'}
+                </p>
+                <p className="mt-1 text-xs text-neutral-400">
+                  {employeeSearch.trim() ? 'Try another search term.' : 'Employees appear here once your Manager adds them.'}
+                </p>
+              </div>
             ) : (
               filteredDetailEmployees.map((employee) => {
                 const name = `${employee.first_name} ${employee.last_name}`;
@@ -512,7 +527,7 @@ export default function AdminConsolePage(): React.ReactElement {
                   Trial
                 </span>
                 <h2 className="mt-3 text-[22px] font-extrabold tracking-[-0.025em]">
-                  ₦0 <span className="text-[13px] font-semibold text-neutral-500">/ month</span>
+                  Free <span className="text-[13px] font-semibold text-neutral-500">while you're trialing</span>
                 </h2>
                 <p className="mt-1.5 text-[12.5px] text-neutral-500">
                   {activeEmployees.length} of {SEAT_CAP} employee seats used — no renewal date (billing isn't connected)

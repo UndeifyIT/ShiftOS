@@ -4,6 +4,7 @@ import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcQuery } from '../../lib/useRpc.js';
 import {
   CheckCircle,
+  DashEmptyPanel,
   DashHeader,
   DashPanel,
   DashStat,
@@ -53,7 +54,18 @@ export default function SupervisorDashboardPage(): React.ReactElement {
 
       <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(196px,1fr))] gap-3.5">
         {canReadEmployees ? (
-          <DashStat label="Team members" value={branchEmployees.length} meta="active on your branches" dotTone="primary" loading={employeesLoading} />
+          <DashStat
+            label="Team members"
+            value={branchEmployees.length}
+            meta="active on your branches"
+            dotTone="primary"
+            loading={employeesLoading}
+            action={
+              branchEmployees.length === 0 && canCreateEmployee
+                ? { label: 'Add employee', to: '/employees/new' }
+                : undefined
+            }
+          />
         ) : null}
         {canReadSchedules ? (
           <DashStat label="Published" value={publishedSchedules.length} meta="schedules the team sees" dotTone="ok" loading={schedulesLoading} />
@@ -84,7 +96,12 @@ export default function SupervisorDashboardPage(): React.ReactElement {
                   ))}
                 </div>
               ) : branchEmployees.length === 0 ? (
-                <p className="px-[18px] py-6 text-sm text-neutral-500">No team members yet.</p>
+                <DashEmptyPanel
+                  title="No team members yet"
+                  description="Add the people who work at your branch to start scheduling and tracking attendance."
+                  actionLabel={canCreateEmployee ? 'Add employee' : undefined}
+                  actionTo={canCreateEmployee ? '/employees/new' : undefined}
+                />
               ) : (
                 <div className="flex flex-col">
                   {branchEmployees.slice(0, 5).map((employee) => {
@@ -126,7 +143,12 @@ export default function SupervisorDashboardPage(): React.ReactElement {
                   ))}
                 </div>
               ) : recentSchedules.length === 0 ? (
-                <p className="px-[18px] py-6 text-sm text-neutral-500">No schedules created for this period.</p>
+                <DashEmptyPanel
+                  title="No schedules for this period"
+                  description="Build a schedule so your team knows when they're working."
+                  actionLabel={canCreateSchedule ? 'Build a schedule' : undefined}
+                  actionTo={canCreateSchedule ? '/schedules/new' : undefined}
+                />
               ) : (
                 <ul className="m-0 list-none p-1.5">
                   {recentSchedules.map((schedule) => (
@@ -185,7 +207,20 @@ export default function SupervisorDashboardPage(): React.ReactElement {
               </div>
               <div className="mt-3 flex flex-col gap-2.5">
                 {branchEmployees.length === 0 ? (
-                  <p className="text-xs text-neutral-400">No team members yet.</p>
+                  <div>
+                    <p className="text-[12.5px] font-bold text-neutral-700">No hires yet</p>
+                    {canCreateEmployee ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/employees/new')}
+                        className="mt-1 cursor-pointer text-xs font-bold text-brand-deep transition-colors hover:text-brand-500"
+                      >
+                        Add employee →
+                      </button>
+                    ) : (
+                      <p className="mt-0.5 text-xs text-neutral-400">Nobody's been added to your branch yet.</p>
+                    )}
+                  </div>
                 ) : (
                   branchEmployees.slice(-3).map((employee) => {
                     const name = `${employee.first_name} ${employee.last_name}`;

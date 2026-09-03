@@ -4,7 +4,7 @@ import { Calendar, User } from 'lucide-react';
 import { Badge, Button, EmptyState, InlineError, SkeletonRows } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import { DashHeader, DashPanel, DashStat, StatusPill } from './dashboardWidgets.js';
+import { DashEmptyPanel, DashHeader, DashPanel, DashStat, StatusPill } from './dashboardWidgets.js';
 import type { AttendanceRecord, AttendanceStatus, Employee, Schedule, Shift, ShiftAssignment } from '../../types/domain.js';
 
 /**
@@ -198,7 +198,19 @@ export default function EmployeeDashboardPage(): React.ReactElement {
           ) : null}
 
           <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(196px,1fr))] gap-3.5">
-            <DashStat label="Upcoming shifts" value={upcomingShifts.length} meta="in the current schedule" dotTone="primary" loading={shiftsLoading || schedulesLoading} />
+            <DashStat
+              label="Upcoming shifts"
+              value={upcomingShifts.length}
+              meta={
+                !currentSchedule
+                  ? 'no schedule published yet'
+                  : upcomingShifts.length === 0
+                    ? 'nothing scheduled for you right now'
+                    : 'in the current schedule'
+              }
+              dotTone="primary"
+              loading={shiftsLoading || schedulesLoading}
+            />
             <DashStat label="Scheduled hours" value={scheduledHours % 1 === 0 ? scheduledHours : scheduledHours.toFixed(1)} meta="across upcoming shifts" dotTone="info" loading={shiftsLoading || schedulesLoading} />
             {currentSchedule ? (
               <DashStat label="Current schedule" value={currentSchedule.name.length > 14 ? `${currentSchedule.name.slice(0, 12)}…` : currentSchedule.name} meta="published for your branch" dotTone="ok" />
@@ -211,9 +223,15 @@ export default function EmployeeDashboardPage(): React.ReactElement {
                 {shiftsLoading || schedulesLoading ? (
                   <SkeletonRows rows={3} />
                 ) : !currentSchedule ? (
-                  <p className="px-[18px] py-6 text-sm text-neutral-500">No published schedule for your branch yet.</p>
+                  <DashEmptyPanel
+                    title="No schedule published yet"
+                    description="Your branch hasn't published a schedule for this period. Check back soon, or ask your manager when the next one is going up."
+                  />
                 ) : upcomingShifts.length === 0 ? (
-                  <p className="px-[18px] py-6 text-sm text-neutral-500">No upcoming shifts assigned in the current schedule.</p>
+                  <DashEmptyPanel
+                    title="Nothing on your schedule right now"
+                    description="You're not on the next few days in the published schedule — that's normal if it isn't your turn yet."
+                  />
                 ) : (
                   <div className="flex flex-col">
                     {upcomingShifts.map((shift) => {
