@@ -157,7 +157,7 @@ export default function DemoPage(): React.ReactElement {
                 Tell us about your operation and we'll tailor the walkthrough.
               </p>
 
-              <div className="grid gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))]">
+              <div className="grid gap-3.5">
                 <label>
                   <span className="mb-1.5 block text-sm font-bold text-neutral-900">
                     Full name<span className="text-brand-500"> *</span>
