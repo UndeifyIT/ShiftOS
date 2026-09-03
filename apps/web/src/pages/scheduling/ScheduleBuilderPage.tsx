@@ -19,6 +19,7 @@ import {
   Textarea
 } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
+import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import type { Branch, Employee, Schedule, ScheduleStatus, ScheduleVersion, Shift } from '../../types/domain.js';
 import { ShiftModal } from './ShiftModal.js';
@@ -41,7 +42,13 @@ const SHIFT_STATUS_TONE: Record<Shift['status'], 'neutral' | 'success' | 'warnin
 
 function CreateScheduleForm(): React.ReactElement {
   const navigate = useNavigate();
-  const { data: branches } = useRpcQuery<Branch[]>('list_branches');
+  // Non-null only when this caller has exactly one accessible branch (Task
+  // 1's shared single-branch concept) — in that case the branch field is
+  // hidden entirely and that branch is submitted automatically, same
+  // auto-hide idiom as InvitationsPage's InviteMemberForm and
+  // EmployeeFormPage.
+  const singleBranchId = useDefaultBranchId();
+  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: singleBranchId === null });
   const [branchId, setBranchId] = useState('');
   const [name, setName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -61,20 +68,23 @@ function CreateScheduleForm(): React.ReactElement {
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            if (!branchId || !name.trim() || !startDate || !endDate) {
+            const resolvedBranchId = singleBranchId ?? branchId;
+            if (!resolvedBranchId || !name.trim() || !startDate || !endDate) {
               setError('Please fill in all fields.');
               return;
             }
             setError(null);
-            createMutation.mutate({ branchId, name: name.trim(), startDate, endDate });
+            createMutation.mutate({ branchId: resolvedBranchId, name: name.trim(), startDate, endDate });
           }}
           className="flex flex-col gap-4"
         >
-          <FormField label="Branch" htmlFor="branchId" required>
-            {(fieldProps) => (
-              <Select {...fieldProps} value={branchId} onChange={(e) => setBranchId(e.target.value)} placeholder="Select a branch" options={(branches ?? []).map((b) => ({ value: b.id, label: b.name }))} />
-            )}
-          </FormField>
+          {singleBranchId === null ? (
+            <FormField label="Branch" htmlFor="branchId" required>
+              {(fieldProps) => (
+                <Select {...fieldProps} value={branchId} onChange={(e) => setBranchId(e.target.value)} placeholder="Select a branch" options={(branches ?? []).map((b) => ({ value: b.id, label: b.name }))} />
+              )}
+            </FormField>
+          ) : null}
           <FormField label="Schedule name" htmlFor="scheduleName" required>
             {(fieldProps) => <Input {...fieldProps} value={name} onChange={(e) => setName(e.target.value)} placeholder="Week of Aug 11" />}
           </FormField>

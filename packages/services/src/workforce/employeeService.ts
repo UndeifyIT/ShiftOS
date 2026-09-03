@@ -16,7 +16,8 @@ const TRACKED_FIELDS = ['first_name', 'last_name', 'branch_id', 'employment_stat
 
 export interface CreateEmployeeInput {
   branchId: string;
-  employeeNumber: string;
+  /** Optional — omitted or blank means "let the server assign the next EMP-#### number for this organization" (057_generate_employee_number.sql's trg_employees_generate_employee_number). An explicit value is still honored as-is (still validated for per-organization uniqueness below). */
+  employeeNumber?: string;
   firstName: string;
   lastName: string;
   email?: string | null;
@@ -52,7 +53,10 @@ export class EmployeeService {
     await this.context.requirePermission('employees.create');
     assertUuid(input.branchId, 'branchId');
     this.context.requireBranchAccess(input.branchId);
-    assertNonEmptyString(input.employeeNumber, 'employeeNumber');
+    // employeeNumber is optional: when omitted or blank, the server assigns
+    // the next sequential number (057_generate_employee_number.sql's
+    // BEFORE INSERT trigger) instead of requiring the caller to invent one.
+    const employeeNumber = input.employeeNumber?.trim() || undefined;
     assertNonEmptyString(input.firstName, 'firstName');
     assertNonEmptyString(input.lastName, 'lastName');
     assertNonEmptyString(input.hireDate, 'hireDate');
@@ -60,14 +64,20 @@ export class EmployeeService {
       throw new ValidationError('Invalid hireDate', ['hireDate must be a valid date']);
     }
 
-    const existing = await this.employees.findByEmployeeNumber(this.context.organizationId, input.employeeNumber);
-    if (existing) {
-      throw new ValidationError('An employee with this employee number already exists', ['employeeNumber must be unique within the organization']);
+    if (employeeNumber !== undefined) {
+      const existing = await this.employees.findByEmployeeNumber(this.context.organizationId, employeeNumber);
+      if (existing) {
+        throw new ValidationError('An employee with this employee number already exists', ['employeeNumber must be unique within the organization']);
+      }
     }
 
     return this.employees.insert(this.context.organizationId, {
       branch_id: input.branchId,
-      employee_number: input.employeeNumber,
+      // An `undefined` value here is dropped by BaseRepository.create() (see
+      // its own comment) so the column is omitted from the INSERT entirely
+      // and 057's trigger fills in the generated value, exactly like any
+      // other omitted-vs-explicit column on this insert.
+      employee_number: employeeNumber,
       first_name: input.firstName,
       last_name: input.lastName,
       email: input.email ?? null,
