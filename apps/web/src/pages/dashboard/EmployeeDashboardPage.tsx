@@ -4,7 +4,7 @@ import { Calendar, User } from 'lucide-react';
 import { Badge, Button, EmptyState, InlineError, SkeletonRows } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import { DashEmptyPanel, DashHeader, DashPanel, DashStat, StatusPill } from './dashboardWidgets.js';
+import { DashEmptyPanel, DashHeader, DashNextStepBanner, DashPanel, DashStat, StatusPill } from './dashboardWidgets.js';
 import type { AttendanceRecord, AttendanceStatus, Employee, Schedule, Shift, ShiftAssignment } from '../../types/domain.js';
 
 /**
@@ -179,6 +179,24 @@ export default function EmployeeDashboardPage(): React.ReactElement {
         />
       ) : (
         <>
+          {/*
+            Task 8 — org-level "what's next" banner, distinct from the
+            "My shifts" panel's empty state below: that panel is about *this
+            employee's* shifts specifically, while this banner is about the
+            bigger picture — nobody at the branch has anything published yet,
+            which isn't specific to this person's account. Only shown once
+            schedules have finished loading, so it doesn't flash on for a
+            moment before `currentSchedule` resolves. No CTA: an employee has
+            no permission to publish a schedule, and there's no
+            messaging/contact-manager feature to link to instead.
+          */}
+          {!schedulesLoading && !currentSchedule ? (
+            <DashNextStepBanner
+              title="Nothing to see here yet — and that's expected"
+              description="No one at your branch has a published schedule right now, including you — this isn't specific to your account. Shifts will show up here automatically once your manager publishes the next one."
+            />
+          ) : null}
+
           {/* Design's Staff "Next shift" hero card */}
           {nextShift ? (
             <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-deep p-[15px] text-white shadow-[0_18px_44px_-22px_rgba(240,78,23,0.7)]">

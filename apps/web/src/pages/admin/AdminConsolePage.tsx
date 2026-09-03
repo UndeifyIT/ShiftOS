@@ -14,8 +14,49 @@ import {
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcQuery } from '../../lib/useRpc.js';
 import { AssistantPanel } from '../../components/assistant/AssistantPanel.js';
-import { DashStat, InitialsAvatar, StatusPill } from '../dashboard/dashboardWidgets.js';
+import { DashNextStepAction, DashNextStepBanner, DashStat, InitialsAvatar, StatusPill } from '../dashboard/dashboardWidgets.js';
 import type { Branch, Department, Employee, Invitation, Member } from '../../types/domain.js';
+
+/**
+ * Task 8 — the admin's single "what's next" banner, shown only on the
+ * Overview tab. Admin is a deliberately read-only console for day-to-day
+ * operations (see file doc comment above), so both stages here only ever
+ * suggest an action this specific viewer's permissions actually support
+ * (`branches.create`, `org.members.manage`) — falling through to `null`
+ * rather than a CTA when they don't, exactly like the other three
+ * dashboards.
+ */
+function computeAdminNextStep(args: {
+  canReadBranches: boolean;
+  branchCount: number;
+  canCreateBranch: boolean;
+  canManageMembers: boolean;
+  activeMemberCount: number;
+}): { title: string; description: string; action?: DashNextStepAction } | null {
+  const { canReadBranches, branchCount, canCreateBranch, canManageMembers, activeMemberCount } = args;
+
+  if (canReadBranches && branchCount === 0) {
+    return canCreateBranch
+      ? {
+          title: 'Set up your first branch',
+          description: 'Branches are the foundation for staffing and scheduling — open one to get started.',
+          action: { label: 'Create a branch', to: '/branches/new' }
+        }
+      : null;
+  }
+  // "No managers/members yet" — beyond the admin viewing this page, nobody
+  // else has been invited into the organization. Only checkable when this
+  // viewer can see membership at all (`org.members.manage`, the same
+  // permission that already gates the `members`/`invitations` queries above).
+  if (canReadBranches && branchCount > 0 && canManageMembers && activeMemberCount <= 1) {
+    return {
+      title: 'Invite your team',
+      description: "You're the only member in this organization so far — invite a manager or supervisor to help run it.",
+      action: { label: 'Invite a teammate', to: '/invitations' }
+    };
+  }
+  return null;
+}
 
 /**
  * Standalone Admin console, recreated from `Local file check/
@@ -93,18 +134,33 @@ export default function AdminConsolePage(): React.ReactElement {
   const canReadBranches = hasPermission('branches.read');
   const canReadEmployees = hasPermission('employees.read');
   const canManageMembers = hasPermission('org.members.manage');
+  const canCreateBranch = hasPermission('branches.create');
 
   const { data: branches, isLoading: branchesLoading } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canReadBranches });
   const { data: employees, isLoading: employeesLoading } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canReadEmployees });
   const { data: departments } = useRpcQuery<Department[]>('list_departments', undefined, { enabled: canReadBranches });
   const { data: invitations } = useRpcQuery<Invitation[]>('list_invitations', undefined, { enabled: canManageMembers });
-  const { data: members } = useRpcQuery<Member[]>('list_members', undefined, { enabled: canManageMembers });
+  const { data: members, isLoading: membersLoading } = useRpcQuery<Member[]>('list_members', undefined, { enabled: canManageMembers });
 
   const activeEmployees = (employees ?? []).filter((e) => e.is_active);
+  const activeMembers = (members ?? []).filter((m) => m.is_active);
   const pendingInvitations = (invitations ?? []).filter((i) => i.status === 'pending');
-  const seatCount = (members ?? []).filter((m) => m.is_active).length + activeEmployees.length;
+  const seatCount = activeMembers.length + activeEmployees.length;
   const seatPct = Math.min(100, Math.round((activeEmployees.length / SEAT_CAP) * 100));
   const orgName = activeOrganization?.name ?? 'Your organization';
+
+  // Wait for every readable dataset to settle before judging "empty" — see
+  // the matching comment in ManagerDashboardPage.tsx.
+  const nextStepDataReady = (!canReadBranches || !branchesLoading) && (!canManageMembers || !membersLoading);
+  const nextStep = nextStepDataReady
+    ? computeAdminNextStep({
+        canReadBranches,
+        branchCount: (branches ?? []).length,
+        canCreateBranch,
+        canManageMembers,
+        activeMemberCount: activeMembers.length
+      })
+    : null;
 
   const fullName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : 'Admin';
   const initials =
@@ -154,6 +210,8 @@ export default function AdminConsolePage(): React.ReactElement {
       {/* ================= OVERVIEW ================= */}
       {screen === 'overview' ? (
         <div className="flex flex-col gap-[18px]">
+          {nextStep ? <DashNextStepBanner {...nextStep} /> : null}
+
           {/* Ask ShiftOS (read-only, answered from live org data) */}
           <section className="rounded-[20px] bg-[#231E1A] p-[20px_22px_17px] text-white shadow-[0_26px_54px_-32px_rgba(35,30,26,0.75)]">
             <div className="flex flex-wrap items-center gap-[11px]">

@@ -6,6 +6,8 @@ import {
   CheckCircle,
   DashEmptyPanel,
   DashHeader,
+  DashNextStepAction,
+  DashNextStepBanner,
   DashPanel,
   DashStat,
   InitialsAvatar,
@@ -14,6 +16,77 @@ import {
   StatusPill
 } from './dashboardWidgets.js';
 import type { Branch, Employee, Invitation, Schedule } from '../../types/domain.js';
+
+/**
+ * Task 8 — the manager's single "what's next" banner. Priority-ordered over
+ * data this page already fetches: no branches yet (nothing else can exist
+ * without one) → no employees yet → no schedule at all yet → a draft exists
+ * but nothing is published yet. Falls through to `null` (no banner) once the
+ * basics are in place, and also falls through — rather than suggesting a
+ * step this viewer's permissions don't support — at any stage where the
+ * relevant `create` permission is missing.
+ */
+function computeManagerNextStep(args: {
+  canReadBranches: boolean;
+  branchCount: number;
+  canCreateBranch: boolean;
+  canReadEmployees: boolean;
+  employeeCount: number;
+  canCreateEmployee: boolean;
+  canReadSchedules: boolean;
+  scheduleCount: number;
+  draftCount: number;
+  publishedCount: number;
+  canCreateSchedule: boolean;
+}): { title: string; description: string; action?: DashNextStepAction } | null {
+  const {
+    canReadBranches,
+    branchCount,
+    canCreateBranch,
+    canReadEmployees,
+    employeeCount,
+    canCreateEmployee,
+    canReadSchedules,
+    scheduleCount,
+    draftCount,
+    publishedCount,
+    canCreateSchedule
+  } = args;
+
+  if (canReadBranches && branchCount === 0) {
+    if (!canCreateBranch) return null;
+    return {
+      title: 'Set up your first branch',
+      description: 'Branches are the foundation for staffing and scheduling — open one to get started.',
+      action: { label: 'Open a branch', to: '/branches/new' }
+    };
+  }
+  if (canReadEmployees && employeeCount === 0) {
+    if (!canCreateEmployee) return null;
+    return {
+      title: 'Add your first employee',
+      description: 'Bring your team into ShiftOS so you can start building schedules around them.',
+      action: { label: 'Add employee', to: '/employees/new' }
+    };
+  }
+  if (canReadSchedules && scheduleCount === 0) {
+    if (!canCreateSchedule) return null;
+    return {
+      title: 'Create your first schedule',
+      description: "Build a schedule for your team so everyone knows when they're working.",
+      action: { label: 'Create a schedule', to: '/schedules/new' }
+    };
+  }
+  if (canReadSchedules && draftCount > 0 && publishedCount === 0) {
+    if (!canCreateSchedule) return null;
+    return {
+      title: 'Your schedule is ready for review',
+      description: `${draftCount} draft schedule${draftCount === 1 ? '' : 's'} waiting — publish it so the team can see their shifts.`,
+      action: { label: 'Publish it', to: '/schedules' }
+    };
+  }
+  return null;
+}
 
 /**
  * WEB-017 — Manager dashboard: organization-wide scope. Restyled 1:1 onto
@@ -81,12 +154,35 @@ export default function ManagerDashboardPage(): React.ReactElement {
 
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
+  // Wait for every readable dataset to settle before judging "empty" — an
+  // in-flight query reads as `undefined` → `[]`, which would otherwise flash
+  // the "no branches"/"no employees" banner for a moment even when data exists.
+  const nextStepDataReady =
+    (!canReadBranches || !branchesLoading) && (!canReadEmployees || !employeesLoading) && (!canReadSchedules || !schedulesLoading);
+  const nextStep = nextStepDataReady
+    ? computeManagerNextStep({
+        canReadBranches,
+        branchCount: (branches ?? []).length,
+        canCreateBranch,
+        canReadEmployees,
+        employeeCount: activeEmployees.length,
+        canCreateEmployee,
+        canReadSchedules,
+        scheduleCount: (schedules ?? []).length,
+        draftCount: draftSchedules.length,
+        publishedCount: publishedSchedules.length,
+        canCreateSchedule
+      })
+    : null;
+
   return (
     <div>
       <DashHeader
         title="Branch overview"
         subtitle={`${activeOrganization?.name ?? 'Your organization'} — ${today}`}
       />
+
+      {nextStep ? <DashNextStepBanner {...nextStep} /> : null}
 
       <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(196px,1fr))] gap-3.5">
         {canReadEmployees ? (

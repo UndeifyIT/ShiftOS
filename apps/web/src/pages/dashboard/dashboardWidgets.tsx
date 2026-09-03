@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 
 /**
  * Shared dashboard section widgets, ported 1:1 from `Local file check/
@@ -165,6 +165,64 @@ export function DashEmptyPanel({
         )
       ) : null}
     </div>
+  );
+}
+
+export interface DashNextStepAction {
+  label: string;
+  onClick?: () => void;
+  to?: string;
+}
+
+/**
+ * Task 8 — one role-agnostic "what's next" banner per dashboard, rendered
+ * once near the top of the page. Unlike `DashEmptyPanel` (Task 7), which
+ * treats an individual zero tile/panel in place, this reflects the
+ * dashboard's *overall* state: each page works out its own single most
+ * relevant next action (or nothing, in a healthy steady state) from data it
+ * already fetches, and passes the result in here — this component only
+ * renders the shell, it holds no dashboard-specific logic itself. Render
+ * nothing at the call site (don't pass an empty title) when there's no next
+ * step to suggest.
+ */
+export function DashNextStepBanner({
+  title,
+  description,
+  action
+}: {
+  title: string;
+  description: string;
+  /** Optional CTA — omit when the viewer's permissions don't support any action here. */
+  action?: DashNextStepAction;
+}): React.ReactElement {
+  return (
+    <section className="mb-4 flex flex-wrap items-center gap-3.5 rounded-2xl border border-brand-200 bg-brand-soft px-[18px] py-[15px]">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-brand-deep">
+        <Sparkles className="size-4" aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-extrabold text-neutral-900">{title}</p>
+        <p className="mt-0.5 text-[12px] text-neutral-600">{description}</p>
+      </div>
+      {action ? (
+        action.to ? (
+          <Link
+            to={action.to}
+            className="inline-flex h-9 shrink-0 items-center rounded-[10px] bg-brand-500 px-3.5 text-[12.5px] font-bold text-white transition-colors hover:bg-brand-600"
+          >
+            {action.label}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={action.onClick}
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center rounded-[10px] bg-brand-500 px-3.5 text-[12.5px] font-bold text-white transition-colors hover:bg-brand-600"
+          >
+            {action.label}
+          </button>
+        )
+      ) : null}
+    </section>
   );
 }
 

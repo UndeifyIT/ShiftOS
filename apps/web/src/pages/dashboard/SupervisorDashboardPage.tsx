@@ -6,18 +6,97 @@ import {
   CheckCircle,
   DashEmptyPanel,
   DashHeader,
+  DashNextStepAction,
+  DashNextStepBanner,
   DashPanel,
   DashStat,
   InitialsAvatar,
   QuickActionCard,
   StatusPill
 } from './dashboardWidgets.js';
-import type { Branch, Employee, Schedule } from '../../types/domain.js';
+import type { Branch, Employee, Schedule, Task } from '../../types/domain.js';
 
 function branchesDescription(branches: Branch[] | undefined): string {
   if (!branches || branches.length === 0) return 'Here is what is happening at your branch today.';
   if (branches.length === 1) return `Here's what's happening at ${branches[0]!.name} today.`;
   return `Here's what's happening across your ${branches.length} branches today.`;
+}
+
+/**
+ * Task 8 — the supervisor's single "what's next" banner. Staged in order of
+ * how a supervisor actually ramps up: their own profile → their team → a
+ * schedule for that team → reviewing work the team has completed. Each
+ * stage only fires when the viewer's permissions actually support the
+ * suggested action (own-profile editing aside, which every viewer can do
+ * regardless of role); otherwise it falls through to the next stage rather
+ * than showing an action they can't take, and falls through to `null` (no
+ * banner) once everything's in place.
+ */
+function computeSupervisorNextStep(args: {
+  hasPhone: boolean;
+  canReadEmployees: boolean;
+  employeeCount: number;
+  canCreateEmployee: boolean;
+  canReadSchedules: boolean;
+  scheduleCount: number;
+  draftCount: number;
+  publishedCount: number;
+  canCreateSchedule: boolean;
+  canReadTasks: boolean;
+  canVerifyTasks: boolean;
+  tasksAwaitingReview: number;
+}): { title: string; description: string; action?: DashNextStepAction } | null {
+  const {
+    hasPhone,
+    canReadEmployees,
+    employeeCount,
+    canCreateEmployee,
+    canReadSchedules,
+    scheduleCount,
+    draftCount,
+    publishedCount,
+    canCreateSchedule,
+    canReadTasks,
+    canVerifyTasks,
+    tasksAwaitingReview
+  } = args;
+
+  if (!hasPhone) {
+    return {
+      title: 'Finish setting up your profile',
+      description: 'Add a phone number so your team and manager can reach you.',
+      action: { label: 'Complete profile', to: '/profile' }
+    };
+  }
+  if (canReadEmployees && employeeCount === 0 && canCreateEmployee) {
+    return {
+      title: 'Add your first team member',
+      description: 'Bring the people who work at your branch into ShiftOS to start scheduling them.',
+      action: { label: 'Add employee', to: '/employees/new' }
+    };
+  }
+  if (canReadSchedules && scheduleCount === 0 && canCreateSchedule) {
+    return {
+      title: 'Build your first schedule',
+      description: "Plan the week so your team knows when they're working.",
+      action: { label: 'Build a schedule', to: '/schedules/new' }
+    };
+  }
+  if (canReadSchedules && draftCount > 0 && publishedCount === 0 && canCreateSchedule) {
+    return {
+      title: 'Your schedule is ready for review',
+      description: `${draftCount} draft schedule${draftCount === 1 ? '' : 's'} waiting — publish it so your team can see their shifts.`,
+      action: { label: 'Publish it', to: '/schedules' }
+    };
+  }
+  if (canReadTasks && canVerifyTasks && tasksAwaitingReview > 0) {
+    return {
+      title: `${tasksAwaitingReview} task${tasksAwaitingReview === 1 ? '' : 's'} waiting on your review`,
+      description: 'Your team marked these complete — verify them so they close out.',
+      action: { label: 'Review tasks', to: '/tasks' }
+    };
+  }
+  return null;
 }
 
 /**
@@ -29,7 +108,7 @@ function branchesDescription(branches: Branch[] | undefined): string {
  * returns the caller's full accessible set.
  */
 export default function SupervisorDashboardPage(): React.ReactElement {
-  const { hasPermission } = useSession();
+  const { profile, hasPermission } = useSession();
   const navigate = useNavigate();
   const canReadEmployees = hasPermission('employees.read');
   const canReadSchedules = hasPermission('schedules.read');
@@ -38,19 +117,47 @@ export default function SupervisorDashboardPage(): React.ReactElement {
   const canCreateEmployee = hasPermission('employees.create');
   const canReadAttendance = hasPermission('attendance.read');
   const canReadTasks = hasPermission('tasks.read');
+  const canVerifyTasks = hasPermission('tasks.verify');
 
   const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canReadBranches });
   const { data: employees, isLoading: employeesLoading } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canReadEmployees });
   const { data: schedules, isLoading: schedulesLoading } = useRpcQuery<Schedule[]>('list_schedules', undefined, { enabled: canReadSchedules });
+  // Additive read for the "tasks awaiting review" banner stage below — same
+  // RPC and shape TasksPage.tsx already uses, just not previously fetched here.
+  const { data: tasks, isLoading: tasksLoading } = useRpcQuery<Task[]>('list_tasks', undefined, { enabled: canReadTasks });
 
   const branchEmployees = (employees ?? []).filter((e) => e.is_active);
   const publishedSchedules = (schedules ?? []).filter((s) => s.status === 'published');
   const draftSchedules = (schedules ?? []).filter((s) => s.status === 'draft');
   const recentSchedules = [...(schedules ?? [])].filter((s) => s.status !== 'archived').slice(0, 5);
+  const tasksAwaitingReview = (tasks ?? []).filter((t) => t.task_status === 'completed').length;
+
+  // Wait for every readable dataset to settle before judging "empty" — see
+  // the matching comment in ManagerDashboardPage.tsx.
+  const nextStepDataReady =
+    (!canReadEmployees || !employeesLoading) && (!canReadSchedules || !schedulesLoading) && (!canReadTasks || !tasksLoading);
+  const nextStep = nextStepDataReady
+    ? computeSupervisorNextStep({
+        hasPhone: Boolean(profile?.phone),
+        canReadEmployees,
+        employeeCount: branchEmployees.length,
+        canCreateEmployee,
+        canReadSchedules,
+        scheduleCount: (schedules ?? []).length,
+        draftCount: draftSchedules.length,
+        publishedCount: publishedSchedules.length,
+        canCreateSchedule,
+        canReadTasks,
+        canVerifyTasks,
+        tasksAwaitingReview
+      })
+    : null;
 
   return (
     <div>
       <DashHeader title="Your branch today" subtitle={branchesDescription(branches)} />
+
+      {nextStep ? <DashNextStepBanner {...nextStep} /> : null}
 
       <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(196px,1fr))] gap-3.5">
         {canReadEmployees ? (
