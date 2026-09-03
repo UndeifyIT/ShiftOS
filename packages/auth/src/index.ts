@@ -27,7 +27,13 @@ export interface AuthenticationProvider {
    * password update is applied.
    */
   confirmPasswordReset(accessToken: string, refreshToken: string, newPassword: string): Promise<void>;
-  inviteUser(email: string, firstName: string, lastName: string, organizationId: string, roleId?: string): Promise<InviteUserResult>;
+  /**
+   * firstName/lastName are optional since Task 3 (055) — the invite form no
+   * longer collects the invitee's name (they set it themselves at
+   * CompleteProfilePage after accepting). Passed through to Supabase Auth's
+   * invite metadata only when supplied.
+   */
+  inviteUser(email: string, firstName: string | undefined, lastName: string | undefined, organizationId: string, roleId?: string): Promise<InviteUserResult>;
 }
 
 export class SupabaseAuthProvider implements AuthenticationProvider {
@@ -179,13 +185,13 @@ export class SupabaseAuthProvider implements AuthenticationProvider {
 
   async inviteUser(
     email: string,
-    firstName: string,
-    lastName: string,
+    firstName: string | undefined,
+    lastName: string | undefined,
     organizationId: string,
     roleId?: string
   ): Promise<InviteUserResult> {
-    if (!email || !organizationId || !firstName || !lastName) {
-      throw new ValidationError('Email, first name, last name, and organization ID are required');
+    if (!email || !organizationId) {
+      throw new ValidationError('Email and organization ID are required');
     }
 
     const adminClient = this.createAdminClient();

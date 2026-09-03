@@ -309,34 +309,31 @@ function SupervisorPermissionsChecklist(): React.ReactElement {
   );
 }
 
+/**
+ * First/last name deliberately not collected here (Task 3 — same redundant
+ * data-entry finding as InviteMemberForm above: the invitee always provides
+ * their own name later, at CompleteProfilePage, regardless of what the
+ * inviter typed). "Invited so far"/the success banner identify each invitee
+ * by email instead of a name this step never collects.
+ */
 function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }): React.ReactElement {
   const { data: branches } = useRpcQuery<Branch[]>('list_branches');
   const branchId = branches?.[0]?.id;
   const { data: invitableRoles } = useRpcQuery<Role[]>('list_invitable_roles');
   const supervisorRole = invitableRoles?.find((r) => r.name.toLowerCase() === 'supervisor');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   // Running list of everyone invited so far this step (design's `repeat: true`) —
   // pure local-state accumulation of this step's own successful invite_member
   // results, no separate list-fetching RPC needed.
-  const [invitedSoFar, setInvitedSoFar] = useState<{ firstName: string; lastName: string; email: string }[]>([]);
-  const [justInvited, setJustInvited] = useState<{ firstName: string; email: string } | null>(null);
+  const [invitedSoFar, setInvitedSoFar] = useState<string[]>([]);
+  const [justInvited, setJustInvited] = useState<string | null>(null);
 
-  const inviteMutation = useRpcMutation<
-    Invitation,
-    { email: string; firstName: string; lastName: string; roleId: string; branchIds: string[] }
-  >('invite_member', {
+  const inviteMutation = useRpcMutation<Invitation, { email: string; roleId: string; branchIds: string[] }>('invite_member', {
     invalidates: ['list_invitations'],
     onSuccess: (invitation) => {
-      setInvitedSoFar((prev) => [
-        ...prev,
-        { firstName: invitation.first_name, lastName: invitation.last_name, email: invitation.email }
-      ]);
-      setJustInvited({ firstName: invitation.first_name, email: invitation.email });
-      setFirstName('');
-      setLastName('');
+      setInvitedSoFar((prev) => [...prev, invitation.email]);
+      setJustInvited(invitation.email);
       setEmail('');
       setError(null);
     },
@@ -356,16 +353,13 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
         <div>
           <p className="text-[13px] font-extrabold text-neutral-900">Invited so far</p>
           <div className="mt-2.5 flex flex-col gap-[9px]">
-            {invitedSoFar.map((invitee, index) => (
+            {invitedSoFar.map((invitedEmail, index) => (
               <div
-                key={`${invitee.email}-${index}`}
+                key={`${invitedEmail}-${index}`}
                 className="flex flex-wrap items-center gap-2.5 rounded-[13px] border border-neutral-200 bg-[#FDFCFB] px-[13px] py-[11px]"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[12.5px] font-bold text-neutral-900">
-                    {invitee.firstName} {invitee.lastName}
-                  </span>
-                  <span className="block text-[11.5px] text-neutral-400">{invitee.email}</span>
+                  <span className="block text-[12.5px] font-bold text-neutral-900">{invitedEmail}</span>
                 </span>
                 <span className="inline-flex items-center rounded-full bg-success-50 px-2 py-0.5 text-[10px] font-extrabold text-success-600">
                   Invitation sent
@@ -378,10 +372,7 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
 
       {justInvited ? (
         <div className="flex flex-col gap-2 rounded-[13px] border border-[#BFE6CF] bg-success-50 p-3.5 text-[12.5px] text-success-text">
-          <p>
-            An invitation has been sent to {justInvited.email}. {justInvited.firstName} will become a Supervisor once they accept
-            it.
-          </p>
+          <p>An invitation has been sent to {justInvited}. They'll become a Supervisor once they accept it.</p>
           <button
             type="button"
             onClick={() => {
@@ -405,15 +396,13 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
               setError('The Supervisor role is not set up for this organization yet.');
               return;
             }
-            if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-              setError('First name, last name, and email are required.');
+            if (!email.trim()) {
+              setError('Work email is required.');
               return;
             }
             setError(null);
             inviteMutation.mutate({
               email: email.trim(),
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
               roleId: supervisorRole.id,
               branchIds: [branchId]
             });
@@ -421,12 +410,6 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
           className="flex flex-col gap-[15px]"
         >
           <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3.5">
-            <FormField label="First Name" htmlFor="supFirstName" required>
-              {(fieldProps) => <AuthInput {...fieldProps} value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="e.g. Sarah" />}
-            </FormField>
-            <FormField label="Last Name" htmlFor="supLastName" required>
-              {(fieldProps) => <AuthInput {...fieldProps} value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="e.g. Johnson" />}
-            </FormField>
             <FormField label="Work Email" htmlFor="supEmail" required hint="We'll send a real invitation to this address.">
               {(fieldProps) => <AuthInput {...fieldProps} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sarah@abcsupermarket.com" />}
             </FormField>

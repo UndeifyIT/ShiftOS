@@ -4,8 +4,9 @@ import { TenantScopedRepository, type TenantEntity } from '../base/tenantScopedR
 
 export interface Invitation extends TenantEntity {
   email: string;
-  first_name: string;
-  last_name: string;
+  /** Optional since 055 — the invite form no longer collects the invitee's name (they set it themselves at CompleteProfilePage). Null for every invitation created after 055; a pre-055 row may still carry the name the inviter typed at the time. */
+  first_name: string | null;
+  last_name: string | null;
   role_id: string;
   status: 'pending' | 'accepted' | 'revoked';
   invited_by: string;
@@ -62,6 +63,28 @@ export class InvitationRepository extends TenantScopedRepository<Invitation> {
     const updated = rows[0];
     if (!updated) {
       throw new ValidationError('Only a pending invitation can be revoked');
+    }
+    return updated;
+  }
+
+  /**
+   * Resend: extends expires_at by another 7 days from now, so an invitation
+   * that's already past its old expiry (still status='pending' — expiry is
+   * computed, not a stored transition, see the table comment) becomes valid
+   * again. Only a still-pending invitation (accepted or revoked included)
+   * can be resent. The caller (MembershipService) is responsible for
+   * actually re-sending the Supabase Auth invite email before calling this.
+   */
+  async resend(organizationId: string, id: string): Promise<Invitation> {
+    await this.getByIdOrThrow(organizationId, id);
+    const rows = await this.client.query<Invitation>(
+      `UPDATE invitations SET expires_at = now() + interval '7 days', updated_at = now()
+        WHERE id = $1 AND organization_id = $2 AND status = 'pending' RETURNING *`,
+      [id, organizationId]
+    );
+    const updated = rows[0];
+    if (!updated) {
+      throw new ValidationError('Only a pending invitation can be resent');
     }
     return updated;
   }

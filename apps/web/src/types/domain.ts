@@ -157,8 +157,9 @@ export interface Invitation {
   id: string;
   organization_id: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  /** Optional since 055 — the invite form no longer collects the invitee's name (they set it themselves at CompleteProfilePage). Null for every invitation created since then; a pre-055 row may still carry the name the inviter typed at the time. */
+  first_name: string | null;
+  last_name: string | null;
   role_id: string;
   role_name: string;
   status: InvitationStatus;
