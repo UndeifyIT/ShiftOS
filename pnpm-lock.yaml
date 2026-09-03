@@ -114,9 +114,6 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.59.0
         version: 5.101.4(react@18.3.1)
-      country-region-data:
-        specifier: ^4.1.0
-        version: 4.1.0
       lucide-react:
         specifier: ^0.451.0
         version: 0.451.0(react@18.3.1)
@@ -286,6 +283,12 @@ importers:
         specifier: workspace:*
         version: link:../types
 
+  packages/geography:
+    dependencies:
+      country-region-data:
+        specifier: ^4.1.0
+        version: 4.1.0
+
   packages/repositories:
     dependencies:
       '@shiftos/database':
@@ -336,12 +339,12 @@ importers:
       '@shiftos/errors':
         specifier: workspace:*
         version: link:../errors
+      '@shiftos/geography':
+        specifier: workspace:*
+        version: link:../geography
       '@shiftos/services':
         specifier: workspace:*
         version: link:../services
-      '@shiftos/web':
-        specifier: workspace:*
-        version: link:../../apps/web
 
   packages/types: {}
 

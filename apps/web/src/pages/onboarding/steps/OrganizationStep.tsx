@@ -1,10 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Building2, ImageOff } from 'lucide-react';
 import { FormField, SearchableSelect, Spinner, type SelectOption } from '@shiftos/ui';
+import { getCountryOptions } from '@shiftos/geography';
 import { supabase } from '../../../lib/supabase.js';
 import { callRpc } from '../../../lib/apiClient.js';
 import { uploadOrganizationLogo } from '../../../lib/avatars.js';
-import { getCountryOptions } from '../../../lib/geography.js';
 import { useSession } from '../../../auth/SessionProvider.js';
 import { AuthBanner, AuthInput } from '../../auth/AuthInputs.js';
 import { ObSelect, WizardFooter } from '../OnboardingFields.js';

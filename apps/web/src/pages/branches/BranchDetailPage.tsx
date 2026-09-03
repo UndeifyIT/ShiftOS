@@ -16,9 +16,9 @@ import {
   Select,
   SkeletonRows
 } from '@shiftos/ui';
+import { getCountryOptions, getRegionLabel, getStateOptions, resolveCountryValue, resolveStateValue } from '@shiftos/geography';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import { getCountryOptions, getRegionLabel, getStateOptions, resolveCountryValue, resolveStateValue } from '../../lib/geography.js';
 import type { Branch } from '../../types/domain.js';
 
 /** Same preset list the onboarding wizard's Branch step uses (settings.storeType) — kept in sync manually since it's just a small constant, not worth sharing a module for two call sites. */

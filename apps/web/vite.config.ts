@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@shiftos/config': workspacePackage('config'),
+      '@shiftos/geography': workspacePackage('geography'),
       '@shiftos/ui': workspacePackage('ui'),
       '@shiftos/utils': workspacePackage('utils'),
       '@shiftos/types': workspacePackage('types'),

@@ -13,11 +13,23 @@ import { allCountries } from 'country-region-data';
  * non-goal: "full worldwide city datasets are large and of inconsistent
  * quality").
  *
+ * Lives in its own package (rather than apps/web/src/lib, where it started)
+ * so it has a real public entry point (this file, built to dist/index.js —
+ * same shape as every other @shiftos/* library, see packages/utils for the
+ * pattern this mirrors) that both apps/web and packages/tests can depend on
+ * normally. An app's own src/lib isn't a library with a stable import
+ * surface — reaching into apps/web's build output from packages/tests
+ * worked at runtime but wasn't type-checked (packages/tests isn't in the
+ * tsc -b project-reference graph) and would have silently broken if
+ * apps/web's tsconfig rootDir/outDir layout ever changed.
+ *
  * Pure, framework-free module (no React/DOM) so it's unit-testable with
- * plain vitest, matching this repo's only real testing precedent for small
- * logic libraries (packages/tests/unit/*.test.ts) — apps/web has no working
- * component-test setup (its package.json's `jest --config jest.config.web.js`
- * script references a config file that doesn't exist anywhere in the repo).
+ * plain vitest, matching this repo's testing precedent for small logic
+ * libraries (packages/tests/unit/*.test.ts against a workspace package's
+ * real dist/ output, e.g. disposableEmail.test.ts against @shiftos/services)
+ * — apps/web has no working component-test setup (its package.json's
+ * `jest --config jest.config.web.js` script references a config file that
+ * doesn't exist anywhere in the repo).
  */
 
 export interface GeoOption {

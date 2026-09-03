@@ -5,7 +5,7 @@ import {
   getRegionLabel,
   resolveCountryValue,
   resolveStateValue
-} from '@shiftos/web/dist/src/lib/geography.js';
+} from '@shiftos/geography';
 
 describe('getCountryOptions', () => {
   it('includes real countries as {value: ISO2 code, label: name}, sorted alphabetically', () => {
