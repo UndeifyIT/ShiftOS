@@ -42,11 +42,14 @@ const SHIFT_STATUS_TONE: Record<Shift['status'], 'neutral' | 'success' | 'warnin
 
 function CreateScheduleForm(): React.ReactElement {
   const navigate = useNavigate();
-  // Non-null only when this caller has exactly one accessible branch (Task
-  // 1's shared single-branch concept) — in that case the branch field is
-  // hidden entirely and that branch is submitted automatically, same
-  // auto-hide idiom as InvitationsPage's InviteMemberForm and
-  // EmployeeFormPage.
+  // Non-null only when this caller has exactly one accessible branch AND is
+  // not org-wide (Task 1's shared single-branch concept) — in that case the
+  // branch field is hidden entirely and that branch is submitted
+  // automatically, same idiom as InvitationsPage's InviteMemberForm and
+  // EmployeeFormPage. This is NOT the same semantics as TasksPage.tsx's
+  // `requireBranchPicker` (raw branch count, no org-wide distinction) — see
+  // useDefaultBranchId's own doc comment for the exact divergence; the two
+  // are not interchangeable.
   const singleBranchId = useDefaultBranchId();
   const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: singleBranchId === null });
   const [branchId, setBranchId] = useState('');

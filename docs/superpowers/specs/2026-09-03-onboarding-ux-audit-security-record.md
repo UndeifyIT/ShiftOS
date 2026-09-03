@@ -223,6 +223,29 @@ To avoid this document implying more completeness than it has:
 - **`generate_next_employee_number`'s missing explicit `REVOKE` from `anon`/`PUBLIC`** (§3
   above) — newly noted, judged non-exploitable given `SECURITY INVOKER` + RLS, recommended as
   a cheap follow-up, not filed as a task or fixed here.
+- **Supabase's Dashboard-configured invite-email template's first-name personalization is
+  unverifiable from this repo** (Task 3): that template lives in Supabase's own dashboard
+  config, not in version-controlled code, so whether it references the invitee's first name
+  can't be checked or fixed by a code change here. This became relevant because Task 3 made
+  `invitations.first_name`/`last_name` optional — if the template does reference first name, a
+  nameless invitation would show a blank/awkward greeting in that email. Flagged in Task 3's
+  own review, carried forward here rather than silently dropped; needs a human to check the
+  Supabase Dashboard's email template config directly.
+- **`invite_member` has no server-side "at least one branch" validation** for a branch-scoped
+  invitation (Task 3) — the only check is client-side, in `InvitationsPage.tsx`'s
+  `InviteMemberForm` (`resolvedBranchIds.length === 0` before submit). Pre-existing behavior,
+  not introduced or worsened by Task 3's changes to that same file, but never fixed: a caller
+  bypassing the UI (e.g. hitting the `invite_member` RPC directly) could create a branch-scoped
+  invitation with zero branches attached. Flagged as a Minor in Task 3's own review and
+  deliberately deferred there, not fixed or re-investigated by this document.
+- **`parseAuthHashError` (Task 4, `apps/web/src/lib/authErrors.ts`) is only wired into
+  `AcceptInvitationPage.tsx`**, not into `ResetPasswordPage.tsx`, `ForgotPasswordPage.tsx`, or
+  `VerifyEmailPage.tsx` — none of those three import or call it, so they likely have the same
+  silent-fallthrough gap for Supabase's auth-error redirect hash (a bad/expired magic link) on
+  their own flows. Explicitly out of Task 4's scope (which only covers `/accept-invitation`),
+  flagged in Task 4's own review as a candidate for a future task, not a defect introduced by
+  this branch — carried forward here rather than left to live only in this worktree's
+  gitignored `.superpowers/` reports.
 - **Tables/policies beyond the 7 named in Phase 12** were not re-audited by this document —
   the design spec's spot-check (and this re-verification) covers exactly
   `employees`, `shifts`, `shift_assignments`, `invitations`, `organizations`, `branches`,

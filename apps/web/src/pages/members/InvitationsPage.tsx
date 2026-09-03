@@ -26,11 +26,13 @@ function isExpired(invitation: Invitation): boolean {
  */
 function InviteMemberForm({ onDone }: { onDone: () => void }): React.ReactElement {
   const { data: roles } = useRpcQuery<Role[]>('list_invitable_roles');
-  // Non-null only when this caller has exactly one accessible branch (Task
-  // 1's shared single-branch concept) — in that case there's nothing to
-  // choose, so the checkbox list is skipped entirely and that one branch is
-  // submitted automatically, same auto-hide idiom as TasksPage's
-  // requireBranchPicker.
+  // Non-null only when this caller has exactly one accessible branch AND is
+  // not org-wide (Task 1's shared single-branch concept) — in that case
+  // there's nothing to choose, so the checkbox list is skipped entirely and
+  // that one branch is submitted automatically. This is NOT the same
+  // semantics as TasksPage.tsx's `requireBranchPicker` (raw branch count,
+  // no org-wide distinction) — see useDefaultBranchId's own doc comment for
+  // the exact divergence; the two are not interchangeable.
   const singleBranchId = useDefaultBranchId();
   const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: singleBranchId === null });
   const [email, setEmail] = useState('');

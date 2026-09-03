@@ -86,10 +86,13 @@ export default function EmployeeFormPage(): React.ReactElement {
   const canCreate = hasPermission('employees.create');
   const canUpdate = hasPermission('employees.update');
 
-  // Non-null only when this caller has exactly one accessible branch (Task
-  // 1's shared single-branch concept) — in that case the branch field is
-  // hidden entirely and that branch is submitted automatically, same
-  // auto-hide idiom as InvitationsPage's InviteMemberForm.
+  // Non-null only when this caller has exactly one accessible branch AND is
+  // not org-wide (Task 1's shared single-branch concept) — in that case the
+  // branch field is hidden entirely and that branch is submitted
+  // automatically, same idiom as InvitationsPage's InviteMemberForm. This is
+  // NOT the same semantics as TasksPage.tsx's `requireBranchPicker` (raw
+  // branch count, no org-wide distinction) — see useDefaultBranchId's own
+  // doc comment for the exact divergence; the two are not interchangeable.
   const singleBranchId = useDefaultBranchId();
   const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: singleBranchId === null });
   const { data: employee, isLoading } = useRpcQuery<Employee>('get_employee', employeeId ? { employeeId } : undefined, {

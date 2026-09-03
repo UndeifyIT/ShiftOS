@@ -193,7 +193,7 @@ export default function EmployeeDashboardPage(): React.ReactElement {
           {!schedulesLoading && !currentSchedule ? (
             <DashNextStepBanner
               title="Nothing to see here yet — and that's expected"
-              description="No one at your branch has a published schedule right now, including you — this isn't specific to your account. Shifts will show up here automatically once your manager publishes the next one."
+              description="Your branch as a whole has no published schedule right now, including for everyone else — this isn't specific to your account. Shifts will show up here automatically once your manager publishes the next one."
             />
           ) : null}
 

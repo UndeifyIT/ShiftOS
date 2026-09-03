@@ -157,6 +157,13 @@ export default function SupervisorDashboardPage(): React.ReactElement {
         tasksAwaitingReview
       })
     : null;
+  // The banner above already owns "what to do next" once it's showing the
+  // zero-employees stage — checked by action target rather than title text
+  // so it stays correct if the copy changes. When true, the stat tile / team
+  // panel / recent-hires block below keep their empty-state framing but drop
+  // their own "Add employee" CTA, so the page isn't showing the same button
+  // four times over for one state.
+  const bannerOwnsEmployeeStage = nextStep?.action?.to === '/employees/new';
 
   return (
     <div>
@@ -173,7 +180,7 @@ export default function SupervisorDashboardPage(): React.ReactElement {
             dotTone="primary"
             loading={employeesLoading}
             action={
-              branchEmployees.length === 0 && canCreateEmployee
+              branchEmployees.length === 0 && canCreateEmployee && !bannerOwnsEmployeeStage
                 ? { label: 'Add employee', to: '/employees/new' }
                 : undefined
             }
@@ -211,8 +218,8 @@ export default function SupervisorDashboardPage(): React.ReactElement {
                 <DashEmptyPanel
                   title="No team members yet"
                   description="Add the people who work at your branch to start scheduling and tracking attendance."
-                  actionLabel={canCreateEmployee ? 'Add employee' : undefined}
-                  actionTo={canCreateEmployee ? '/employees/new' : undefined}
+                  actionLabel={canCreateEmployee && !bannerOwnsEmployeeStage ? 'Add employee' : undefined}
+                  actionTo={canCreateEmployee && !bannerOwnsEmployeeStage ? '/employees/new' : undefined}
                 />
               ) : (
                 <div className="flex flex-col">
@@ -321,7 +328,7 @@ export default function SupervisorDashboardPage(): React.ReactElement {
                 {branchEmployees.length === 0 ? (
                   <div>
                     <p className="text-[12.5px] font-bold text-neutral-700">No hires yet</p>
-                    {canCreateEmployee ? (
+                    {canCreateEmployee && !bannerOwnsEmployeeStage ? (
                       <button
                         type="button"
                         onClick={() => navigate('/employees/new')}
