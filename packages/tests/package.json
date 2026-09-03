@@ -9,6 +9,7 @@
     "@shiftos/constants": "workspace:*",
     "@shiftos/database": "workspace:*",
     "@shiftos/services": "workspace:*",
-    "@shiftos/errors": "workspace:*"
+    "@shiftos/errors": "workspace:*",
+    "@shiftos/web": "workspace:*"
   }
 }

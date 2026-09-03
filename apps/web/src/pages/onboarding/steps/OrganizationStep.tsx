@@ -1,9 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Building2, ImageOff } from 'lucide-react';
-import { FormField, Spinner, type SelectOption } from '@shiftos/ui';
+import { FormField, SearchableSelect, Spinner, type SelectOption } from '@shiftos/ui';
 import { supabase } from '../../../lib/supabase.js';
 import { callRpc } from '../../../lib/apiClient.js';
 import { uploadOrganizationLogo } from '../../../lib/avatars.js';
+import { getCountryOptions } from '../../../lib/geography.js';
 import { useSession } from '../../../auth/SessionProvider.js';
 import { AuthBanner, AuthInput } from '../../auth/AuthInputs.js';
 import { ObSelect, WizardFooter } from '../OnboardingFields.js';
@@ -42,20 +43,6 @@ const EMPLOYEE_ESTIMATES: SelectOption[] = [
   { value: '26 – 50', label: '26 – 50' },
   { value: '51 – 100', label: '51 – 100' },
   { value: '100+', label: '100+' }
-];
-
-const COUNTRIES: SelectOption[] = [
-  { value: 'Nigeria', label: 'Nigeria' },
-  { value: 'Ghana', label: 'Ghana' },
-  { value: 'Kenya', label: 'Kenya' },
-  { value: 'South Africa', label: 'South Africa' },
-  { value: 'Egypt', label: 'Egypt' },
-  { value: 'United Kingdom', label: 'United Kingdom' },
-  { value: 'United States', label: 'United States' },
-  { value: 'Canada', label: 'Canada' },
-  { value: 'India', label: 'India' },
-  { value: 'United Arab Emirates', label: 'United Arab Emirates' },
-  { value: 'Other', label: 'Other' }
 ];
 
 const TIME_ZONES: SelectOption[] = [
@@ -106,6 +93,7 @@ export default function OrganizationStep(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [metadataWarning, setMetadataWarning] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const countryOptions = useMemo(() => getCountryOptions(), []);
 
   const handleNameChange = (value: string): void => {
     setName(value);
@@ -225,7 +213,16 @@ export default function OrganizationStep(): React.ReactElement {
           )}
         </FormField>
         <FormField label="Country" htmlFor="orgCountry" required>
-          {(fieldProps) => <ObSelect {...fieldProps} options={COUNTRIES} placeholder="Select country" value={country} onChange={(e) => setCountry(e.target.value)} />}
+          {(fieldProps) => (
+            <SearchableSelect
+              {...fieldProps}
+              variant="onboarding"
+              options={countryOptions}
+              placeholder="Search countries…"
+              value={country}
+              onChange={setCountry}
+            />
+          )}
         </FormField>
         <FormField label="Time Zone" htmlFor="orgTimeZone" required hint="Keeps clock-ins and schedules accurate.">
           {(fieldProps) => <ObSelect {...fieldProps} options={TIME_ZONES} placeholder="Select time zone" value={timeZone} onChange={(e) => setTimeZone(e.target.value)} />}

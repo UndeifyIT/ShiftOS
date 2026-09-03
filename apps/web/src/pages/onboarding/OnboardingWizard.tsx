@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, Check, MessageSquare, Users, X } from 'lucide-react';
-import { FormField, Skeleton, SkeletonRows } from '@shiftos/ui';
+import { FormField, SearchableSelect, Skeleton, SkeletonRows } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
+import { getCountryOptions, getRegionLabel, getStateOptions, resolveCountryValue } from '../../lib/geography.js';
 import { OnboardingWizardShell, type OnboardingStepId } from './OnboardingWizardShell.js';
 import { AuthBanner, AuthInput } from '../auth/AuthInputs.js';
 import { ObSelect, WizardFooter } from './OnboardingFields.js';
@@ -80,17 +81,40 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
   const { activeOrganization } = useSession();
   const { data: branches, isLoading } = useRpcQuery<Branch[]>('list_branches');
 
-  const orgCountry = typeof activeOrganization?.metadata?.country === 'string' ? (activeOrganization.metadata.country as string) : '';
+  const orgCountryRaw = typeof activeOrganization?.metadata?.country === 'string' ? (activeOrganization.metadata.country as string) : '';
+  // Resolves whatever's in org metadata — a new-format ISO2 code, or a
+  // pre-existing free-text country name from before this task — to a
+  // canonical {code, label}. See lib/geography.ts's own doc comment.
+  const resolvedOrgCountry = useMemo(() => resolveCountryValue(orgCountryRaw), [orgCountryRaw]);
   const timeZoneOptions = useMemo(() => getTimeZoneOptions(), []);
+  const countryOptions = useMemo(() => getCountryOptions(), []);
+  // Guarantees the disabled, pre-filled-from-org select always has a
+  // matching option to display, even for a legacy org whose metadata.country
+  // predates this task and doesn't match any known country name/code.
+  const effectiveCountryOptions = useMemo(() => {
+    if (!resolvedOrgCountry || countryOptions.some((option) => option.value === resolvedOrgCountry.code)) {
+      return countryOptions;
+    }
+    return [{ value: resolvedOrgCountry.code, label: resolvedOrgCountry.label }, ...countryOptions];
+  }, [countryOptions, resolvedOrgCountry]);
 
   const [name, setName] = useState('');
   const [storeType, setStoreType] = useState('');
-  const [country, setCountry] = useState(orgCountry);
+  const [country, setCountry] = useState(resolvedOrgCountry?.code ?? '');
   const [branchState, setBranchState] = useState('');
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   const [timeZone, setTimeZone] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const stateOptions = useMemo(() => getStateOptions(country), [country]);
+  const regionLabel = useMemo(() => getRegionLabel(country), [country]);
+
+  /** Country select's onChange — also drops any already-picked state, since it belongs to the previous country's list. */
+  const handleCountryChange = (value: string): void => {
+    setCountry(value);
+    setBranchState('');
+  };
 
   const createMutation = useRpcMutation<Branch, { name: string; address?: string | null; settings?: Record<string, unknown> }>(
     'create_branch',
@@ -160,20 +184,42 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
           label="Country"
           htmlFor="branchCountry"
           required
-          hint={orgCountry ? "From your organization's settings." : undefined}
+          hint={resolvedOrgCountry ? "From your organization's settings." : undefined}
         >
+          {(fieldProps) => (
+            <SearchableSelect
+              {...fieldProps}
+              variant="onboarding"
+              options={effectiveCountryOptions}
+              placeholder="Search countries…"
+              value={country}
+              onChange={handleCountryChange}
+              disabled={Boolean(resolvedOrgCountry)}
+            />
+          )}
+        </FormField>
+        <FormField label={regionLabel} htmlFor="branchState" required>
           {(fieldProps) =>
-            orgCountry ? (
-              <AuthInput {...fieldProps} value={country} disabled />
+            stateOptions.length > 0 ? (
+              <SearchableSelect
+                {...fieldProps}
+                variant="onboarding"
+                options={stateOptions}
+                placeholder={country ? `Search ${regionLabel.toLowerCase()}…` : 'Select a country first'}
+                value={branchState}
+                onChange={setBranchState}
+                disabled={!country}
+              />
             ) : (
-              <AuthInput {...fieldProps} value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Nigeria" />
+              <AuthInput
+                {...fieldProps}
+                value={branchState}
+                onChange={(e) => setBranchState(e.target.value)}
+                placeholder="e.g. Lagos"
+                disabled={!country}
+              />
             )
           }
-        </FormField>
-        <FormField label="State" htmlFor="branchState" required>
-          {(fieldProps) => (
-            <AuthInput {...fieldProps} value={branchState} onChange={(e) => setBranchState(e.target.value)} placeholder="e.g. Lagos" />
-          )}
         </FormField>
         <FormField label="City" htmlFor="branchCity" required>
           {(fieldProps) => <AuthInput {...fieldProps} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Ikeja" />}

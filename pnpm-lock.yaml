@@ -114,6 +114,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.59.0
         version: 5.101.4(react@18.3.1)
+      country-region-data:
+        specifier: ^4.1.0
+        version: 4.1.0
       lucide-react:
         specifier: ^0.451.0
         version: 0.451.0(react@18.3.1)
@@ -336,6 +339,9 @@ importers:
       '@shiftos/services':
         specifier: workspace:*
         version: link:../services
+      '@shiftos/web':
+        specifier: workspace:*
+        version: link:../../apps/web
 
   packages/types: {}
 
@@ -3285,6 +3291,9 @@ packages:
   cosmiconfig@5.2.1:
     resolution: {integrity: sha512-H65gsXo1SKjf8zmrJ67eJk8aIRKV5ff2D4uKZIBZShbhGSpEmsQOPW/SKMKYhSTrqR7ufy6RP69rPogdaPh/kA==}
     engines: {node: '>=4'}
+
+  country-region-data@4.1.0:
+    resolution: {integrity: sha512-20fGwnpj5Q3HlQTHdMUstpD4pixphymWBj1f9/EonKEvnEDCaq1S3peE1O7NLxHI1zSa6W+5do/u7xS7UVfZtw==}
 
   cross-fetch@3.2.0:
     resolution: {integrity: sha512-Q+xVJLoGOeIMXZmbUK4HYk+69cQH6LudR0Vu/pRm2YlU/hDV9CiS0gKUMaWY5f2NeUH9C1nV3bsTlCo0FsTV1Q==}
@@ -12026,6 +12035,8 @@ snapshots:
       is-directory: 0.3.1
       js-yaml: 3.15.1
       parse-json: 4.0.0
+
+  country-region-data@4.1.0: {}
 
   cross-fetch@3.2.0:
     dependencies:
