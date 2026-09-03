@@ -84,6 +84,8 @@ Confirmed: Employee and Admin invitations run through the exact same `invite_mem
 
 Live `pg_policy`/`relrowsecurity` spot-check across `employees`, `shifts`, `shift_assignments`, `invitations`, `organizations`, `branches`, `organization_member_branch_access` found **no cross-tenant or cross-branch read/write gap** — every policy consistently gates on `get_user_organizations()` and, where relevant, `user_accessible_branches()` or an explicit permission check. The only concrete gaps found anywhere in this audit are the two Storage items in Phase 11 above. This phase's deliverable is therefore the corrective storage migration plus a written record of what was checked and found clean (so this doesn't need re-auditing next time), not a large defect list.
 
+The permanent, re-runnable record of this spot-check — exact policy names/conditions, the live queries used, the identity-simulation technique this whole feature's live verification relies on, and what Tasks 1-9 of the implementation plan touched that's RLS-relevant — is `docs/superpowers/specs/2026-09-03-onboarding-ux-audit-security-record.md` (Task 10).
+
 ## 3. Explicit non-goals / deferred items
 
 Consistent with the brief's own "do not over-engineer" rule and this plan's job to separate signal from noise:
