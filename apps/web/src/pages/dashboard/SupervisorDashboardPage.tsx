@@ -130,7 +130,12 @@ export default function SupervisorDashboardPage(): React.ReactElement {
   const publishedSchedules = (schedules ?? []).filter((s) => s.status === 'published');
   const draftSchedules = (schedules ?? []).filter((s) => s.status === 'draft');
   const recentSchedules = [...(schedules ?? [])].filter((s) => s.status !== 'archived').slice(0, 5);
-  const tasksAwaitingReview = (tasks ?? []).filter((t) => t.task_status === 'completed').length;
+  // Mirrors TasksPage.tsx's canShowVerify: completed tasks, plus tasks sent
+  // back for rework that are now in progress again — both are states a
+  // supervisor with tasks.verify needs to act on.
+  const tasksAwaitingReview = (tasks ?? []).filter(
+    (t) => t.task_status === 'completed' || (t.task_status === 'in_progress' && t.verification_status === 'rework_required')
+  ).length;
 
   // Wait for every readable dataset to settle before judging "empty" — see
   // the matching comment in ManagerDashboardPage.tsx.

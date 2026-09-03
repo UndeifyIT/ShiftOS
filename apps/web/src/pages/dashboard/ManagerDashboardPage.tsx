@@ -53,6 +53,9 @@ function computeManagerNextStep(args: {
     canCreateSchedule
   } = args;
 
+  // Branches are a genuine structural prerequisite for every later stage
+  // (an employee cannot exist without one), not just a permission gate — so
+  // this stage alone stops the chain outright rather than falling through.
   if (canReadBranches && branchCount === 0) {
     if (!canCreateBranch) return null;
     return {
@@ -61,24 +64,24 @@ function computeManagerNextStep(args: {
       action: { label: 'Open a branch', to: '/branches/new' }
     };
   }
-  if (canReadEmployees && employeeCount === 0) {
-    if (!canCreateEmployee) return null;
+  // From here on, a missing create-permission for one stage should not hide
+  // a later stage's genuinely actionable banner — fold the permission into
+  // each stage's own condition so the chain falls through instead.
+  if (canReadEmployees && employeeCount === 0 && canCreateEmployee) {
     return {
       title: 'Add your first employee',
       description: 'Bring your team into ShiftOS so you can start building schedules around them.',
       action: { label: 'Add employee', to: '/employees/new' }
     };
   }
-  if (canReadSchedules && scheduleCount === 0) {
-    if (!canCreateSchedule) return null;
+  if (canReadSchedules && scheduleCount === 0 && canCreateSchedule) {
     return {
       title: 'Create your first schedule',
       description: "Build a schedule for your team so everyone knows when they're working.",
       action: { label: 'Create a schedule', to: '/schedules/new' }
     };
   }
-  if (canReadSchedules && draftCount > 0 && publishedCount === 0) {
-    if (!canCreateSchedule) return null;
+  if (canReadSchedules && draftCount > 0 && publishedCount === 0 && canCreateSchedule) {
     return {
       title: 'Your schedule is ready for review',
       description: `${draftCount} draft schedule${draftCount === 1 ? '' : 's'} waiting — publish it so the team can see their shifts.`,
