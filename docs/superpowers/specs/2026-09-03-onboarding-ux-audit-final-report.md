@@ -240,9 +240,15 @@ own source that `redirectTo` is read directly from the options object and forwar
 Re-ran the invitation integration test suite (5/5 passing) and `tsc -b` (clean)
 afterward.
 
-**⚠️ Action required: this fix does not take effect in production until `SITE_URL`
-is set there.** Add `SITE_URL=https://shiftos-web.vercel.app` to production's
-environment variables (e.g. the Vercel project's environment settings) and redeploy.
+**✅ Done:** `SITE_URL=https://shiftos-web.vercel.app` was added to the
+`shiftos-backend-api` Render service (the one `apps/web/vercel.json` actually
+routes `/rpc/*` to in production — a second, older `shiftos-backend` service
+also exists on Render but is not in the production path and was left alone),
+which triggered a live redeploy (`dep-dade46ajnfac73fig5g0`, confirmed `live`).
+Not yet independently re-verified end-to-end with a real delivered email
+(Supabase's built-in email-send rate limit was still cooling down from this
+session's testing volume at the time) — worth a real invite test once that
+limit clears.
 
 ## 4b. Two more real bugs found and fixed completing Phase I
 
@@ -441,10 +447,10 @@ recommended follow-ups):
 
 ## 6. Recommendations
 
-1. **⚠️ Highest priority, production-facing:** add `SITE_URL=https://shiftos-web.vercel.app`
-   to production's environment variables and redeploy — without it, real invitation
-   emails keep sending invitees to the sign-in page instead of the acceptance flow
-   (§4a), regardless of the code fix already merged to this branch.
+1. ~~Add `SITE_URL=https://shiftos-web.vercel.app` to production's environment
+   variables and redeploy~~ — **done**: set on the `shiftos-backend-api` Render
+   service, redeployed live (§4a). Recommend a real invite test once Supabase's
+   email-send rate limit clears, as the final independent confirmation.
 2. Add browser-based timezone auto-detection (`Intl.DateTimeFormat().resolvedOptions().timeZone`,
    still overridable) to the organization and branch setup steps — genuinely missing,
    not a false alarm from the original audit.
