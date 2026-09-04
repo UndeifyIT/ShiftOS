@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, CheckCircle2, Clock3, ShieldCheck, User, WifiOff, XCircle } from 'lucide-react';
 import { FormField } from '@shiftos/ui';
@@ -29,6 +29,9 @@ interface PendingInvitation {
 
 type View = 'loading' | 'form' | 'expired' | 'used' | 'revoked' | 'not-found' | 'success' | 'network-error' | 'invalid-link' | 'multiple';
 
+/** See the mount effect's own comment for why this needs to survive a remount. */
+const ACCEPTED_SESSION_KEY = 'shiftos.acceptInvitation.justAccepted';
+
 /**
  * SHARED-005 — Accept Invitation / Account Setup (WF-002). The invite email
  * link (packages/auth's inviteUser) establishes a session the same way a
@@ -48,8 +51,37 @@ export default function AcceptInvitationPage(): React.ReactElement {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Guards the hash-error branch below against running more than once. The
+  // branch is not naturally idempotent: it strips the error out of the URL
+  // via history.replaceState as a side effect, so a second invocation of
+  // this effect (observed in practice -- see the fix commit's report for the
+  // reproduction) reads an already-emptied hash, silently falls through to
+  // the normal fetch path instead, and overwrites the correct 'invalid-link'
+  // view with a misleading generic "not found" once that fetch fails for an
+  // unauthenticated caller. The `cancelled` flag a few lines down already
+  // protects the async fetch branch the same way; this ref is the equivalent
+  // protection for this branch's synchronous, immediate side effect.
+  const invalidLinkHandledRef = useRef(false);
 
   useEffect(() => {
+    // Setting the password below fires Supabase's USER_UPDATED auth event,
+    // which SessionProvider reacts to by re-running its own session
+    // bootstrap -- observed in practice to genuinely unmount and remount
+    // this whole page ~20ms after handleSubmit calls setView('success')
+    // (bootstrap resolving asynchronously ~300ms later, well after this
+    // component has already been torn down and rebuilt). A fresh mount has
+    // no memory of that local 'success' state, so its own fetch below finds
+    // the invitation still 'pending' (accept_invitation() only runs once a
+    // profile row exists, which doesn't happen until CompleteProfilePage)
+    // and lands back on the plain form -- the invitee sees their password
+    // submission appear to silently do nothing. sessionStorage (unlike
+    // component state or a ref) survives that remount, so a fresh mount can
+    // recognize "we already succeeded" before ever hitting the network.
+    if (window.sessionStorage.getItem(ACCEPTED_SESSION_KEY) === '1') {
+      setView('success');
+      return;
+    }
+
     // A bad/expired/consumed invite magic-link never establishes a session --
     // Supabase Auth instead redirects back here with the failure encoded as a
     // URL hash (e.g. #error=access_denied&error_code=otp_expired&...), which
@@ -62,8 +94,10 @@ export default function AcceptInvitationPage(): React.ReactElement {
     // non-user-facing auth diagnostics (see CompleteProfilePage.tsx) -- never
     // shown to the invitee. The hash is cleared from the URL so a refresh or
     // copy-pasted link doesn't keep re-triggering it.
+    if (invalidLinkHandledRef.current) return;
     const hashError = parseAuthHashError(window.location.hash);
     if (hashError) {
+      invalidLinkHandledRef.current = true;
       console.error('Accept-invitation link redirected with an auth error:', hashError);
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
       setView('invalid-link');
@@ -129,6 +163,10 @@ export default function AcceptInvitationPage(): React.ReactElement {
         }
         return;
       }
+      // Written before setView so it's already in place if the USER_UPDATED
+      // event this same call fires (see the mount effect's comment) causes a
+      // remount before this render even commits.
+      window.sessionStorage.setItem(ACCEPTED_SESSION_KEY, '1');
       setView('success');
     } catch (err) {
       if (isNetworkError(err)) setView('network-error');
@@ -236,7 +274,14 @@ export default function AcceptInvitationPage(): React.ReactElement {
           title="Welcome to ShiftOS"
           body="Your account is active. Next, complete your profile so your team can recognize you."
           ctaLabel="Complete profile →"
-          onCta={() => navigate('/complete-profile')}
+          onCta={() => {
+            // Clears the flag the mount effect above checks -- without this,
+            // a later, unrelated invitation accepted in the same browser tab
+            // session would skip straight to 'success' without ever
+            // checking that invitation's own real status.
+            window.sessionStorage.removeItem(ACCEPTED_SESSION_KEY);
+            navigate('/complete-profile');
+          }}
         />
       ) : (
         <>
