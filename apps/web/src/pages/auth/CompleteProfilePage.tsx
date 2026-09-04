@@ -2,12 +2,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ImageOff, MessageSquare, Shield, User, Users } from 'lucide-react';
 import { FormField, Spinner } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
+import { supabase } from '../../lib/supabase.js';
 import { removeAvatar, uploadUserAvatar } from '../../lib/avatars.js';
 import { isNetworkError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
 import { AuthBanner, AuthInput, AuthSelect, AuthSubmit } from './AuthInputs.js';
 
-const JOB_ROLES = ['Manager', 'Supervisor', 'Admin', 'Employee'] as const;
+// 'Manager'/'Owner' are never assigned via invitation (membershipService
+// rejects inviting an org-wide-branch-access role), so they're not real
+// options here — only roles invite_member can actually grant.
+const JOB_ROLES = ['Supervisor', 'Admin', 'Employee'] as const;
 
 /** Drives the photo tile below — mirrors the 4-state widget in the design
  * handoff (`ShiftOS Auth.dc.html`'s Complete Profile `photo` state). Upload
@@ -52,6 +56,15 @@ export default function CompleteProfilePage(): React.ReactElement {
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Non-null once we've checked whether this identity arrived via a real
+  // invitation. When it has, the inviter already chose the role (a
+  // Supervisor invite, an Employee invite, an Admin invite are separate
+  // forms) -- letting the invitee freely re-pick a different Job Role here
+  // would just be a label that contradicts their real, already-granted
+  // permissions. Null means "still checking" or "no invitation" (e.g. an
+  // Owner completing their own profile after signup), in which case the
+  // field stays a free choice.
+  const [invitedRoleName, setInvitedRoleName] = useState<string | null>(null);
 
   // SignUpPage stashes the name the person typed there so they don't have
   // to retype it here — best-effort only, cleared immediately after use.
@@ -67,6 +80,26 @@ export default function CompleteProfilePage(): React.ReactElement {
     } catch {
       // Malformed sessionStorage value — ignore, the form just starts blank.
     }
+  }, []);
+
+  // Mirrors AcceptInvitationPage's own get_pending_invitation() call rather
+  // than passing role_name through router state -- this page can be reached
+  // directly (a reload, a bookmarked link) without ever having rendered that
+  // page in this session, and the RPC is a cheap, idempotent preview that's
+  // still resolvable here (accept_invitation() -- the call that consumes the
+  // invitation -- only runs once this page's own submit creates the profile
+  // row, so the invitation is still 'pending' right up until then).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase.rpc('get_pending_invitation').maybeSingle<{ role_name: string; status: string }>();
+      if (cancelled || !data || data.status !== 'pending') return;
+      setInvitedRoleName(data.role_name);
+      setJobTitle(data.role_name);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -307,17 +340,23 @@ export default function CompleteProfilePage(): React.ReactElement {
         <FormField label="Phone Number" htmlFor="phone" required>
           {(fieldProps) => <AuthInput {...fieldProps} type="tel" autoComplete="tel" placeholder="+234 802 345 6789" value={phone} onChange={(e) => setPhone(e.target.value)} />}
         </FormField>
-        <FormField label="Job Role" htmlFor="jobTitle" hint="Optional">
-          {(fieldProps) => (
-            <AuthSelect {...fieldProps} value={jobTitle} onChange={(e) => setJobTitle(e.target.value)}>
-              <option value="">Select your role</option>
-              {JOB_ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </AuthSelect>
-          )}
+        <FormField label="Job Role" htmlFor="jobTitle" hint={invitedRoleName ? 'Set by your invitation' : 'Optional'}>
+          {(fieldProps) =>
+            invitedRoleName ? (
+              <AuthSelect {...fieldProps} value={invitedRoleName} disabled>
+                <option value={invitedRoleName}>{invitedRoleName}</option>
+              </AuthSelect>
+            ) : (
+              <AuthSelect {...fieldProps} value={jobTitle} onChange={(e) => setJobTitle(e.target.value)}>
+                <option value="">Select your role</option>
+                {JOB_ROLES.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </AuthSelect>
+            )
+          }
         </FormField>
 
         {error ? (
