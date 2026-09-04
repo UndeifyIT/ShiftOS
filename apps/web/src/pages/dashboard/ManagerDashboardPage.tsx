@@ -15,16 +15,17 @@ import {
   QuickActionCard,
   StatusPill
 } from './dashboardWidgets.js';
-import type { Branch, Employee, Invitation, Schedule } from '../../types/domain.js';
+import type { Announcement, Branch, Employee, Invitation, Schedule } from '../../types/domain.js';
 
 /**
  * Task 8 — the manager's single "what's next" banner. Priority-ordered over
  * data this page already fetches: no branches yet (nothing else can exist
  * without one) → no employees yet → no schedule at all yet → a draft exists
- * but nothing is published yet. Falls through to `null` (no banner) once the
- * basics are in place, and also falls through — rather than suggesting a
- * step this viewer's permissions don't support — at any stage where the
- * relevant `create` permission is missing.
+ * but nothing is published yet → once the whole staffing/scheduling
+ * foundation is in place, no announcement has been shared yet. Falls through
+ * to `null` (no banner) once everything's in place, and also falls through —
+ * rather than suggesting a step this viewer's permissions don't support — at
+ * any stage where the relevant `create` permission is missing.
  */
 function computeManagerNextStep(args: {
   canReadBranches: boolean;
@@ -38,6 +39,9 @@ function computeManagerNextStep(args: {
   draftCount: number;
   publishedCount: number;
   canCreateSchedule: boolean;
+  canReadAnnouncements: boolean;
+  canCreateAnnouncement: boolean;
+  announcementCount: number;
 }): { title: string; description: string; action?: DashNextStepAction } | null {
   const {
     canReadBranches,
@@ -50,7 +54,10 @@ function computeManagerNextStep(args: {
     scheduleCount,
     draftCount,
     publishedCount,
-    canCreateSchedule
+    canCreateSchedule,
+    canReadAnnouncements,
+    canCreateAnnouncement,
+    announcementCount
   } = args;
 
   // Branches are a genuine structural prerequisite for every later stage
@@ -88,6 +95,13 @@ function computeManagerNextStep(args: {
       action: { label: 'Publish it', to: '/schedules' }
     };
   }
+  if (canReadAnnouncements && announcementCount === 0 && canCreateAnnouncement) {
+    return {
+      title: 'Share your first announcement',
+      description: 'Keep your team in the loop — post an update so everyone sees it in one place.',
+      action: { label: 'New announcement', to: '/announcements' }
+    };
+  }
   return null;
 }
 
@@ -109,11 +123,16 @@ export default function ManagerDashboardPage(): React.ReactElement {
   const canCreateBranch = hasPermission('branches.create');
   const canCreateEmployee = hasPermission('employees.create');
   const canManageMembers = hasPermission('org.members.manage');
+  const canReadAnnouncements = hasPermission('announcements.read');
+  const canCreateAnnouncement = hasPermission('announcements.create');
 
   const { data: employees, isLoading: employeesLoading } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canReadEmployees });
   const { data: branches, isLoading: branchesLoading } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canReadBranches });
   const { data: schedules, isLoading: schedulesLoading } = useRpcQuery<Schedule[]>('list_schedules', undefined, { enabled: canReadSchedules });
   const { data: invitations } = useRpcQuery<Invitation[]>('list_invitations', undefined, { enabled: canManageMembers });
+  const { data: announcements, isLoading: announcementsLoading } = useRpcQuery<Announcement[]>('list_announcements', undefined, {
+    enabled: canReadAnnouncements
+  });
 
   const activeEmployees = (employees ?? []).filter((e) => e.is_active);
   const publishedSchedules = (schedules ?? []).filter((s) => s.status === 'published');
@@ -161,7 +180,10 @@ export default function ManagerDashboardPage(): React.ReactElement {
   // in-flight query reads as `undefined` → `[]`, which would otherwise flash
   // the "no branches"/"no employees" banner for a moment even when data exists.
   const nextStepDataReady =
-    (!canReadBranches || !branchesLoading) && (!canReadEmployees || !employeesLoading) && (!canReadSchedules || !schedulesLoading);
+    (!canReadBranches || !branchesLoading) &&
+    (!canReadEmployees || !employeesLoading) &&
+    (!canReadSchedules || !schedulesLoading) &&
+    (!canReadAnnouncements || !announcementsLoading);
   const nextStep = nextStepDataReady
     ? computeManagerNextStep({
         canReadBranches,
@@ -174,7 +196,10 @@ export default function ManagerDashboardPage(): React.ReactElement {
         scheduleCount: (schedules ?? []).length,
         draftCount: draftSchedules.length,
         publishedCount: publishedSchedules.length,
-        canCreateSchedule
+        canCreateSchedule,
+        canReadAnnouncements,
+        canCreateAnnouncement,
+        announcementCount: (announcements ?? []).length
       })
     : null;
 
