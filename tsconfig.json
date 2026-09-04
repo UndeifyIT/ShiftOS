@@ -9,6 +9,7 @@
     { "path": "./apps/mobile" },
     { "path": "./packages/config" },
     { "path": "./packages/constants" },
+    { "path": "./packages/geography" },
     { "path": "./packages/types" },
     { "path": "./packages/ui" },
     { "path": "./packages/utils" },

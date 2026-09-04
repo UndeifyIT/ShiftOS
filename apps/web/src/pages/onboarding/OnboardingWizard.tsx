@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, Check, MessageSquare, Users, X } from 'lucide-react';
-import { FormField, Skeleton, SkeletonRows } from '@shiftos/ui';
+import { FormField, SearchableSelect, Skeleton, SkeletonRows } from '@shiftos/ui';
+import { getCountryOptions, getRegionLabel, getStateOptions, resolveCountryValue } from '@shiftos/geography';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import { OnboardingWizardShell, type OnboardingStepId } from './OnboardingWizardShell.js';
@@ -80,17 +81,40 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
   const { activeOrganization } = useSession();
   const { data: branches, isLoading } = useRpcQuery<Branch[]>('list_branches');
 
-  const orgCountry = typeof activeOrganization?.metadata?.country === 'string' ? (activeOrganization.metadata.country as string) : '';
+  const orgCountryRaw = typeof activeOrganization?.metadata?.country === 'string' ? (activeOrganization.metadata.country as string) : '';
+  // Resolves whatever's in org metadata — a new-format ISO2 code, or a
+  // pre-existing free-text country name from before this task — to a
+  // canonical {code, label}. See lib/geography.ts's own doc comment.
+  const resolvedOrgCountry = useMemo(() => resolveCountryValue(orgCountryRaw), [orgCountryRaw]);
   const timeZoneOptions = useMemo(() => getTimeZoneOptions(), []);
+  const countryOptions = useMemo(() => getCountryOptions(), []);
+  // Guarantees the disabled, pre-filled-from-org select always has a
+  // matching option to display, even for a legacy org whose metadata.country
+  // predates this task and doesn't match any known country name/code.
+  const effectiveCountryOptions = useMemo(() => {
+    if (!resolvedOrgCountry || countryOptions.some((option) => option.value === resolvedOrgCountry.code)) {
+      return countryOptions;
+    }
+    return [{ value: resolvedOrgCountry.code, label: resolvedOrgCountry.label }, ...countryOptions];
+  }, [countryOptions, resolvedOrgCountry]);
 
   const [name, setName] = useState('');
   const [storeType, setStoreType] = useState('');
-  const [country, setCountry] = useState(orgCountry);
+  const [country, setCountry] = useState(resolvedOrgCountry?.code ?? '');
   const [branchState, setBranchState] = useState('');
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   const [timeZone, setTimeZone] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const stateOptions = useMemo(() => getStateOptions(country), [country]);
+  const regionLabel = useMemo(() => getRegionLabel(country), [country]);
+
+  /** Country select's onChange — also drops any already-picked state, since it belongs to the previous country's list. */
+  const handleCountryChange = (value: string): void => {
+    setCountry(value);
+    setBranchState('');
+  };
 
   const createMutation = useRpcMutation<Branch, { name: string; address?: string | null; settings?: Record<string, unknown> }>(
     'create_branch',
@@ -160,20 +184,42 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
           label="Country"
           htmlFor="branchCountry"
           required
-          hint={orgCountry ? "From your organization's settings." : undefined}
+          hint={resolvedOrgCountry ? "From your organization's settings." : undefined}
         >
+          {(fieldProps) => (
+            <SearchableSelect
+              {...fieldProps}
+              variant="onboarding"
+              options={effectiveCountryOptions}
+              placeholder="Search countries…"
+              value={country}
+              onChange={handleCountryChange}
+              disabled={Boolean(resolvedOrgCountry)}
+            />
+          )}
+        </FormField>
+        <FormField label={regionLabel} htmlFor="branchState" required>
           {(fieldProps) =>
-            orgCountry ? (
-              <AuthInput {...fieldProps} value={country} disabled />
+            stateOptions.length > 0 ? (
+              <SearchableSelect
+                {...fieldProps}
+                variant="onboarding"
+                options={stateOptions}
+                placeholder={country ? `Search ${regionLabel.toLowerCase()}…` : 'Select a country first'}
+                value={branchState}
+                onChange={setBranchState}
+                disabled={!country}
+              />
             ) : (
-              <AuthInput {...fieldProps} value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Nigeria" />
+              <AuthInput
+                {...fieldProps}
+                value={branchState}
+                onChange={(e) => setBranchState(e.target.value)}
+                placeholder="e.g. Lagos"
+                disabled={!country}
+              />
             )
           }
-        </FormField>
-        <FormField label="State" htmlFor="branchState" required>
-          {(fieldProps) => (
-            <AuthInput {...fieldProps} value={branchState} onChange={(e) => setBranchState(e.target.value)} placeholder="e.g. Lagos" />
-          )}
         </FormField>
         <FormField label="City" htmlFor="branchCity" required>
           {(fieldProps) => <AuthInput {...fieldProps} value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Ikeja" />}
@@ -263,34 +309,31 @@ function SupervisorPermissionsChecklist(): React.ReactElement {
   );
 }
 
+/**
+ * First/last name deliberately not collected here (Task 3 — same redundant
+ * data-entry finding as InviteMemberForm above: the invitee always provides
+ * their own name later, at CompleteProfilePage, regardless of what the
+ * inviter typed). "Invited so far"/the success banner identify each invitee
+ * by email instead of a name this step never collects.
+ */
 function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }): React.ReactElement {
   const { data: branches } = useRpcQuery<Branch[]>('list_branches');
   const branchId = branches?.[0]?.id;
   const { data: invitableRoles } = useRpcQuery<Role[]>('list_invitable_roles');
   const supervisorRole = invitableRoles?.find((r) => r.name.toLowerCase() === 'supervisor');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   // Running list of everyone invited so far this step (design's `repeat: true`) —
   // pure local-state accumulation of this step's own successful invite_member
   // results, no separate list-fetching RPC needed.
-  const [invitedSoFar, setInvitedSoFar] = useState<{ firstName: string; lastName: string; email: string }[]>([]);
-  const [justInvited, setJustInvited] = useState<{ firstName: string; email: string } | null>(null);
+  const [invitedSoFar, setInvitedSoFar] = useState<string[]>([]);
+  const [justInvited, setJustInvited] = useState<string | null>(null);
 
-  const inviteMutation = useRpcMutation<
-    Invitation,
-    { email: string; firstName: string; lastName: string; roleId: string; branchIds: string[] }
-  >('invite_member', {
+  const inviteMutation = useRpcMutation<Invitation, { email: string; roleId: string; branchIds: string[] }>('invite_member', {
     invalidates: ['list_invitations'],
     onSuccess: (invitation) => {
-      setInvitedSoFar((prev) => [
-        ...prev,
-        { firstName: invitation.first_name, lastName: invitation.last_name, email: invitation.email }
-      ]);
-      setJustInvited({ firstName: invitation.first_name, email: invitation.email });
-      setFirstName('');
-      setLastName('');
+      setInvitedSoFar((prev) => [...prev, invitation.email]);
+      setJustInvited(invitation.email);
       setEmail('');
       setError(null);
     },
@@ -310,16 +353,13 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
         <div>
           <p className="text-[13px] font-extrabold text-neutral-900">Invited so far</p>
           <div className="mt-2.5 flex flex-col gap-[9px]">
-            {invitedSoFar.map((invitee, index) => (
+            {invitedSoFar.map((invitedEmail, index) => (
               <div
-                key={`${invitee.email}-${index}`}
+                key={`${invitedEmail}-${index}`}
                 className="flex flex-wrap items-center gap-2.5 rounded-[13px] border border-neutral-200 bg-[#FDFCFB] px-[13px] py-[11px]"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[12.5px] font-bold text-neutral-900">
-                    {invitee.firstName} {invitee.lastName}
-                  </span>
-                  <span className="block text-[11.5px] text-neutral-400">{invitee.email}</span>
+                  <span className="block text-[12.5px] font-bold text-neutral-900">{invitedEmail}</span>
                 </span>
                 <span className="inline-flex items-center rounded-full bg-success-50 px-2 py-0.5 text-[10px] font-extrabold text-success-600">
                   Invitation sent
@@ -332,10 +372,7 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
 
       {justInvited ? (
         <div className="flex flex-col gap-2 rounded-[13px] border border-[#BFE6CF] bg-success-50 p-3.5 text-[12.5px] text-success-text">
-          <p>
-            An invitation has been sent to {justInvited.email}. {justInvited.firstName} will become a Supervisor once they accept
-            it.
-          </p>
+          <p>An invitation has been sent to {justInvited}. They'll become a Supervisor once they accept it.</p>
           <button
             type="button"
             onClick={() => {
@@ -359,15 +396,13 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
               setError('The Supervisor role is not set up for this organization yet.');
               return;
             }
-            if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-              setError('First name, last name, and email are required.');
+            if (!email.trim()) {
+              setError('Work email is required.');
               return;
             }
             setError(null);
             inviteMutation.mutate({
               email: email.trim(),
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
               roleId: supervisorRole.id,
               branchIds: [branchId]
             });
@@ -375,12 +410,6 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
           className="flex flex-col gap-[15px]"
         >
           <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3.5">
-            <FormField label="First Name" htmlFor="supFirstName" required>
-              {(fieldProps) => <AuthInput {...fieldProps} value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="e.g. Sarah" />}
-            </FormField>
-            <FormField label="Last Name" htmlFor="supLastName" required>
-              {(fieldProps) => <AuthInput {...fieldProps} value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="e.g. Johnson" />}
-            </FormField>
             <FormField label="Work Email" htmlFor="supEmail" required hint="We'll send a real invitation to this address.">
               {(fieldProps) => <AuthInput {...fieldProps} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sarah@abcsupermarket.com" />}
             </FormField>

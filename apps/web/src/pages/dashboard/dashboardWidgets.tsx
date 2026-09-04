@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 
 /**
  * Shared dashboard section widgets, ported 1:1 from `Local file check/
@@ -72,18 +72,27 @@ export function StatusPill({ tone, children }: { tone: DashTone; children: React
   );
 }
 
+export interface DashStatAction {
+  label: string;
+  onClick?: () => void;
+  to?: string;
+}
+
 export function DashStat({
   label,
   value,
   meta,
   dotTone = 'primary',
-  loading = false
+  loading = false,
+  action
 }: {
   label: string;
   value: string | number;
   meta: string;
   dotTone?: DashTone;
   loading?: boolean;
+  /** Optional near-empty CTA (e.g. "Add employee") shown under the meta line — additive, no visual change when omitted. */
+  action?: DashStatAction;
 }): React.ReactElement {
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white px-[18px] py-4">
@@ -97,7 +106,123 @@ export function DashStat({
         <p className="mt-3 text-[30px] font-extrabold leading-none tracking-[-0.03em] text-neutral-900">{value}</p>
       )}
       <p className="mt-1.5 text-[11.5px] text-neutral-400">{meta}</p>
+      {action ? (
+        action.to ? (
+          <Link to={action.to} className="mt-1.5 inline-block text-[11.5px] font-bold text-brand-deep transition-colors hover:text-brand-500">
+            {action.label} →
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={action.onClick}
+            className="mt-1.5 block cursor-pointer text-[11.5px] font-bold text-brand-deep transition-colors hover:text-brand-500"
+          >
+            {action.label} →
+          </button>
+        )
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * Compact empty-state block for a `DashPanel`'s body — the dashboard
+ * equivalent of the list pages' `EmptyState`, sized to sit inside an
+ * existing panel rather than replacing a whole page. Deliberately lighter
+ * than the boxed `@shiftos/ui` `EmptyState` (no dashed border/icon circle),
+ * since nothing else in this dashboard visual language uses that treatment.
+ */
+export function DashEmptyPanel({
+  title,
+  description,
+  actionLabel,
+  actionTo,
+  onAction
+}: {
+  title: string;
+  description?: string;
+  actionLabel?: string;
+  actionTo?: string;
+  onAction?: () => void;
+}): React.ReactElement {
+  return (
+    <div className="flex flex-col items-center gap-1 px-[18px] py-8 text-center">
+      <p className="text-[13px] font-bold text-neutral-700">{title}</p>
+      {description ? <p className="max-w-[320px] text-[12px] text-neutral-400">{description}</p> : null}
+      {actionLabel && (actionTo || onAction) ? (
+        actionTo ? (
+          <Link to={actionTo} className="mt-2 text-[12px] font-bold text-brand-deep transition-colors hover:text-brand-500">
+            {actionLabel} →
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={onAction}
+            className="mt-2 cursor-pointer text-[12px] font-bold text-brand-deep transition-colors hover:text-brand-500"
+          >
+            {actionLabel} →
+          </button>
+        )
+      ) : null}
+    </div>
+  );
+}
+
+export interface DashNextStepAction {
+  label: string;
+  onClick?: () => void;
+  to?: string;
+}
+
+/**
+ * Task 8 — one role-agnostic "what's next" banner per dashboard, rendered
+ * once near the top of the page. Unlike `DashEmptyPanel` (Task 7), which
+ * treats an individual zero tile/panel in place, this reflects the
+ * dashboard's *overall* state: each page works out its own single most
+ * relevant next action (or nothing, in a healthy steady state) from data it
+ * already fetches, and passes the result in here — this component only
+ * renders the shell, it holds no dashboard-specific logic itself. Render
+ * nothing at the call site (don't pass an empty title) when there's no next
+ * step to suggest.
+ */
+export function DashNextStepBanner({
+  title,
+  description,
+  action
+}: {
+  title: string;
+  description: string;
+  /** Optional CTA — omit when the viewer's permissions don't support any action here. */
+  action?: DashNextStepAction;
+}): React.ReactElement {
+  return (
+    <section className="mb-4 flex flex-wrap items-center gap-3.5 rounded-2xl border border-brand-200 bg-brand-soft px-[18px] py-[15px]">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-brand-deep">
+        <Sparkles className="size-4" aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-extrabold text-neutral-900">{title}</p>
+        <p className="mt-0.5 text-[12px] text-neutral-600">{description}</p>
+      </div>
+      {action ? (
+        action.to ? (
+          <Link
+            to={action.to}
+            className="inline-flex h-9 shrink-0 items-center rounded-[10px] bg-brand-500 px-3.5 text-[12.5px] font-bold text-white transition-colors hover:bg-brand-600"
+          >
+            {action.label}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={action.onClick}
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center rounded-[10px] bg-brand-500 px-3.5 text-[12.5px] font-bold text-white transition-colors hover:bg-brand-600"
+          >
+            {action.label}
+          </button>
+        )
+      ) : null}
+    </section>
   );
 }
 

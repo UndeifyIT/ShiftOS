@@ -4,7 +4,7 @@ import { Calendar, User } from 'lucide-react';
 import { Badge, Button, EmptyState, InlineError, SkeletonRows } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import { DashHeader, DashPanel, DashStat, StatusPill } from './dashboardWidgets.js';
+import { DashEmptyPanel, DashHeader, DashNextStepBanner, DashPanel, DashStat, StatusPill } from './dashboardWidgets.js';
 import type { AttendanceRecord, AttendanceStatus, Employee, Schedule, Shift, ShiftAssignment } from '../../types/domain.js';
 
 /**
@@ -14,8 +14,11 @@ import type { AttendanceRecord, AttendanceStatus, Employee, Schedule, Shift, Shi
  * to hold, because Staff never gets management screens in the nav either.
  *
  * Zero-employee-record handling (DEC-016/032): an authenticated identity has
- * no guaranteed employees row (e.g. an Owner who never added themselves as
- * staff). That is a normal, expected state here, not an error — the
+ * no guaranteed employees row — most commonly a freshly-invited Employee/
+ * Admin whose org membership isn't yet linked to an `employees` record (that
+ * link is created separately via the Employees screen, not automatically on
+ * invitation acceptance), but also an Owner who never added themselves as
+ * staff. That is a normal, expected state here, not an error — the
  * workforce widgets simply don't render, with an explanatory empty state
  * instead of a blank page.
  */
@@ -175,10 +178,28 @@ export default function EmployeeDashboardPage(): React.ReactElement {
       ) : !myEmployeeRecord ? (
         <EmptyState
           title="No workforce profile yet"
-          description="Your account isn't linked to an employee record, so there's no personal schedule to show. This is normal for administrators who manage ShiftOS without being scheduled themselves."
+          description="Your account isn't linked to an employee record, so there's no personal schedule to show yet. If you're expecting shifts here, ask your manager to add you as an employee."
         />
       ) : (
         <>
+          {/*
+            Task 8 — org-level "what's next" banner, distinct from the
+            "My shifts" panel's empty state below: that panel is about *this
+            employee's* shifts specifically, while this banner is about the
+            bigger picture — nobody at the branch has anything published yet,
+            which isn't specific to this person's account. Only shown once
+            schedules have finished loading, so it doesn't flash on for a
+            moment before `currentSchedule` resolves. No CTA: an employee has
+            no permission to publish a schedule, and there's no
+            messaging/contact-manager feature to link to instead.
+          */}
+          {!schedulesLoading && !currentSchedule ? (
+            <DashNextStepBanner
+              title="Nothing to see here yet — and that's expected"
+              description="Your branch as a whole has no published schedule right now, including for everyone else — this isn't specific to your account. Shifts will show up here automatically once your manager publishes the next one."
+            />
+          ) : null}
+
           {/* Design's Staff "Next shift" hero card */}
           {nextShift ? (
             <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-deep p-[15px] text-white shadow-[0_18px_44px_-22px_rgba(240,78,23,0.7)]">
@@ -198,7 +219,19 @@ export default function EmployeeDashboardPage(): React.ReactElement {
           ) : null}
 
           <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(196px,1fr))] gap-3.5">
-            <DashStat label="Upcoming shifts" value={upcomingShifts.length} meta="in the current schedule" dotTone="primary" loading={shiftsLoading || schedulesLoading} />
+            <DashStat
+              label="Upcoming shifts"
+              value={upcomingShifts.length}
+              meta={
+                !currentSchedule
+                  ? 'no schedule published yet'
+                  : upcomingShifts.length === 0
+                    ? 'nothing scheduled for you right now'
+                    : 'in the current schedule'
+              }
+              dotTone="primary"
+              loading={shiftsLoading || schedulesLoading}
+            />
             <DashStat label="Scheduled hours" value={scheduledHours % 1 === 0 ? scheduledHours : scheduledHours.toFixed(1)} meta="across upcoming shifts" dotTone="info" loading={shiftsLoading || schedulesLoading} />
             {currentSchedule ? (
               <DashStat label="Current schedule" value={currentSchedule.name.length > 14 ? `${currentSchedule.name.slice(0, 12)}…` : currentSchedule.name} meta="published for your branch" dotTone="ok" />
@@ -211,9 +244,15 @@ export default function EmployeeDashboardPage(): React.ReactElement {
                 {shiftsLoading || schedulesLoading ? (
                   <SkeletonRows rows={3} />
                 ) : !currentSchedule ? (
-                  <p className="px-[18px] py-6 text-sm text-neutral-500">No published schedule for your branch yet.</p>
+                  <DashEmptyPanel
+                    title="No schedule published yet"
+                    description="Your branch hasn't published a schedule for this period. Check back soon, or ask your manager when the next one is going up."
+                  />
                 ) : upcomingShifts.length === 0 ? (
-                  <p className="px-[18px] py-6 text-sm text-neutral-500">No upcoming shifts assigned in the current schedule.</p>
+                  <DashEmptyPanel
+                    title="Nothing on your schedule right now"
+                    description="You're not on the next few days in the published schedule — that's normal if it isn't your turn yet."
+                  />
                 ) : (
                   <div className="flex flex-col">
                     {upcomingShifts.map((shift) => {

@@ -18,6 +18,20 @@ export interface AppConfig {
    */
   SUPABASE_SERVICE_ROLE_KEY?: string;
   /**
+   * The app's own public origin (e.g. https://shiftos-web.vercel.app), no
+   * trailing slash. Optional on purpose, same reasoning as
+   * SUPABASE_SERVICE_ROLE_KEY: without it, packages/auth's inviteUser() omits
+   * redirectTo and Supabase Auth falls back to the project's dashboard-
+   * configured Site URL for the invite email's link — which is exactly the
+   * bug this variable exists to fix (that fallback pointed invitees at
+   * /sign-in instead of /accept-invitation, discovered via live Phase I
+   * browser testing of the onboarding-ux-audit feature). Consumers must
+   * degrade to the old (broken) behavior when absent, not throw — this repo
+   * has no confirmed record of every deployment target already having this
+   * set.
+   */
+  SITE_URL?: string;
+  /**
    * Optional: the AI assistant (packages/api/src/operations/assistant.ts)
    * checks for this itself and returns a typed "not configured" result
    * when absent, rather than the app failing to boot without it.
@@ -96,6 +110,7 @@ export function loadConfig(): AppConfig {
     NODE_ENV: (process.env.NODE_ENV as AppConfig['NODE_ENV']) ?? 'development',
     LOG_LEVEL: (process.env.LOG_LEVEL as AppConfig['LOG_LEVEL']) ?? 'info',
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || undefined,
+    SITE_URL: process.env.SITE_URL || undefined,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY || undefined,
     OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o-mini'
   };

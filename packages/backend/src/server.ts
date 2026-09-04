@@ -44,7 +44,8 @@ function main(): void {
     ? new SupabaseAuthProvider({
         supabaseUrl: config.SUPABASE_URL,
         supabaseAnonKey: config.SUPABASE_ANON_KEY,
-        supabaseServiceRoleKey: config.SUPABASE_SERVICE_ROLE_KEY
+        supabaseServiceRoleKey: config.SUPABASE_SERVICE_ROLE_KEY,
+        siteUrl: config.SITE_URL
       })
     : undefined;
 

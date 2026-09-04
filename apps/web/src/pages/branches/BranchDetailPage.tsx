@@ -12,9 +12,11 @@ import {
   PageContainer,
   PageHeader,
   PermissionDenied,
+  SearchableSelect,
   Select,
   SkeletonRows
 } from '@shiftos/ui';
+import { getCountryOptions, getRegionLabel, getStateOptions, resolveCountryValue, resolveStateValue } from '@shiftos/geography';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import type { Branch } from '../../types/domain.js';
@@ -72,6 +74,36 @@ export default function BranchDetailPage(): React.ReactElement {
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false);
   const timeZoneOptions = useMemo(() => getTimeZoneOptions(), []);
+
+  // `country`/`branchState` stay exactly what's in `branch.settings` until
+  // the user actively re-picks one from a select — for a pre-existing branch
+  // that may be free text/a country name from before this task, this avoids
+  // silently rewriting it into the new-format identifier on an unrelated
+  // save (e.g. just fixing the branch name), matching Global Constraint 4.
+  const countryOptions = useMemo(() => getCountryOptions(), []);
+  const resolvedCountry = useMemo(() => resolveCountryValue(country), [country]);
+  const effectiveCountryOptions = useMemo(() => {
+    if (!resolvedCountry || countryOptions.some((option) => option.value === resolvedCountry.code)) {
+      return countryOptions;
+    }
+    return [{ value: resolvedCountry.code, label: resolvedCountry.label }, ...countryOptions];
+  }, [countryOptions, resolvedCountry]);
+
+  const stateOptions = useMemo(() => getStateOptions(resolvedCountry?.code), [resolvedCountry]);
+  const regionLabel = useMemo(() => getRegionLabel(resolvedCountry?.code), [resolvedCountry]);
+  const resolvedState = useMemo(() => resolveStateValue(resolvedCountry?.code, branchState), [resolvedCountry, branchState]);
+  const effectiveStateOptions = useMemo(() => {
+    if (!resolvedState || stateOptions.some((option) => option.value === resolvedState.code)) {
+      return stateOptions;
+    }
+    return [{ value: resolvedState.code, label: resolvedState.label }, ...stateOptions];
+  }, [stateOptions, resolvedState]);
+
+  /** Country select's onChange — also drops any already-picked state, since it belongs to the previous country's list. */
+  const handleCountryChange = (value: string): void => {
+    setCountry(value);
+    setBranchState('');
+  };
 
   useEffect(() => {
     if (branch) {
@@ -139,13 +171,17 @@ export default function BranchDetailPage(): React.ReactElement {
     setFormError(null);
     // Spread the branch's existing settings first so any key this form
     // doesn't manage survives the update — `patch()` replaces the whole
-    // settings column, it doesn't merge.
+    // settings column, it doesn't merge. Country/state/city are written
+    // together as one unit (rather than each independently omitted when
+    // blank, like storeType/timeZone are) because state is now cascaded from
+    // country: if the user changes country and leaves state unpicked,
+    // independently preserving the old state string would silently pair it
+    // with the new country, which is worse than just clearing it.
+    const hasLocation = Boolean(country.trim() || branchState.trim() || city.trim());
     const settings = {
       ...(branch?.settings ?? {}),
       ...(storeType ? { storeType } : {}),
-      ...(country.trim() ? { country: country.trim() } : {}),
-      ...(branchState.trim() ? { state: branchState.trim() } : {}),
-      ...(city.trim() ? { city: city.trim() } : {}),
+      ...(hasLocation ? { country: country.trim(), state: branchState.trim(), city: city.trim() } : {}),
       ...(timeZone ? { timeZone } : {})
     };
     if (isCreate) {
@@ -191,13 +227,37 @@ export default function BranchDetailPage(): React.ReactElement {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <FormField label="Country" htmlFor="branchCountry" required={isCreate}>
                 {(fieldProps) => (
-                  <Input {...fieldProps} value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Nigeria" disabled={!isCreate && !canUpdate} />
+                  <SearchableSelect
+                    {...fieldProps}
+                    options={effectiveCountryOptions}
+                    placeholder="Search countries…"
+                    value={resolvedCountry?.code ?? ''}
+                    onChange={handleCountryChange}
+                    disabled={!isCreate && !canUpdate}
+                  />
                 )}
               </FormField>
-              <FormField label="State" htmlFor="branchState" required={isCreate}>
-                {(fieldProps) => (
-                  <Input {...fieldProps} value={branchState} onChange={(e) => setBranchState(e.target.value)} placeholder="e.g. Lagos" disabled={!isCreate && !canUpdate} />
-                )}
+              <FormField label={regionLabel} htmlFor="branchState" required={isCreate}>
+                {(fieldProps) =>
+                  stateOptions.length > 0 ? (
+                    <SearchableSelect
+                      {...fieldProps}
+                      options={effectiveStateOptions}
+                      placeholder={resolvedCountry ? `Search ${regionLabel.toLowerCase()}…` : 'Select a country first'}
+                      value={resolvedState?.code ?? ''}
+                      onChange={setBranchState}
+                      disabled={(!isCreate && !canUpdate) || !resolvedCountry}
+                    />
+                  ) : (
+                    <Input
+                      {...fieldProps}
+                      value={branchState}
+                      onChange={(e) => setBranchState(e.target.value)}
+                      placeholder="e.g. Lagos"
+                      disabled={(!isCreate && !canUpdate) || !resolvedCountry}
+                    />
+                  )
+                }
               </FormField>
               <FormField label="City" htmlFor="branchCity" required={isCreate}>
                 {(fieldProps) => (

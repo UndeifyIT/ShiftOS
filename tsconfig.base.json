@@ -17,6 +17,7 @@
       "@shiftos/*": ["packages/*/dist", "packages/*/src"],
       "@shiftos/config": ["packages/config/dist", "packages/config/src"],
       "@shiftos/constants": ["packages/constants/dist", "packages/constants/src"],
+      "@shiftos/geography": ["packages/geography/dist", "packages/geography/src"],
       "@shiftos/types": ["packages/types/dist", "packages/types/src"],
       "@shiftos/ui": ["packages/ui/dist", "packages/ui/src"],
       "@shiftos/utils": ["packages/utils/dist", "packages/utils/src"]

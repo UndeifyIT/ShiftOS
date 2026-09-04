@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Badge, Button, ConfirmationDialog, DataTable, FormField, InlineError, Input, Modal, PageContainer, PageHeader, PermissionDenied, Select } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
+import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import type { Branch, Invitation, Role } from '../../types/domain.js';
 
@@ -14,20 +15,32 @@ function isExpired(invitation: Invitation): boolean {
   return invitation.status === 'pending' && new Date(invitation.expires_at).getTime() < Date.now();
 }
 
+/**
+ * First/last name deliberately not collected here (Task 3,
+ * docs/superpowers/specs/2026-09-03-onboarding-ux-audit-design.md §2 Phase
+ * 3) — the invitee always provides their own name later, at
+ * CompleteProfilePage, regardless of what the inviter typed, so asking for
+ * it here was pure redundant data entry. `invite_member`/MembershipService
+ * still accept optional firstName/lastName for backward compatibility, but
+ * this form never sends them.
+ */
 function InviteMemberForm({ onDone }: { onDone: () => void }): React.ReactElement {
   const { data: roles } = useRpcQuery<Role[]>('list_invitable_roles');
-  const { data: branches } = useRpcQuery<Branch[]>('list_branches');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  // Non-null only when this caller has exactly one accessible branch AND is
+  // not org-wide (Task 1's shared single-branch concept) — in that case
+  // there's nothing to choose, so the checkbox list is skipped entirely and
+  // that one branch is submitted automatically. This is NOT the same
+  // semantics as TasksPage.tsx's `requireBranchPicker` (raw branch count,
+  // no org-wide distinction) — see useDefaultBranchId's own doc comment for
+  // the exact divergence; the two are not interchangeable.
+  const singleBranchId = useDefaultBranchId();
+  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: singleBranchId === null });
   const [email, setEmail] = useState('');
   const [roleId, setRoleId] = useState('');
   const [branchIds, setBranchIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const inviteMutation = useRpcMutation<
-    Invitation,
-    { email: string; firstName: string; lastName: string; roleId: string; branchIds: string[] }
-  >('invite_member', {
+  const inviteMutation = useRpcMutation<Invitation, { email: string; roleId: string; branchIds: string[] }>('invite_member', {
     invalidates: ['list_invitations'],
     onSuccess: onDone,
     onError: (err) => setError(err.message)
@@ -41,27 +54,20 @@ function InviteMemberForm({ onDone }: { onDone: () => void }): React.ReactElemen
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        if (!firstName.trim() || !lastName.trim() || !email.trim() || !roleId) {
-          setError('First name, last name, email, and role are required.');
+        if (!email.trim() || !roleId) {
+          setError('Email and role are required.');
           return;
         }
-        if (branchIds.length === 0) {
+        const resolvedBranchIds = singleBranchId ? [singleBranchId] : branchIds;
+        if (resolvedBranchIds.length === 0) {
           setError('Select at least one branch.');
           return;
         }
         setError(null);
-        inviteMutation.mutate({ email: email.trim(), firstName: firstName.trim(), lastName: lastName.trim(), roleId, branchIds });
+        inviteMutation.mutate({ email: email.trim(), roleId, branchIds: resolvedBranchIds });
       }}
       className="flex flex-col gap-4"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormField label="First name" htmlFor="inviteFirstName" required>
-          {(fieldProps) => <Input {...fieldProps} value={firstName} onChange={(e) => setFirstName(e.target.value)} />}
-        </FormField>
-        <FormField label="Last name" htmlFor="inviteLastName" required>
-          {(fieldProps) => <Input {...fieldProps} value={lastName} onChange={(e) => setLastName(e.target.value)} />}
-        </FormField>
-      </div>
       <FormField label="Email" htmlFor="inviteEmail" required hint="We'll send a real invitation to this address.">
         {(fieldProps) => <Input {...fieldProps} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
       </FormField>
@@ -76,26 +82,28 @@ function InviteMemberForm({ onDone }: { onDone: () => void }): React.ReactElemen
           />
         )}
       </FormField>
-      <fieldset>
-        <legend className="mb-2 text-sm font-medium text-neutral-800">Branches</legend>
-        <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3">
-          {(branches ?? []).length === 0 ? (
-            <p className="text-sm text-neutral-500">No branches yet — create one first.</p>
-          ) : (
-            (branches ?? []).map((branch) => (
-              <label key={branch.id} className="flex items-center gap-2 text-sm text-neutral-800">
-                <input
-                  type="checkbox"
-                  checked={branchIds.includes(branch.id)}
-                  onChange={() => toggleBranch(branch.id)}
-                  className="h-4 w-4 rounded border-neutral-300 text-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
-                />
-                {branch.name}
-              </label>
-            ))
-          )}
-        </div>
-      </fieldset>
+      {singleBranchId === null ? (
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium text-neutral-800">Branches</legend>
+          <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3">
+            {(branches ?? []).length === 0 ? (
+              <p className="text-sm text-neutral-500">No branches yet — create one first.</p>
+            ) : (
+              (branches ?? []).map((branch) => (
+                <label key={branch.id} className="flex items-center gap-2 text-sm text-neutral-800">
+                  <input
+                    type="checkbox"
+                    checked={branchIds.includes(branch.id)}
+                    onChange={() => toggleBranch(branch.id)}
+                    className="h-4 w-4 rounded border-neutral-300 text-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+                  />
+                  {branch.name}
+                </label>
+              ))
+            )}
+          </div>
+        </fieldset>
+      ) : null}
       {error ? <InlineError message={error} /> : null}
       <Button type="submit" loading={inviteMutation.isPending} fullWidth>
         Send invitation
@@ -119,12 +127,23 @@ export default function InvitationsPage(): React.ReactElement {
   const canManage = hasPermission('org.members.manage');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<Invitation | null>(null);
+  const [resendError, setResendError] = useState<string | null>(null);
 
   const { data: invitations, isLoading, error, refetch } = useRpcQuery<Invitation[]>('list_invitations', undefined, { enabled: canManage });
 
   const revokeMutation = useRpcMutation<{ revoked: boolean }, { invitationId: string }>('revoke_invitation', {
     invalidates: ['list_invitations'],
     onSuccess: () => setRevokeTarget(null)
+  });
+
+  // Task 3 — confirmed genuinely missing (a manager previously had no way to
+  // recover an invitation whose link expired or whose email never arrived;
+  // see MembershipService.resendInvitation's comment for why that was a real
+  // dead end, not just a UX nicety).
+  const resendMutation = useRpcMutation<Invitation, { invitationId: string }>('resend_invitation', {
+    invalidates: ['list_invitations'],
+    onSuccess: () => setResendError(null),
+    onError: (err) => setResendError(err.message)
   });
 
   if (!canManage) {
@@ -143,9 +162,21 @@ export default function InvitationsPage(): React.ReactElement {
         actions={<Button onClick={() => setInviteOpen(true)}>Invite member</Button>}
       />
 
+      {resendError ? <InlineError message={resendError} /> : null}
+
       <DataTable<Invitation>
         columns={[
-          { key: 'name', header: 'Name', primary: true, render: (i) => `${i.first_name} ${i.last_name}` },
+          {
+            key: 'name',
+            header: 'Name',
+            primary: true,
+            // Names are no longer collected at invite time (Task 3) — the
+            // invitee sets their own at CompleteProfilePage after accepting,
+            // so this is '—' for every invitation created since then. A
+            // pre-existing invitation may still show the name the inviter
+            // typed before that change.
+            render: (i) => (i.first_name && i.last_name ? `${i.first_name} ${i.last_name}` : '—')
+          },
           { key: 'email', header: 'Email', render: (i) => i.email },
           { key: 'role', header: 'Role', render: (i) => <Badge tone="neutral">{i.role_name}</Badge> },
           {
@@ -163,10 +194,22 @@ export default function InvitationsPage(): React.ReactElement {
             key: 'actions',
             header: '',
             render: (i) =>
-              i.status === 'pending' && !isExpired(i) ? (
-                <button type="button" className="text-sm font-medium text-error-600 hover:text-error-text" onClick={() => setRevokeTarget(i)}>
-                  Revoke
-                </button>
+              i.status === 'pending' ? (
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-brand-700 hover:text-brand-800 disabled:opacity-50"
+                    disabled={resendMutation.isPending}
+                    onClick={() => resendMutation.mutate({ invitationId: i.id })}
+                  >
+                    Resend
+                  </button>
+                  {!isExpired(i) ? (
+                    <button type="button" className="text-sm font-medium text-error-600 hover:text-error-text" onClick={() => setRevokeTarget(i)}>
+                      Revoke
+                    </button>
+                  ) : null}
+                </div>
               ) : null
           }
         ]}
@@ -188,7 +231,7 @@ export default function InvitationsPage(): React.ReactElement {
         onClose={() => setRevokeTarget(null)}
         onConfirm={() => revokeTarget && revokeMutation.mutate({ invitationId: revokeTarget.id })}
         title="Revoke invitation"
-        description={revokeTarget ? `${revokeTarget.first_name} ${revokeTarget.last_name} will no longer be able to accept this invitation.` : undefined}
+        description={revokeTarget ? `${revokeTarget.email} will no longer be able to accept this invitation.` : undefined}
         confirmLabel="Revoke"
         destructive
         loading={revokeMutation.isPending}

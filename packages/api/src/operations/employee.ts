@@ -6,7 +6,9 @@ export const createEmployee = defineRpc('create_employee', async (context, rawIn
   const input = asRecord(rawInput);
   return new EmployeeService(context).createEmployee({
     branchId: requiredStringField(input, 'branchId'),
-    employeeNumber: requiredStringField(input, 'employeeNumber'),
+    // Optional (Task 6) — omitted or blank means "server-assign the next
+    // EMP-#### number", handled by EmployeeService.createEmployee.
+    employeeNumber: stringField(input, 'employeeNumber'),
     firstName: requiredStringField(input, 'firstName'),
     lastName: requiredStringField(input, 'lastName'),
     email: stringField(input, 'email') ?? null,

@@ -8,10 +8,27 @@ interface MyContextResult {
   roleId: string;
   roleName: string;
   permissions: string[];
-  branchAccess: { isOrgWide: boolean; branchIds: string[] };
+  branchAccess: { isOrgWide: boolean; branchIds: string[]; singleBranchId: string | null };
   accessibleOrganizationIds: string[];
   emailFlaggedDisposable: boolean;
 }
+
+/**
+ * Pre-existing non-Owner fixture users in the same "ShiftOS Test Org" as
+ * TEST_FIXTURES (left from earlier manual verification, not created by this
+ * test — see testEnv.ts's own comment on that org). Verified live before use
+ * (not just assumed from a migration/seed script):
+ *  - the Employee fixture holds exactly one organization_member_branch_access
+ *    grant, for TEST_FIXTURES.branchId — the "exactly one accessible branch"
+ *    case singleBranchId exists for.
+ *  - the Admin fixture holds four such grants — the "several branches, still
+ *    not single-branch" case, distinct from the Owner's org-wide (isOrgWide)
+ *    null case already covered below.
+ * Both roles have grants_org_wide_branch_access = false, so neither is
+ * conflated with the Owner's org-wide null case.
+ */
+const SINGLE_BRANCH_EMPLOYEE_AUTH_USER_ID = 'beb9eeb3-c6bf-4896-8486-f9e1ce255a55';
+const MULTI_BRANCH_ADMIN_AUTH_USER_ID = 'a1d47f0d-c624-4886-b3be-3ca6b37f1e47';
 
 /**
  * get_my_context (packages/api/src/operations/context.ts) — covers the
@@ -55,6 +72,31 @@ describe('get_my_context integration', () => {
     expect(Array.isArray(result.accessibleOrganizationIds)).toBe(true);
     expect(typeof result.emailFlaggedDisposable).toBe('boolean');
     expect(result.emailFlaggedDisposable).toBe(false);
+  });
+
+  describe('branchAccess.singleBranchId (Task 10)', () => {
+    it('is null for an org-wide (Owner) caller, even though isOrgWide implies access to every branch', async () => {
+      const result = await ctx.call<MyContextResult>('get_my_context', {}, TEST_FIXTURES.ownerAuthUserId);
+
+      expect(result.branchAccess.isOrgWide).toBe(true);
+      expect(result.branchAccess.singleBranchId).toBeNull();
+    });
+
+    it('is the branch id for a non-org-wide caller scoped to exactly one branch', async () => {
+      const result = await ctx.call<MyContextResult>('get_my_context', {}, SINGLE_BRANCH_EMPLOYEE_AUTH_USER_ID);
+
+      expect(result.branchAccess.isOrgWide).toBe(false);
+      expect(result.branchAccess.branchIds).toEqual([TEST_FIXTURES.branchId]);
+      expect(result.branchAccess.singleBranchId).toBe(TEST_FIXTURES.branchId);
+    });
+
+    it('is null for a non-org-wide caller scoped to several branches', async () => {
+      const result = await ctx.call<MyContextResult>('get_my_context', {}, MULTI_BRANCH_ADMIN_AUTH_USER_ID);
+
+      expect(result.branchAccess.isOrgWide).toBe(false);
+      expect(result.branchAccess.branchIds.length).toBeGreaterThan(1);
+      expect(result.branchAccess.singleBranchId).toBeNull();
+    });
   });
 
   it('flags emailFlaggedDisposable: true for a disposable-domain email and records a security event', async () => {

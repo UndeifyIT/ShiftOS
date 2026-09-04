@@ -4,7 +4,10 @@ import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcQuery } from '../../lib/useRpc.js';
 import {
   CheckCircle,
+  DashEmptyPanel,
   DashHeader,
+  DashNextStepAction,
+  DashNextStepBanner,
   DashPanel,
   DashStat,
   InitialsAvatar,
@@ -13,6 +16,80 @@ import {
   StatusPill
 } from './dashboardWidgets.js';
 import type { Branch, Employee, Invitation, Schedule } from '../../types/domain.js';
+
+/**
+ * Task 8 — the manager's single "what's next" banner. Priority-ordered over
+ * data this page already fetches: no branches yet (nothing else can exist
+ * without one) → no employees yet → no schedule at all yet → a draft exists
+ * but nothing is published yet. Falls through to `null` (no banner) once the
+ * basics are in place, and also falls through — rather than suggesting a
+ * step this viewer's permissions don't support — at any stage where the
+ * relevant `create` permission is missing.
+ */
+function computeManagerNextStep(args: {
+  canReadBranches: boolean;
+  branchCount: number;
+  canCreateBranch: boolean;
+  canReadEmployees: boolean;
+  employeeCount: number;
+  canCreateEmployee: boolean;
+  canReadSchedules: boolean;
+  scheduleCount: number;
+  draftCount: number;
+  publishedCount: number;
+  canCreateSchedule: boolean;
+}): { title: string; description: string; action?: DashNextStepAction } | null {
+  const {
+    canReadBranches,
+    branchCount,
+    canCreateBranch,
+    canReadEmployees,
+    employeeCount,
+    canCreateEmployee,
+    canReadSchedules,
+    scheduleCount,
+    draftCount,
+    publishedCount,
+    canCreateSchedule
+  } = args;
+
+  // Branches are a genuine structural prerequisite for every later stage
+  // (an employee cannot exist without one), not just a permission gate — so
+  // this stage alone stops the chain outright rather than falling through.
+  if (canReadBranches && branchCount === 0) {
+    if (!canCreateBranch) return null;
+    return {
+      title: 'Set up your first branch',
+      description: 'Branches are the foundation for staffing and scheduling — open one to get started.',
+      action: { label: 'Open a branch', to: '/branches/new' }
+    };
+  }
+  // From here on, a missing create-permission for one stage should not hide
+  // a later stage's genuinely actionable banner — fold the permission into
+  // each stage's own condition so the chain falls through instead.
+  if (canReadEmployees && employeeCount === 0 && canCreateEmployee) {
+    return {
+      title: 'Add your first employee',
+      description: 'Bring your team into ShiftOS so you can start building schedules around them.',
+      action: { label: 'Add employee', to: '/employees/new' }
+    };
+  }
+  if (canReadSchedules && scheduleCount === 0 && canCreateSchedule) {
+    return {
+      title: 'Create your first schedule',
+      description: "Build a schedule for your team so everyone knows when they're working.",
+      action: { label: 'Create a schedule', to: '/schedules/new' }
+    };
+  }
+  if (canReadSchedules && draftCount > 0 && publishedCount === 0 && canCreateSchedule) {
+    return {
+      title: 'Your schedule is ready for review',
+      description: `${draftCount} draft schedule${draftCount === 1 ? '' : 's'} waiting — publish it so the team can see their shifts.`,
+      action: { label: 'Publish it', to: '/schedules' }
+    };
+  }
+  return null;
+}
 
 /**
  * WEB-017 — Manager dashboard: organization-wide scope. Restyled 1:1 onto
@@ -80,6 +157,27 @@ export default function ManagerDashboardPage(): React.ReactElement {
 
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
+  // Wait for every readable dataset to settle before judging "empty" — an
+  // in-flight query reads as `undefined` → `[]`, which would otherwise flash
+  // the "no branches"/"no employees" banner for a moment even when data exists.
+  const nextStepDataReady =
+    (!canReadBranches || !branchesLoading) && (!canReadEmployees || !employeesLoading) && (!canReadSchedules || !schedulesLoading);
+  const nextStep = nextStepDataReady
+    ? computeManagerNextStep({
+        canReadBranches,
+        branchCount: (branches ?? []).length,
+        canCreateBranch,
+        canReadEmployees,
+        employeeCount: activeEmployees.length,
+        canCreateEmployee,
+        canReadSchedules,
+        scheduleCount: (schedules ?? []).length,
+        draftCount: draftSchedules.length,
+        publishedCount: publishedSchedules.length,
+        canCreateSchedule
+      })
+    : null;
+
   return (
     <div>
       <DashHeader
@@ -87,14 +185,25 @@ export default function ManagerDashboardPage(): React.ReactElement {
         subtitle={`${activeOrganization?.name ?? 'Your organization'} — ${today}`}
       />
 
+      {nextStep ? <DashNextStepBanner {...nextStep} /> : null}
+
       <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(196px,1fr))] gap-3.5">
         {canReadEmployees ? (
           <DashStat
             label="Employees"
             value={activeEmployees.length}
-            meta={`across ${(branches ?? []).length} branch${(branches ?? []).length === 1 ? '' : 'es'}`}
+            meta={
+              (branches ?? []).length === 0
+                ? 'no branches yet to assign them to'
+                : `across ${(branches ?? []).length} branch${(branches ?? []).length === 1 ? '' : 'es'}`
+            }
             dotTone="primary"
             loading={employeesLoading}
+            action={
+              activeEmployees.length === 0 && canCreateEmployee && (branches ?? []).length > 0
+                ? { label: 'Add employee', to: '/employees/new' }
+                : undefined
+            }
           />
         ) : null}
         {canReadSchedules ? (
@@ -126,7 +235,12 @@ export default function ManagerDashboardPage(): React.ReactElement {
                   ))}
                 </div>
               ) : branchSummaries.length === 0 ? (
-                <p className="px-[18px] py-6 text-sm text-neutral-500">No branches yet.</p>
+                <DashEmptyPanel
+                  title="No branches yet"
+                  description="Open your first location to start assigning employees and building schedules."
+                  actionLabel={canCreateBranch ? 'Open a branch' : undefined}
+                  actionTo={canCreateBranch ? '/branches/new' : undefined}
+                />
               ) : (
                 <div className="flex flex-col">
                   {branchSummaries.map(({ branch, employeeCount, scheduleCount, pct }) => (
@@ -206,7 +320,23 @@ export default function ManagerDashboardPage(): React.ReactElement {
               </div>
               <div className="mt-3 flex flex-col gap-2.5">
                 {recentlyPublished.length === 0 ? (
-                  <p className="text-xs text-neutral-400">Nothing published across the organization yet.</p>
+                  <div>
+                    <p className="text-[12.5px] font-bold text-neutral-700">Nothing published yet</p>
+                    <p className="mt-0.5 text-xs text-neutral-400">
+                      {draftSchedules.length > 0
+                        ? `${draftSchedules.length} draft${draftSchedules.length === 1 ? '' : 's'} ready to review.`
+                        : 'Publish a schedule so the team can see their shifts.'}
+                    </p>
+                    {canCreateSchedule ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/schedules')}
+                        className="mt-2 cursor-pointer text-xs font-bold text-brand-deep transition-colors hover:text-brand-500"
+                      >
+                        Open scheduling →
+                      </button>
+                    ) : null}
+                  </div>
                 ) : (
                   recentlyPublished.map((schedule) => (
                     <button
