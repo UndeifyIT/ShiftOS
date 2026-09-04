@@ -1,8 +1,8 @@
 # ShiftOS Onboarding, Context-Awareness & Empty-State UX Audit — Final Report
 
-Branch: `onboarding-ux-audit` (base: `main` @ `a5c664e`, head: `400637b`)
-20 commits total (15 from the 10-task plan + final review fix, plus 5 more from live
-Phase I browser testing: three real bugs found and fixed, plus this report's own
+Branch: `onboarding-ux-audit` (base: `main` @ `a5c664e`, head: `4e3e968`)
+24 commits total (15 from the 10-task plan + final review fix, plus 9 more from live
+Phase I browser testing: five real bugs found and fixed, plus this report's own
 updates).
 
 ## 1. Problems found (Phase 0 audit)
@@ -204,12 +204,13 @@ this report — all under `docs/superpowers/`.
   password set → `CompleteProfilePage` with a genuine file-upload avatar test →
   the resulting Supervisor dashboard, live-confirming the whole-branch review's
   CTA-deduplication fix. Together these live-confirmed Tasks 1, 2, 3, 6, 7, 8, and
-  9's UI-visible behavior exactly as designed, and **surfaced and fixed three real
-  bugs no task-level review could have caught — one critical (§4a) and two more
-  found and fixed in pass 2 (§4b) — all outside the original 10 tasks' scope.**
-  Not yet covered:
-  Employee/Admin dashboard views and Task 4's multi-organization collision scenario
-  via real UI interaction (see Remaining Issues).
+  9's UI-visible behavior exactly as designed, and **surfaced and fixed five real
+  bugs no task-level review could have caught — one critical (§4a) and four more
+  found and fixed in pass 2/3 (§4b, §4c) — all outside the original 10 tasks'
+  scope.** Pass 3: a real Employee and a real Admin invitee, each taken through the
+  full accept-invitation → complete-profile flow to their own dashboard (and, for
+  the Admin, the Admin Console). Not yet covered: Task 4's multi-organization
+  collision scenario via real UI interaction (see Remaining Issues).
 
 ## 4a. Critical bug found and fixed during Phase I testing (not part of the original 10 tasks)
 
@@ -294,6 +295,51 @@ failure, in `attendance.integration.test.ts`, reproduced as a pre-existing,
 unrelated shared-live-fixture flake — confirmed passing 4/4 in isolation), and
 live browser re-testing of both exact scenarios end-to-end.
 
+## 4c. Two more real bugs found and fixed testing the Employee and Admin dashboards
+
+Found completing Phase I: a real Employee invitee and a real Admin invitee, each
+sent through the actual `invite_member` RPC and taken through the full
+accept-invitation → complete-profile flow to their own dashboard. Both are real,
+reproducible copy/labeling defects in existing code, surfaced only by exercising
+the full flow for roles the earlier passes hadn't reached yet. Fix commit:
+`4e3e968`.
+
+**3. (Fixed) `EmployeeDashboardPage`'s empty-state copy was factually wrong for the
+common case.** Every fresh Employee (and Admin) invitee lands on this dashboard
+with no linked `employees` record yet — expected, since accepting an invitation
+links an `organization_memberships` row, not an `employees` one, and the two are
+created independently — but the empty state's description read "This is normal
+for administrators who manage ShiftOS without being scheduled themselves," shown
+verbatim to a plain Employee. **Root cause**: this audit's own Phase 7 design
+notes (§1 of this report's design spec) generalized this empty state having only
+considered the Owner-without-a-staff-record case, without accounting for
+`RoleDashboard`'s capability-based routing sending every non-managerial invitee —
+Employee and Admin alike — to this same page. **Fix**: reworded to be role-agnostic
+and actionable ("...ask your manager to add you as an employee"); also corrected
+the file's own doc comment, which had the same Owner-only framing. Re-verified
+live for both the Employee and Admin test invitees.
+
+**4. (Fixed) Sidebar account-menu role label had no bucket for the Admin role.**
+`Sidebar.tsx` derived its uppercase role-label badge from a 3-way capability-signal
+ternary (org-wide access → "Manager", a supervisor-permission signal →
+"Supervisor", else → "Staff") that never accounted for the separate Admin role
+(migration 048) — a real Admin invitee's badge read "Staff" despite the sidebar
+simultaneously showing a full admin-only nav section (Employees, Branches,
+Members & Roles, Invitations, Organization, Admin Console). Confirmed against a
+live `role_permissions` query that `org.members.manage` is granted to Admin and to
+neither Supervisor nor Employee, making it a safe, non-overlapping signal. **Fix**:
+added an Admin bucket keyed on that permission, between the Supervisor check and
+the "Staff" fallback. Re-verified live: the same Admin invitee's badge and sidebar
+label both now correctly read "Admin".
+
+The Admin Console page itself (`/admin`) was also confirmed rendering correctly:
+a "Read-only for Admins" indicator appropriately reflects the role's read-only
+`organizations.read` grant, and its Overview tab's zero-state stat tiles and
+"Needs Attention" panel are correctly populated. No further bugs found there.
+
+Both fixes verified: `tsc --noEmit` on `@shiftos/web` clean (pure frontend
+copy/label logic, no RPC/schema changes to re-test).
+
 ## 5. Remaining issues
 
 **Not yet done — Phase I is substantially complete, not fully done:**
@@ -301,11 +347,13 @@ live browser re-testing of both exact scenarios end-to-end.
   avatar test), the full 5-step onboarding wizard (org/branch geography selects,
   email-only supervisor invite, departments), the Manager dashboard through employee
   form creation, the invitation-acceptance flow as the invitee end-to-end (password
-  set → `CompleteProfilePage` → real Supervisor dashboard), and Task 4's
-  invalid-link hash-error path (found broken, then fixed and re-verified — see §4b).
-- **Not yet covered:** Employee-role and Admin Console dashboard views, and Task 4's
-  multi-organization pending-invitation collision scenario via real UI interaction
-  (only unit/integration-tested today, not click-tested).
+  set → `CompleteProfilePage` → real Supervisor dashboard), Task 4's invalid-link
+  hash-error path (found broken, then fixed and re-verified — see §4b), and the
+  Employee dashboard and Admin Console views (found two copy/labeling bugs, fixed
+  and re-verified — see §4c).
+- **Not yet covered:** Task 4's multi-organization pending-invitation collision
+  scenario via real UI interaction (only unit/integration-tested today, not
+  click-tested).
 
 **New finding from live testing — contradicts a Phase 0 audit claim:**
 - **Timezone is NOT auto-detected from the browser anywhere in this codebase.** The
@@ -380,8 +428,10 @@ recommended follow-ups):
    both the missing password-success confirmation and Task 4's unreliable
    "invalid link" message were root-caused with live instrumentation and fixed
    (commit `400637b`), verified end-to-end via live browser re-testing.
-4. Complete the remaining Phase I coverage: Employee/Admin dashboard views, and
-   Task 4's multi-organization collision scenario via real UI interaction.
+4. ~~Complete Employee/Admin dashboard Phase I coverage~~ — **done**: both found
+   working correctly overall, but surfaced and fixed two copy/labeling bugs
+   (§4c, commit `4e3e968`). Remaining: Task 4's multi-organization
+   pending-invitation collision scenario via real UI interaction.
 5. Resolve the "should an org-wide single-branch Owner get auto-select?" product
    question, then migrate `TasksPage.tsx`/`AttendancePage.tsx` onto
    `useDefaultBranchId()` for real consistency (or explicitly decide they're allowed
