@@ -14,8 +14,11 @@ import type { AttendanceRecord, AttendanceStatus, Employee, Schedule, Shift, Shi
  * to hold, because Staff never gets management screens in the nav either.
  *
  * Zero-employee-record handling (DEC-016/032): an authenticated identity has
- * no guaranteed employees row (e.g. an Owner who never added themselves as
- * staff). That is a normal, expected state here, not an error — the
+ * no guaranteed employees row — most commonly a freshly-invited Employee/
+ * Admin whose org membership isn't yet linked to an `employees` record (that
+ * link is created separately via the Employees screen, not automatically on
+ * invitation acceptance), but also an Owner who never added themselves as
+ * staff. That is a normal, expected state here, not an error — the
  * workforce widgets simply don't render, with an explanatory empty state
  * instead of a blank page.
  */
@@ -175,7 +178,7 @@ export default function EmployeeDashboardPage(): React.ReactElement {
       ) : !myEmployeeRecord ? (
         <EmptyState
           title="No workforce profile yet"
-          description="Your account isn't linked to an employee record, so there's no personal schedule to show. This is normal for administrators who manage ShiftOS without being scheduled themselves."
+          description="Your account isn't linked to an employee record, so there's no personal schedule to show yet. If you're expecting shifts here, ask your manager to add you as an employee."
         />
       ) : (
         <>

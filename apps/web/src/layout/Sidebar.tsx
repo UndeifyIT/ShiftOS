@@ -68,7 +68,8 @@ export function Sidebar(): React.ReactElement {
   const hasSupervisorSignal = ['employees.create', 'employees.update', 'schedules.create', 'branches.update'].some((permission) =>
     myContext?.permissions.includes(permission)
   );
-  const roleLabel = isOrgWide ? 'Manager' : hasSupervisorSignal ? 'Supervisor' : 'Staff';
+  const hasAdminSignal = myContext?.permissions.includes('org.members.manage') ?? false;
+  const roleLabel = isOrgWide ? 'Manager' : hasSupervisorSignal ? 'Supervisor' : hasAdminSignal ? 'Admin' : 'Staff';
 
   const fullName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : 'Your account';
   const initials =
