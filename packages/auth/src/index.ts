@@ -6,6 +6,14 @@ export interface AuthConfig {
   supabaseUrl: string;
   supabaseAnonKey: string;
   supabaseServiceRoleKey?: string;
+  /**
+   * The app's own public origin (no trailing slash), used to send invitees to
+   * /accept-invitation instead of Supabase's dashboard-configured Site URL
+   * default. See AppConfig.SITE_URL's own doc comment for the incident this
+   * fixes. Optional — inviteUser() falls back to Supabase's default when
+   * absent rather than failing invitations outright.
+   */
+  siteUrl?: string;
 }
 
 export interface InviteUserResult {
@@ -40,11 +48,13 @@ export class SupabaseAuthProvider implements AuthenticationProvider {
   private client: SupabaseClient;
   private serviceRoleKey?: string;
   private supabaseUrl: string;
+  private siteUrl?: string;
 
   constructor(config: AuthConfig) {
     this.supabaseUrl = config.supabaseUrl;
     this.client = createClient(this.supabaseUrl, config.supabaseAnonKey);
     this.serviceRoleKey = config.supabaseServiceRoleKey;
+    this.siteUrl = config.siteUrl;
   }
 
   private toAuthUser(user: User | null): AuthUser | null {
@@ -196,7 +206,11 @@ export class SupabaseAuthProvider implements AuthenticationProvider {
 
     const adminClient = this.createAdminClient();
     const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: { firstName, lastName, organizationId, roleId }
+      data: { firstName, lastName, organizationId, roleId },
+      // Without this, Supabase Auth falls back to the project's dashboard-
+      // configured Site URL, which is not guaranteed (and in production, was
+      // confirmed NOT) to be /accept-invitation -- see AuthConfig.siteUrl.
+      ...(this.siteUrl ? { redirectTo: `${this.siteUrl}/accept-invitation` } : {})
     });
 
     if (error) {
