@@ -370,6 +370,47 @@ just not live-tested via real UI until now. No bug found, no code change
 needed. **This was the last remaining item in Phase I's original scope —
 Phase I is now fully complete.**
 
+## 4e. Role-specific "what's next" step added for Manager and Employee (user follow-up)
+
+Requested directly after the report above was delivered and merged: a
+role-specific "next thing to try" prompt after initial setup — Manager sees a
+"create your first announcement" step, and Employee/Supervisor get their own
+version specific to what they can actually do.
+
+Checked before building anything: Supervisor already had a full 5-step
+"what's next" chain from Task 8 (profile → team member → schedule → publish →
+tasks awaiting review) — genuinely feature-specific already, nothing added.
+Manager's chain stopped after publishing a schedule, and Employee only had a
+single passive, no-CTA message — both real gaps.
+
+**Added:**
+- Manager: a 5th stage — once branches/employees/schedules are all set up and
+  no announcement has been posted yet, "Share your first announcement" → links
+  to `/announcements`.
+- Employee: once the branch has a published schedule (resolving the existing
+  "nothing published yet" message), "Request time off when you need it" →
+  links to `/requests`, shown only if they've never made a leave request and
+  hold the permission to make one.
+
+Both were verified live end-to-end against real fixtures (a real employee,
+schedule, and published shift created through the actual RPCs) — confirmed
+rendering correctly for both the Owner/Manager and a real Employee invitee.
+
+Did not add a generic "Ask Shifty" step to any role's chain: there's no real
+data signal for "has this org tried the assistant yet" without inventing new
+persisted progress state, which this codebase deliberately avoids for these
+banners (computed purely from existing data). Flagged rather than faked.
+
+**Side-finding, not a new bug:** verifying this surfaced that two of this
+session's own test invitees (sent by calling `invite_member` directly rather
+than through the real Invite form) had no branch assigned, which correctly —
+per existing routing logic — left them without branch access after accepting.
+This is a live demonstration of an already-disclosed gap (§5 below:
+`invite_member` has no server-side "at least one branch" check), not a new
+defect. Fixed for the two test accounts by granting the missing branch access
+directly, which also served as incidental re-confirmation that Supervisor's
+pre-existing Task 8 steps render correctly once branch access is present.
+
 ## 5. Remaining issues
 
 **Phase I browser testing — now fully complete:**

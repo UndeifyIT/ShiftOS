@@ -5,7 +5,7 @@ import { Badge, Button, EmptyState, InlineError, SkeletonRows } from '@shiftos/u
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import { DashEmptyPanel, DashHeader, DashNextStepBanner, DashPanel, DashStat, StatusPill } from './dashboardWidgets.js';
-import type { AttendanceRecord, AttendanceStatus, Employee, Schedule, Shift, ShiftAssignment } from '../../types/domain.js';
+import type { AttendanceRecord, AttendanceStatus, Employee, LeaveRequest, Schedule, Shift, ShiftAssignment } from '../../types/domain.js';
 
 /**
  * WEB-026-equivalent Staff dashboard: intentionally the simplest of the
@@ -129,6 +129,10 @@ export default function EmployeeDashboardPage(): React.ReactElement {
   const canReadEmployees = hasPermission('employees.read');
   const canReadSchedules = hasPermission('schedules.read');
   const canClockIn = hasPermission('attendance.clockin');
+  const canReadLeave = hasPermission('leave.read');
+  const canRequestLeave = hasPermission('leave.create');
+
+  const { data: myLeave, isLoading: myLeaveLoading } = useRpcQuery<LeaveRequest[]>('list_my_leave', undefined, { enabled: canReadLeave });
 
   const { data: employees, isLoading: employeesLoading } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canReadEmployees });
   const myEmployeeRecord = useMemo(
@@ -192,11 +196,25 @@ export default function EmployeeDashboardPage(): React.ReactElement {
             moment before `currentSchedule` resolves. No CTA: an employee has
             no permission to publish a schedule, and there's no
             messaging/contact-manager feature to link to instead.
+
+            Once a schedule actually exists, that blocker is resolved, so this
+            single banner slot switches to introducing a genuinely
+            self-service feature instead: requesting time off. Gated on
+            `leave.create` (not just `leave.read`) and on never having made a
+            request yet, mirroring the same "zero of this exists" pattern the
+            Manager/Supervisor banners already use, rather than a proactive
+            tour with no real data behind it.
           */}
           {!schedulesLoading && !currentSchedule ? (
             <DashNextStepBanner
               title="Nothing to see here yet — and that's expected"
               description="Your branch as a whole has no published schedule right now, including for everyone else — this isn't specific to your account. Shifts will show up here automatically once your manager publishes the next one."
+            />
+          ) : !myLeaveLoading && canRequestLeave && (myLeave ?? []).length === 0 ? (
+            <DashNextStepBanner
+              title="Request time off when you need it"
+              description="Planning a day off or running late? Submit a request here so your supervisor can review it."
+              action={{ label: 'Request time off', to: '/requests' }}
             />
           ) : null}
 
