@@ -1,9 +1,9 @@
 # ShiftOS Onboarding, Context-Awareness & Empty-State UX Audit — Final Report
 
-Branch: `onboarding-ux-audit` (base: `main` @ `a5c664e`, head: `4e3e968`)
-24 commits total (15 from the 10-task plan + final review fix, plus 9 more from live
-Phase I browser testing: five real bugs found and fixed, plus this report's own
-updates).
+Branch: `onboarding-ux-audit` (base: `main` @ `a5c664e`)
+25 commits total (15 from the 10-task plan + final review fix, plus 10 more from
+live Phase I browser testing — now fully complete: five real bugs found and
+fixed, plus this report's own updates).
 
 ## 1. Problems found (Phase 0 audit)
 
@@ -209,8 +209,9 @@ this report — all under `docs/superpowers/`.
   found and fixed in pass 2/3 (§4b, §4c) — all outside the original 10 tasks'
   scope.** Pass 3: a real Employee and a real Admin invitee, each taken through the
   full accept-invitation → complete-profile flow to their own dashboard (and, for
-  the Admin, the Admin Console). Not yet covered: Task 4's multi-organization
-  collision scenario via real UI interaction (see Remaining Issues).
+  the Admin, the Admin Console). Pass 4: Task 4's multi-organization
+  pending-invitation collision scenario, live — confirmed already correctly
+  handled, not a gap (see §4d). **Phase I is now fully complete.**
 
 ## 4a. Critical bug found and fixed during Phase I testing (not part of the original 10 tasks)
 
@@ -340,20 +341,43 @@ a "Read-only for Admins" indicator appropriately reflects the role's read-only
 Both fixes verified: `tsc --noEmit` on `@shiftos/web` clean (pure frontend
 copy/label logic, no RPC/schema changes to re-test).
 
+## 4d. Task 4's multi-organization collision scenario — confirmed already correct
+
+Set up a genuine collision: a second real organization, then two real pending
+`invitations` rows for the same email address across both organizations
+(inserted with the exact shape `membershipService.inviteMember` itself writes,
+after `invite_member`'s own email-send step hit Supabase's built-in email-rate
+limit from this session's volume of real invites — this substitutes only the
+email-delivery side effect, not the DB state under test). A fresh confirmed
+auth user and real magic-link session were used to reach `/accept-invitation`
+exactly as in every other Phase I test.
+
+**Result: already correctly handled, not a gap.** The page immediately showed
+a dedicated "You have more than one pending invitation" screen with working
+"Contact support" and "Back to sign in" actions — neither invitation was
+silently picked or lost, contrary to what the original Phase 0 finding
+described. This is Task 4's own delivered fix (migration `056`'s
+`has_other_pending_invitations` flag, branched on in
+`AcceptInvitationPage.tsx`) for exactly the gap the Phase 0 audit flagged —
+already documented as delivered in §2's "Invitation flow (Tasks 3, 4)" section,
+just not live-tested via real UI until now. No bug found, no code change
+needed. **This was the last remaining item in Phase I's original scope —
+Phase I is now fully complete.**
+
 ## 5. Remaining issues
 
-**Not yet done — Phase I is substantially complete, not fully done:**
+**Phase I browser testing — now fully complete:**
 - Live-verified: Owner signup, `CompleteProfilePage` (including a real file-upload
   avatar test), the full 5-step onboarding wizard (org/branch geography selects,
   email-only supervisor invite, departments), the Manager dashboard through employee
   form creation, the invitation-acceptance flow as the invitee end-to-end (password
   set → `CompleteProfilePage` → real Supervisor dashboard), Task 4's invalid-link
-  hash-error path (found broken, then fixed and re-verified — see §4b), and the
+  hash-error path (found broken, then fixed and re-verified — see §4b), the
   Employee dashboard and Admin Console views (found two copy/labeling bugs, fixed
-  and re-verified — see §4c).
-- **Not yet covered:** Task 4's multi-organization pending-invitation collision
-  scenario via real UI interaction (only unit/integration-tested today, not
-  click-tested).
+  and re-verified — see §4c), and Task 4's multi-organization pending-invitation
+  collision scenario (confirmed already correctly handled — see §4d).
+- **Phase I is now fully complete** — every item in its original scope has been
+  live-tested via real UI interaction.
 
 **New finding from live testing — contradicts a Phase 0 audit claim:**
 - **Timezone is NOT auto-detected from the browser anywhere in this codebase.** The
@@ -430,8 +454,10 @@ recommended follow-ups):
    (commit `400637b`), verified end-to-end via live browser re-testing.
 4. ~~Complete Employee/Admin dashboard Phase I coverage~~ — **done**: both found
    working correctly overall, but surfaced and fixed two copy/labeling bugs
-   (§4c, commit `4e3e968`). Remaining: Task 4's multi-organization
-   pending-invitation collision scenario via real UI interaction.
+   (§4c, commit `4e3e968`). ~~Complete Task 4's multi-organization
+   pending-invitation collision scenario via real UI interaction~~ — **done**:
+   confirmed already correctly handled, no bug found (§4d). Phase I is now
+   fully complete.
 5. Resolve the "should an org-wide single-branch Owner get auto-select?" product
    question, then migrate `TasksPage.tsx`/`AttendancePage.tsx` onto
    `useDefaultBranchId()` for real consistency (or explicitly decide they're allowed
