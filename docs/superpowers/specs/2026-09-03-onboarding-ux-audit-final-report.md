@@ -194,18 +194,21 @@ this report — all under `docs/superpowers/`.
   surfaced 3 Important, cross-task-only findings (visible only with the whole branch
   in view — see below), which were fixed and independently re-verified clean in one
   additional fix round.
-- **Phase I browser testing was partially performed.** Playwright MCP initially failed
-  to connect twice; after the user asked for a retry, it reconnected and a real,
-  live, end-to-end pass was run: fresh Owner signup → email confirmation (via
-  Supabase's Admin API, not real email delivery) → `CompleteProfilePage` (name/
-  phone/photo, confirmed working) → the full 5-step onboarding wizard (organization,
-  branch, supervisor invite, departments, finish) → Manager dashboard → employee
-  creation form. This live-confirmed Tasks 1, 2, 3, 6, 7, 8, and 9's UI-visible
-  behavior exactly as designed, and **surfaced one critical, real production bug
-  that no task-level review could have caught — see §4a below.** Not yet covered:
-  the invitation-acceptance flow as the invitee, Supervisor/Employee/Admin dashboard
-  views, a real avatar file upload through the UI, and Task 4's edge cases via UI
-  interaction (see Remaining Issues).
+- **Phase I browser testing was performed in two passes**, both live against real
+  dedicated dev servers on this branch's own code. Pass 1: fresh Owner signup → email
+  confirmation (via Supabase's Admin API, not real email delivery) →
+  `CompleteProfilePage` → the full 5-step onboarding wizard (organization, branch,
+  supervisor invite, departments, finish) → Manager dashboard → employee creation
+  form. Pass 2 (after Playwright MCP needed a manual reconnect mid-session): the
+  invitation-acceptance flow as the invitee, using the real redirect fix from §4a —
+  password set → `CompleteProfilePage` with a genuine file-upload avatar test →
+  the resulting Supervisor dashboard, live-confirming the whole-branch review's
+  CTA-deduplication fix. Together these live-confirmed Tasks 1, 2, 3, 6, 7, 8, and
+  9's UI-visible behavior exactly as designed, and **surfaced three real bugs no
+  task-level review could have caught — one critical (§4a) and two more found in
+  pass 2 (§4b) — all outside the original 10 tasks' scope.** Not yet covered:
+  Employee/Admin dashboard views and Task 4's multi-organization collision scenario
+  via real UI interaction (see Remaining Issues).
 
 ## 4a. Critical bug found and fixed during Phase I testing (not part of the original 10 tasks)
 
@@ -238,19 +241,59 @@ afterward.
 is set there.** Add `SITE_URL=https://shiftos-web.vercel.app` to production's
 environment variables (e.g. the Vercel project's environment settings) and redeploy.
 
+## 4b. Two more real bugs found completing Phase I (documented, not fixed — need their own debugging task)
+
+Found while testing the invitation-acceptance flow end-to-end as the invitee, using
+the fix from §4a. Both are real, reproducible defects in existing code (not
+introduced by this branch), surfaced only because Phase I exercises the full,
+real click-through flow rather than individual RPC calls in isolation.
+
+**1. (Important) Setting a password on `/accept-invitation` gives no visible
+confirmation.** The page's own code calls `setView('success')` after the password
+update succeeds (confirmed server-side — the account's password genuinely changes),
+but the screen visibly stays on the same password-entry form, both right after
+clicking and on a fresh reload of the same URL. The account is not actually stuck:
+navigating elsewhere (e.g. `/sign-in`) correctly redirects to `CompleteProfilePage`
+as expected for an authenticated, profile-incomplete user — so the flow silently
+still works underneath. But a real invitee who stays on the page after clicking
+"Accept invitation" sees nothing happen, which reads as a failure. Suspected cause:
+`updateUser()` fires a `USER_UPDATED` auth event that `SessionProvider` reacts to by
+re-running its own session bootstrap, plausibly racing with (and winning over) the
+page's own local success state before it renders. Recommend: have the submit handler
+explicitly navigate to `/complete-profile` on success instead of relying on a local
+view state.
+
+**2. (Important) Task 4's "invalid invitation link" message doesn't reliably
+appear.** Navigating to `/accept-invitation` with the exact hash shape a real
+expired Supabase link produces (`#error=access_denied&error_code=otp_expired...`)
+as a genuinely unauthenticated visitor shows the generic "No invitation found"
+message instead of Task 4's intended "This invitation link is no longer valid"
+message. **Confirmed reproducible in both the dev server and a real production
+build** (ruling out React StrictMode's dev-only double-effect-invocation as the
+cause — checked specifically and ruled out). Console evidence shows the hash error
+IS correctly detected and logged by Task 4's own code, but is immediately followed
+by an unexpected, failing `get_pending_invitation` call that overwrites the correct
+state. The exact trigger for that second call was investigated but not conclusively
+identified (several plausible mechanisms — a dev-mode artifact, a session-status
+remount, `SessionProvider` calling the RPC itself — were each checked and ruled
+out); this needs focused, instrumented debugging as its own follow-up task.
+
+Both were left as documented findings rather than live-patched, since a rushed fix
+to a subtle React state/lifecycle interaction risks introducing a worse regression
+than the bug itself.
+
 ## 5. Remaining issues
 
-**Not yet done — Phase I is partially complete, not fully done:**
-- Live-verified: Owner signup, `CompleteProfilePage`, the full 5-step onboarding
-  wizard (org/branch geography selects, email-only supervisor invite, departments),
-  and the Manager dashboard through employee-form creation.
-- **Not yet covered**, recommended as a follow-up once environment stability
-  (Playwright MCP's connection, this sandbox's TLS interception) is less of a
-  recurring obstacle: the invitation-acceptance flow as the invitee (password set →
-  `CompleteProfilePage` → membership granted — the exact flow the redirect bug in
-  §4a was blocking), Supervisor/Employee/Admin dashboard views, a real avatar file
-  upload exercised through the UI, and Task 4's edge cases (expired link, multi-org
-  collision) via actual UI interaction rather than direct RPC calls.
+**Not yet done — Phase I is substantially complete, not fully done:**
+- Live-verified: Owner signup, `CompleteProfilePage` (including a real file-upload
+  avatar test), the full 5-step onboarding wizard (org/branch geography selects,
+  email-only supervisor invite, departments), the Manager dashboard through employee
+  form creation, the invitation-acceptance flow as the invitee end-to-end (password
+  set → `CompleteProfilePage` → real Supervisor dashboard), and Task 4's
+  invalid-link hash-error path (found broken — see §4b).
+- **Not yet covered:** Employee-role and Admin Console dashboard views, and Task 4's
+  multi-organization pending-invitation collision scenario via real UI interaction
+  (only unit/integration-tested today, not click-tested).
 
 **New finding from live testing — contradicts a Phase 0 audit claim:**
 - **Timezone is NOT auto-detected from the browser anywhere in this codebase.** The
@@ -321,18 +364,23 @@ recommended follow-ups):
 2. Add browser-based timezone auto-detection (`Intl.DateTimeFormat().resolvedOptions().timeZone`,
    still overridable) to the organization and branch setup steps — genuinely missing,
    not a false alarm from the original audit.
-3. Complete the remaining Phase I coverage once environment stability allows:
-   invitation-acceptance as the invitee, Supervisor/Employee/Admin dashboard views,
-   a real avatar upload through the UI, Task 4's edge cases via actual UI interaction.
-4. Resolve the "should an org-wide single-branch Owner get auto-select?" product
+3. **Debug and fix the two real bugs found completing Phase I (§4b)**: the missing
+   success confirmation after setting a password on `/accept-invitation`, and Task
+   4's "invalid link" message not reliably appearing for a genuinely expired link
+   (confirmed reproducible in production, not a testing artifact). Both need
+   focused, instrumented debugging of the exact React state/lifecycle interaction
+   rather than a guessed fix.
+4. Complete the remaining Phase I coverage: Employee/Admin dashboard views, and
+   Task 4's multi-organization collision scenario via real UI interaction.
+5. Resolve the "should an org-wide single-branch Owner get auto-select?" product
    question, then migrate `TasksPage.tsx`/`AttendancePage.tsx` onto
    `useDefaultBranchId()` for real consistency (or explicitly decide they're allowed
    to differ and document why).
-5. A small follow-up task to extend `parseAuthHashError`'s handling to
+6. A small follow-up task to extend `parseAuthHashError`'s handling to
    `ResetPasswordPage`/`ForgotPasswordPage`/`VerifyEmailPage`.
-6. A human should check Supabase's Dashboard-configured invite-email template for any
+7. A human should check Supabase's Dashboard-configured invite-email template for any
    first-name personalization now that names are optional at invite time.
-7. Minor grant-hygiene cleanup on `generate_next_employee_number` (add the same
+8. Minor grant-hygiene cleanup on `generate_next_employee_number` (add the same
    `REVOKE ... FROM anon/PUBLIC` its sibling functions already have).
-8. Fix the stale "name, email and phone" copy in the onboarding wizard's Shifty
+9. Fix the stale "name, email and phone" copy in the onboarding wizard's Shifty
    sidebar on the Supervisor step (cosmetic, post-Task-3 leftover).
