@@ -1,8 +1,8 @@
 # ShiftOS Onboarding, Context-Awareness & Empty-State UX Audit — Final Report
 
-Branch: `onboarding-ux-audit` (base: `main` @ `a5c664e`, head: `8a31dcc`)
-18 commits total (15 from the 10-task plan + final review fix, plus 3 more from live
-Phase I browser testing: a real production bug found and fixed, and this report's own
+Branch: `onboarding-ux-audit` (base: `main` @ `a5c664e`, head: `400637b`)
+20 commits total (15 from the 10-task plan + final review fix, plus 5 more from live
+Phase I browser testing: three real bugs found and fixed, plus this report's own
 updates).
 
 ## 1. Problems found (Phase 0 audit)
@@ -204,9 +204,10 @@ this report — all under `docs/superpowers/`.
   password set → `CompleteProfilePage` with a genuine file-upload avatar test →
   the resulting Supervisor dashboard, live-confirming the whole-branch review's
   CTA-deduplication fix. Together these live-confirmed Tasks 1, 2, 3, 6, 7, 8, and
-  9's UI-visible behavior exactly as designed, and **surfaced three real bugs no
-  task-level review could have caught — one critical (§4a) and two more found in
-  pass 2 (§4b) — all outside the original 10 tasks' scope.** Not yet covered:
+  9's UI-visible behavior exactly as designed, and **surfaced and fixed three real
+  bugs no task-level review could have caught — one critical (§4a) and two more
+  found and fixed in pass 2 (§4b) — all outside the original 10 tasks' scope.**
+  Not yet covered:
   Employee/Admin dashboard views and Task 4's multi-organization collision scenario
   via real UI interaction (see Remaining Issues).
 
@@ -241,46 +242,57 @@ afterward.
 is set there.** Add `SITE_URL=https://shiftos-web.vercel.app` to production's
 environment variables (e.g. the Vercel project's environment settings) and redeploy.
 
-## 4b. Two more real bugs found completing Phase I (documented, not fixed — need their own debugging task)
+## 4b. Two more real bugs found and fixed completing Phase I
 
 Found while testing the invitation-acceptance flow end-to-end as the invitee, using
 the fix from §4a. Both are real, reproducible defects in existing code (not
 introduced by this branch), surfaced only because Phase I exercises the full,
-real click-through flow rather than individual RPC calls in isolation.
+real click-through flow rather than individual RPC calls in isolation. Both were
+root-caused with temporary, instrumented `console.log` statements (removed before
+committing) rather than guessed at, then fixed and re-verified live end-to-end.
+Fix commit: `400637b`.
 
-**1. (Important) Setting a password on `/accept-invitation` gives no visible
+**1. (Fixed) Setting a password on `/accept-invitation` gave no visible
 confirmation.** The page's own code calls `setView('success')` after the password
-update succeeds (confirmed server-side — the account's password genuinely changes),
-but the screen visibly stays on the same password-entry form, both right after
-clicking and on a fresh reload of the same URL. The account is not actually stuck:
-navigating elsewhere (e.g. `/sign-in`) correctly redirects to `CompleteProfilePage`
-as expected for an authenticated, profile-incomplete user — so the flow silently
-still works underneath. But a real invitee who stays on the page after clicking
-"Accept invitation" sees nothing happen, which reads as a failure. Suspected cause:
-`updateUser()` fires a `USER_UPDATED` auth event that `SessionProvider` reacts to by
-re-running its own session bootstrap, plausibly racing with (and winning over) the
-page's own local success state before it renders. Recommend: have the submit handler
-explicitly navigate to `/complete-profile` on success instead of relying on a local
-view state.
+update succeeds, but the screen visibly stayed on the same password-entry form.
+**Root cause, confirmed via live instrumentation**: `updateUser()` fires a
+`USER_UPDATED` auth event that `SessionProvider` reacts to by re-running its own
+session bootstrap — captured with real timestamps, the page genuinely **unmounts
+~18ms after `setView('success')` and remounts ~358ms later**; the fresh mount has
+no memory of the local success state and re-derives the plain form from the
+invitation's still-`pending` status. The account itself was never actually stuck —
+navigating elsewhere correctly redirected to `CompleteProfilePage` — but a real
+invitee staying on the page saw nothing happen. **Fix**: persist a "just accepted"
+flag in `sessionStorage` (survives the remount, unlike component state) written
+before `setView('success')` and checked first on mount; cleared once the invitee
+clicks through to `/complete-profile`. Re-tested live end-to-end with a fresh
+invitee (a real invite through the actual `invite_member` RPC, a real session, a
+real password submission): "Welcome to ShiftOS" now correctly appears and survives.
 
-**2. (Important) Task 4's "invalid invitation link" message doesn't reliably
-appear.** Navigating to `/accept-invitation` with the exact hash shape a real
-expired Supabase link produces (`#error=access_denied&error_code=otp_expired...`)
-as a genuinely unauthenticated visitor shows the generic "No invitation found"
-message instead of Task 4's intended "This invitation link is no longer valid"
-message. **Confirmed reproducible in both the dev server and a real production
-build** (ruling out React StrictMode's dev-only double-effect-invocation as the
-cause — checked specifically and ruled out). Console evidence shows the hash error
-IS correctly detected and logged by Task 4's own code, but is immediately followed
-by an unexpected, failing `get_pending_invitation` call that overwrites the correct
-state. The exact trigger for that second call was investigated but not conclusively
-identified (several plausible mechanisms — a dev-mode artifact, a session-status
-remount, `SessionProvider` calling the RPC itself — were each checked and ruled
-out); this needs focused, instrumented debugging as its own follow-up task.
+**2. (Fixed) Task 4's "invalid invitation link" message didn't reliably appear.**
+Navigating to `/accept-invitation` with the exact hash shape a real expired
+Supabase link produces showed the generic "No invitation found" message instead.
+**Root cause, confirmed via the same instrumentation**: the hash-error branch
+strips the error out of the URL via `history.replaceState` as a side effect, and
+the effect genuinely ran a second time ~104ms later (captured live) — by then the
+hash was already empty, so the second run fell through to the normal fetch, got a
+`401`, and overwrote the correct message with the generic one. This is consistent
+with React 18 StrictMode's dev-only effect replay. **Correction to this report's
+own earlier claim**: an earlier pass believed this also reproduced in a genuine,
+from-scratch production build, ruling out StrictMode — that observation was made
+against a `vite preview` server that this same session later confirmed can silently
+serve a stale, not-yet-rebuilt `dist/` folder, so that specific "confirmed in
+production" claim should not be relied on; it is not re-asserted here. **Fix**: a
+`useRef` guard so the hash-error branch's side effect only ever runs once per
+mount, mirroring the `cancelled`-flag protection the adjacent fetch branch already
+had. Re-tested live in both the dev server and a freshly-rebuilt production
+preview: the correct "This invitation link is no longer valid" message now appears
+consistently.
 
-Both were left as documented findings rather than live-patched, since a rushed fix
-to a subtle React state/lifecycle interaction risks introducing a worse regression
-than the bug itself.
+Both fixes verified: `tsc -b` clean, full test suite 133/134 passing (the one
+failure, in `attendance.integration.test.ts`, reproduced as a pre-existing,
+unrelated shared-live-fixture flake — confirmed passing 4/4 in isolation), and
+live browser re-testing of both exact scenarios end-to-end.
 
 ## 5. Remaining issues
 
@@ -290,7 +302,7 @@ than the bug itself.
   email-only supervisor invite, departments), the Manager dashboard through employee
   form creation, the invitation-acceptance flow as the invitee end-to-end (password
   set → `CompleteProfilePage` → real Supervisor dashboard), and Task 4's
-  invalid-link hash-error path (found broken — see §4b).
+  invalid-link hash-error path (found broken, then fixed and re-verified — see §4b).
 - **Not yet covered:** Employee-role and Admin Console dashboard views, and Task 4's
   multi-organization pending-invitation collision scenario via real UI interaction
   (only unit/integration-tested today, not click-tested).
@@ -364,12 +376,10 @@ recommended follow-ups):
 2. Add browser-based timezone auto-detection (`Intl.DateTimeFormat().resolvedOptions().timeZone`,
    still overridable) to the organization and branch setup steps — genuinely missing,
    not a false alarm from the original audit.
-3. **Debug and fix the two real bugs found completing Phase I (§4b)**: the missing
-   success confirmation after setting a password on `/accept-invitation`, and Task
-   4's "invalid link" message not reliably appearing for a genuinely expired link
-   (confirmed reproducible in production, not a testing artifact). Both need
-   focused, instrumented debugging of the exact React state/lifecycle interaction
-   rather than a guessed fix.
+3. ~~Debug and fix the two real bugs found completing Phase I (§4b)~~ — **done**:
+   both the missing password-success confirmation and Task 4's unreliable
+   "invalid link" message were root-caused with live instrumentation and fixed
+   (commit `400637b`), verified end-to-end via live browser re-testing.
 4. Complete the remaining Phase I coverage: Employee/Admin dashboard views, and
    Task 4's multi-organization collision scenario via real UI interaction.
 5. Resolve the "should an org-wide single-branch Owner get auto-select?" product
