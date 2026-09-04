@@ -1,7 +1,9 @@
 # ShiftOS Onboarding, Context-Awareness & Empty-State UX Audit — Final Report
 
-Branch: `onboarding-ux-audit` (base: `main` @ `a5c664e`, head: `b971fb2`)
-15 commits, 51 files changed, ~3,470 insertions / ~230 deletions.
+Branch: `onboarding-ux-audit` (base: `main` @ `a5c664e`, head: `8a31dcc`)
+18 commits total (15 from the 10-task plan + final review fix, plus 3 more from live
+Phase I browser testing: a real production bug found and fixed, and this report's own
+updates).
 
 ## 1. Problems found (Phase 0 audit)
 
@@ -43,7 +45,12 @@ behavior across all four roles (Admin, Manager, Supervisor, Employee) found:
 - "Role can be tampered with via the client" — already impossible;
   `accept_invitation()` takes zero parameters and resolves everything server-side from
   the caller's own verified email.
-- "Timezone not auto-detected" — already working correctly.
+- ~~"Timezone not auto-detected" — already working correctly~~ — **this claim did
+  not hold.** Live Phase I browser testing (§4/§5 below) found timezone is not
+  auto-detected anywhere in this codebase; both the org- and branch-level Time Zone
+  fields require manual selection. Struck through rather than deleted, so this
+  report is honest about what changed since the original audit rather than quietly
+  rewriting history.
 - A live RLS spot-check across 7 core tenant tables (`employees`, `shifts`,
   `shift_assignments`, `invitations`, `organizations`, `branches`,
   `organization_member_branch_access`) found no cross-tenant or cross-branch gap.
@@ -61,7 +68,8 @@ behavior across all four roles (Admin, Manager, Supervisor, Employee) found:
   `resolveCountryValue`/`resolveStateValue`, not silently dropped.
 - City intentionally stays plain text — the chosen dataset has no city-level data, and
   a full worldwide city database was judged disproportionate (documented non-goal).
-- Timezone auto-detection was already correct and was left untouched.
+- Timezone auto-detection was believed already correct per the Phase 0 audit and was
+  left untouched — **later found by live Phase I testing to not exist at all; see §5.**
 
 ### Invitation flow (Tasks 3, 4)
 - Invite-a-member form (`InvitationsPage.tsx`, and the Owner-only wizard's
@@ -186,22 +194,78 @@ this report — all under `docs/superpowers/`.
   surfaced 3 Important, cross-task-only findings (visible only with the whole branch
   in view — see below), which were fixed and independently re-verified clean in one
   additional fix round.
-- **Phase I full-flow browser testing (Manager/Supervisor/Employee/Admin end-to-end
-  against a disposable throwaway org) was NOT performed.** The Playwright MCP browser
-  tool failed to connect twice (persistent `CONNECT_TIMEOUT`, not a transient blip),
-  and no alternative browser-automation tool was available this session. This is
-  flagged here explicitly rather than silently skipped or claimed as done — see
-  Remaining Issues.
+- **Phase I browser testing was partially performed.** Playwright MCP initially failed
+  to connect twice; after the user asked for a retry, it reconnected and a real,
+  live, end-to-end pass was run: fresh Owner signup → email confirmation (via
+  Supabase's Admin API, not real email delivery) → `CompleteProfilePage` (name/
+  phone/photo, confirmed working) → the full 5-step onboarding wizard (organization,
+  branch, supervisor invite, departments, finish) → Manager dashboard → employee
+  creation form. This live-confirmed Tasks 1, 2, 3, 6, 7, 8, and 9's UI-visible
+  behavior exactly as designed, and **surfaced one critical, real production bug
+  that no task-level review could have caught — see §4a below.** Not yet covered:
+  the invitation-acceptance flow as the invitee, Supervisor/Employee/Admin dashboard
+  views, a real avatar file upload through the UI, and Task 4's edge cases via UI
+  interaction (see Remaining Issues).
+
+## 4a. Critical bug found and fixed during Phase I testing (not part of the original 10 tasks)
+
+**Real invitation emails sent every invitee to the generic sign-in page instead of
+the invitation-acceptance flow.** Discovered from the user's own live experience of
+a real invitation email — clicking the link "took me straight to the sign in page"
+instead of asking for account details.
+
+Root cause, confirmed by generating a real Supabase invite link and inspecting its
+`redirect_to`: `packages/auth/src/index.ts`'s `inviteUser()` called Supabase's
+`inviteUserByEmail()` with no `redirectTo` option at all, so Supabase Auth fell back
+to the project's dashboard-configured Site URL — confirmed live to be
+`https://shiftos-web.vercel.app/sign-in`, not `/accept-invitation`. This has been
+true for every invitation this app has ever sent, in every environment, since
+before this audit began — it is not something Tasks 3 or 4 introduced, but their
+new email-only invite form and hardened acceptance flow were never exercised via a
+real delivered email during either task's review, so the gap survived both.
+
+**Fix (commit `8a31dcc`):** added an optional `SITE_URL` config value, threaded from
+`packages/config` through `packages/backend/src/server.ts` into `packages/auth`'s
+`SupabaseAuthProvider`, used to pass `redirectTo: '${SITE_URL}/accept-invitation'`
+to `inviteUserByEmail()` whenever it's configured. When absent, behavior degrades to
+the previous (broken) default rather than throwing, so this cannot regress any
+environment that hasn't set the variable yet. Verified against the Supabase JS SDK's
+own source that `redirectTo` is read directly from the options object and forwarded.
+Re-ran the invitation integration test suite (5/5 passing) and `tsc -b` (clean)
+afterward.
+
+**⚠️ Action required: this fix does not take effect in production until `SITE_URL`
+is set there.** Add `SITE_URL=https://shiftos-web.vercel.app` to production's
+environment variables (e.g. the Vercel project's environment settings) and redeploy.
 
 ## 5. Remaining issues
 
-**Not yet done:**
-- **Phase I browser testing was not performed** (environment limitation, not a code
-  gap) — recommend running it as a follow-up once browser automation is available:
-  full role-based flows including branch setup with the new geography selects,
-  supervisor invite-through-acceptance, employee creation with auto-generated numbers
-  and hidden/visible branch selectors, every dashboard's zero-data empty state, and
-  avatar upload/replace/persist-across-login.
+**Not yet done — Phase I is partially complete, not fully done:**
+- Live-verified: Owner signup, `CompleteProfilePage`, the full 5-step onboarding
+  wizard (org/branch geography selects, email-only supervisor invite, departments),
+  and the Manager dashboard through employee-form creation.
+- **Not yet covered**, recommended as a follow-up once environment stability
+  (Playwright MCP's connection, this sandbox's TLS interception) is less of a
+  recurring obstacle: the invitation-acceptance flow as the invitee (password set →
+  `CompleteProfilePage` → membership granted — the exact flow the redirect bug in
+  §4a was blocking), Supervisor/Employee/Admin dashboard views, a real avatar file
+  upload exercised through the UI, and Task 4's edge cases (expired link, multi-org
+  collision) via actual UI interaction rather than direct RPC calls.
+
+**New finding from live testing — contradicts a Phase 0 audit claim:**
+- **Timezone is NOT auto-detected from the browser anywhere in this codebase.** The
+  design spec's §1 stated this was already working correctly and needed no fix.
+  Live testing found otherwise: both the organization-level and branch-level Time
+  Zone fields initialize blank (`useState('')`) and must be manually selected — a
+  repo-wide search for `Intl.DateTimeFormat`/`resolvedOptions` (the API that would
+  perform such detection) returns zero matches anywhere in `apps/web/src`. Not
+  fixed in this session (discovered after the 10-task plan's work was already
+  reviewed and merged) — recommend a small follow-up task to default both fields to
+  `Intl.DateTimeFormat().resolvedOptions().timeZone` on mount, still overridable.
+- **Minor, cosmetic:** the onboarding wizard's "Shifty" setup-assistant sidebar on
+  the Supervisor step still references "name, email and phone" and shows "Pointing
+  at: Full Name" — stale copy from before Task 3 removed those fields from the form
+  itself. Not functional, just an inconsistent hint.
 
 **Known, disclosed, non-blocking gaps** (all recorded in the committed security
 record, not just this report, so they survive the merge):
@@ -250,15 +314,25 @@ recommended follow-ups):
 
 ## 6. Recommendations
 
-1. Run Phase I browser testing as a follow-up once a working browser-automation tool
-   is available, before considering this feature fully verified end-to-end.
-2. Resolve the "should an org-wide single-branch Owner get auto-select?" product
+1. **⚠️ Highest priority, production-facing:** add `SITE_URL=https://shiftos-web.vercel.app`
+   to production's environment variables and redeploy — without it, real invitation
+   emails keep sending invitees to the sign-in page instead of the acceptance flow
+   (§4a), regardless of the code fix already merged to this branch.
+2. Add browser-based timezone auto-detection (`Intl.DateTimeFormat().resolvedOptions().timeZone`,
+   still overridable) to the organization and branch setup steps — genuinely missing,
+   not a false alarm from the original audit.
+3. Complete the remaining Phase I coverage once environment stability allows:
+   invitation-acceptance as the invitee, Supervisor/Employee/Admin dashboard views,
+   a real avatar upload through the UI, Task 4's edge cases via actual UI interaction.
+4. Resolve the "should an org-wide single-branch Owner get auto-select?" product
    question, then migrate `TasksPage.tsx`/`AttendancePage.tsx` onto
    `useDefaultBranchId()` for real consistency (or explicitly decide they're allowed
    to differ and document why).
-3. A small follow-up task to extend `parseAuthHashError`'s handling to
+5. A small follow-up task to extend `parseAuthHashError`'s handling to
    `ResetPasswordPage`/`ForgotPasswordPage`/`VerifyEmailPage`.
-4. A human should check Supabase's Dashboard-configured invite-email template for any
+6. A human should check Supabase's Dashboard-configured invite-email template for any
    first-name personalization now that names are optional at invite time.
-5. Minor grant-hygiene cleanup on `generate_next_employee_number` (add the same
+7. Minor grant-hygiene cleanup on `generate_next_employee_number` (add the same
    `REVOKE ... FROM anon/PUBLIC` its sibling functions already have).
+8. Fix the stale "name, email and phone" copy in the onboarding wizard's Shifty
+   sidebar on the Supervisor step (cosmetic, post-Task-3 leftover).
