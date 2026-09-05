@@ -60,13 +60,16 @@ export default function RequestsPage(): React.ReactElement {
 
   const [tab, setTab] = useState<'swaps' | 'leave'>('swaps');
 
-  const { data: myEmployeeRecord } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canReadEmployees });
+  // Also used below to resolve requester/target employee names on the swap
+  // and leave lists — without this, an approver sees only a truncated
+  // employee_id ("Employee cd7523ef…") with no way to tell who's asking.
+  const { data: employees } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canReadEmployees });
   const myEmployee = useMemo(
     () =>
-      (myEmployeeRecord ?? []).find(
+      (employees ?? []).find(
         (e) => e.email && profile?.email && e.email.toLowerCase() === profile.email.toLowerCase()
       ) ?? null,
-    [myEmployeeRecord, profile]
+    [employees, profile]
   );
 
   return (
@@ -96,7 +99,17 @@ export default function RequestsPage(): React.ReactElement {
         </div>
       </div>
 
-      {tab === 'swaps' ? <SwapsTab canApprove={canApproveSwaps} canRespond={canRespondSwaps} canRequest={canRequestSwaps} /> : <LeaveTab canApprove={canApproveLeave} canCreate={canCreateLeave} myEmployeeId={myEmployee?.id ?? null} contextKey={myContext?.organizationId ?? 'none'} />}
+      {tab === 'swaps' ? (
+        <SwapsTab canApprove={canApproveSwaps} canRespond={canRespondSwaps} canRequest={canRequestSwaps} employees={employees ?? []} />
+      ) : (
+        <LeaveTab
+          canApprove={canApproveLeave}
+          canCreate={canCreateLeave}
+          myEmployeeId={myEmployee?.id ?? null}
+          contextKey={myContext?.organizationId ?? 'none'}
+          employees={employees ?? []}
+        />
+      )}
     </div>
   );
 }
@@ -106,11 +119,13 @@ export default function RequestsPage(): React.ReactElement {
 function SwapsTab({
   canApprove,
   canRespond,
-  canRequest
+  canRequest,
+  employees
 }: {
   canApprove: boolean;
   canRespond: boolean;
   canRequest: boolean;
+  employees: Employee[];
 }): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
 
@@ -135,7 +150,15 @@ function SwapsTab({
     onError: (err) => setError(err.message)
   });
 
-  const queue = canApprove ? (approvalsQuery.data ?? []) : [...(mineQuery.data ?? []), ...(openQuery.data ?? [])];
+  // An open swap the caller created themselves is a genuine member of both
+  // list_my_shift_swaps and list_open_shift_swaps (it's simultaneously
+  // "mine" and "unassigned") -- deduping by id rather than filtering one
+  // list out entirely, since a non-open swap someone else opened should
+  // still only ever come from openQuery.
+  const queue =
+    canApprove
+      ? (approvalsQuery.data ?? [])
+      : Array.from(new Map([...(mineQuery.data ?? []), ...(openQuery.data ?? [])].map((swap) => [swap.id, swap])).values());
 
   return (
     <div>
@@ -161,6 +184,7 @@ function SwapsTab({
               onReject={() => rejectMutation.mutate({ swapId: swap.id })}
               onRespond={(accept) => respondMutation.mutate({ swapId: swap.id, accept })}
               busy={approveMutation.isPending || rejectMutation.isPending || respondMutation.isPending}
+              employees={employees}
             />
           ))}
         </div>
@@ -177,7 +201,8 @@ function SwapCard({
   onApprove,
   onReject,
   onRespond,
-  busy
+  busy,
+  employees
 }: {
   swap: ShiftSwap;
   mode: 'approve' | 'respond' | 'view';
@@ -186,12 +211,21 @@ function SwapCard({
   onReject: () => void;
   onRespond: (accept: boolean) => void;
   busy: boolean;
+  employees: Employee[];
 }): React.ReactElement {
   const actionable =
     mode === 'approve'
       ? swap.status === 'pending' || swap.status === 'accepted'
       : canRespond && (swap.status === 'pending' || swap.status === 'accepted');
   const closed = !actionable;
+
+  // Falls back to a truncated id only if the employee record can't be
+  // found (e.g. archived) — the common case resolves a real name so an
+  // approver can actually tell who they're approving a swap for.
+  const employeeName = (employeeId: string): string => {
+    const employee = employees.find((e) => e.id === employeeId);
+    return employee ? `${employee.first_name} ${employee.last_name}` : `Employee ${employeeId.slice(0, 8)}…`;
+  };
 
   return (
     <article className="rounded-2xl border border-neutral-200 bg-white p-4">
@@ -207,10 +241,10 @@ function SwapCard({
         <div className="min-w-[200px] flex-[1_1_220px] rounded-[13px] border border-neutral-100 p-3.5">
           <p className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-neutral-400">Gives up</p>
           <div className="mt-[9px] flex items-center gap-2.5">
-            <InitialsAvatar name={`Employee ${swap.requested_by_employee_id.slice(0, 4)}`} size={28} />
+            <InitialsAvatar name={employeeName(swap.requested_by_employee_id)} size={28} />
             <span className="min-w-0">
               <span className="block truncate text-[12.5px] font-extrabold text-neutral-900">
-                {swap.requested_by_employee_id === swap.target_employee_id ? '—' : 'Requesting employee'}
+                {swap.requested_by_employee_id === swap.target_employee_id ? '—' : employeeName(swap.requested_by_employee_id)}
               </span>
               <span className="block text-[11px] text-neutral-400">Assignment {swap.shift_assignment_id.slice(0, 8)}…</span>
             </span>
@@ -227,10 +261,10 @@ function SwapCard({
         <div className="min-w-[200px] flex-[1_1_220px] rounded-[13px] border border-neutral-100 p-3.5">
           <p className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-neutral-400">Takes over</p>
           <div className="mt-[9px] flex items-center gap-2.5">
-            <InitialsAvatar name={swap.target_employee_id ? `Employee ${swap.target_employee_id.slice(0, 4)}` : 'Open shift'} size={28} />
+            <InitialsAvatar name={swap.target_employee_id ? employeeName(swap.target_employee_id) : 'Open shift'} size={28} />
             <span className="min-w-0">
               <span className="block truncate text-[12.5px] font-extrabold text-neutral-900">
-                {swap.target_employee_id ? 'Named counterpart' : 'Open — anyone can take it'}
+                {swap.target_employee_id ? employeeName(swap.target_employee_id) : 'Open — anyone can take it'}
               </span>
               <span className="block text-[11px] text-neutral-400">{swap.responded_at ? `Responded ${new Date(swap.responded_at).toLocaleDateString()}` : 'Awaiting response'}</span>
             </span>
@@ -433,12 +467,14 @@ function LeaveTab({
   canApprove,
   canCreate,
   myEmployeeId,
-  contextKey
+  contextKey,
+  employees
 }: {
   canApprove: boolean;
   canCreate: boolean;
   myEmployeeId: string | null;
   contextKey: string;
+  employees: Employee[];
 }): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -475,6 +511,14 @@ function LeaveTab({
 
   const rows = canApprove ? (pendingQuery.data ?? []) : (mineQuery.data ?? []);
   void contextKey;
+
+  // Falls back to a truncated id only if the employee record can't be
+  // found (e.g. archived) — the common case resolves a real name so an
+  // approver can actually tell who's requesting time off.
+  const employeeName = (employeeId: string): string => {
+    const employee = employees.find((e) => e.id === employeeId);
+    return employee ? `${employee.first_name} ${employee.last_name}` : `Employee ${employeeId.slice(0, 8)}…`;
+  };
 
   return (
     <div>
@@ -590,10 +634,10 @@ function LeaveTab({
               className="flex flex-wrap items-center gap-x-3 gap-y-2.5 border-b border-neutral-50 px-[18px] py-3 last:border-b-0"
             >
               <span className="flex min-w-0 flex-[1_1_170px] items-center gap-[11px]">
-                <InitialsAvatar name={`Employee ${request.employee_id.slice(0, 4)}`} size={28} />
+                <InitialsAvatar name={canApprove ? employeeName(request.employee_id) : 'You'} size={28} />
                 <span className="min-w-0">
                   <span className="block truncate text-[12.5px] font-bold text-neutral-900">
-                    {canApprove ? `Employee ${request.employee_id.slice(0, 8)}…` : 'You'}
+                    {canApprove ? employeeName(request.employee_id) : 'You'}
                   </span>
                   <span className="block truncate text-[11px] text-neutral-400">#{request.employee_id.slice(0, 8)}</span>
                 </span>
