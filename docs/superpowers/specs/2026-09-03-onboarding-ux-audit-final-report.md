@@ -240,15 +240,16 @@ own source that `redirectTo` is read directly from the options object and forwar
 Re-ran the invitation integration test suite (5/5 passing) and `tsc -b` (clean)
 afterward.
 
-**✅ Done:** `SITE_URL=https://shiftos-web.vercel.app` was added to the
-`shiftos-backend-api` Render service (the one `apps/web/vercel.json` actually
-routes `/rpc/*` to in production — a second, older `shiftos-backend` service
-also exists on Render but is not in the production path and was left alone),
-which triggered a live redeploy (`dep-dade46ajnfac73fig5g0`, confirmed `live`).
-Not yet independently re-verified end-to-end with a real delivered email
-(Supabase's built-in email-send rate limit was still cooling down from this
-session's testing volume at the time) — worth a real invite test once that
-limit clears.
+**✅ Done and independently re-verified end-to-end:** `SITE_URL=https://shiftos-web.vercel.app`
+was added to the `shiftos-backend-api` Render service (the one
+`apps/web/vercel.json` actually routes `/rpc/*` to in production — a second,
+older `shiftos-backend` service also exists on Render but is not in the
+production path and was left alone), which triggered a live redeploy
+(`dep-dade46ajnfac73fig5g0`, confirmed `live`). Once Supabase's email-send
+rate limit cleared, a real invite was sent through the live production
+backend to a real inbox — the user confirmed clicking the actual delivered
+email landed on `/accept-invitation` with the acceptance form, not the
+generic sign-in page. The fix is confirmed working in production.
 
 ## 4b. Two more real bugs found and fixed completing Phase I
 
@@ -490,8 +491,8 @@ recommended follow-ups):
 
 1. ~~Add `SITE_URL=https://shiftos-web.vercel.app` to production's environment
    variables and redeploy~~ — **done**: set on the `shiftos-backend-api` Render
-   service, redeployed live (§4a). Recommend a real invite test once Supabase's
-   email-send rate limit clears, as the final independent confirmation.
+   service, redeployed live, and confirmed working with a real delivered
+   invitation email (§4a).
 2. Add browser-based timezone auto-detection (`Intl.DateTimeFormat().resolvedOptions().timeZone`,
    still overridable) to the organization and branch setup steps — genuinely missing,
    not a false alarm from the original audit.
