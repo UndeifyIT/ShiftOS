@@ -412,6 +412,61 @@ defect. Fixed for the two test accounts by granting the missing branch access
 directly, which also served as incidental re-confirmation that Supervisor's
 pre-existing Task 8 steps render correctly once branch access is present.
 
+## 4f. Full end-to-end organization workflow test (user follow-up) — two more real bugs found and fixed
+
+Requested directly: a complete, exhaustive first-time-use simulation of a real
+organization — Manager sign-up through to a Supervisor and Employee both
+fully using the product, explicitly including every photo/logo upload and
+every day-to-day feature, run to completion without stopping for check-ins.
+
+Built a fresh real org (`Workflow Test Retail`) through the actual UI/RPC
+pipeline (invitation emails substituted with direct DB inserts only where
+Supabase's real email-send rate limit was hit, same technique used
+throughout this audit) and live-tested, all real and not mocked:
+
+- Manager sign-up, full 5-step onboarding wizard (including **the
+  organization logo upload**, a previously-untested surface, confirmed
+  working alongside the already-tested profile photo upload), and the
+  Manager dashboard's next-step banner progressing correctly through every
+  stage (employee → schedule → announcement → gone) as each was completed.
+- Supervisor accepting a real invite and building/publishing a real
+  schedule with a real shift, assigning the employee to it.
+- Manager posting a real announcement, which the Employee received and
+  acknowledged.
+- Employee accepting a real invite, a real **clock-in/clock-out cycle**
+  against their actual assigned shift, a real **time-off request**
+  (submitted, then approved by the Supervisor), and a real **shift-swap
+  request**.
+- A task created and assigned by the Manager.
+- A full sweep of every remaining nav destination for both roles
+  (Employees, Attendance — including the "Correct attendance" dialog,
+  Branches, Members & Roles, Organization, Admin Console, Tasks) — all
+  clean, no unexpected console errors.
+
+**Two more real bugs found and fixed** (commit `f36e8a9`), both only
+reachable via a genuine end-to-end click-through with a real approver and a
+real requester — no unit/integration test exercises this UI path:
+
+1. **(Fixed) Leave and swap requests showed a truncated employee UUID
+   instead of the requester's name.** `RequestsPage.tsx`'s leave list and
+   swap cards had `Employee ${id.slice(0, 8)}…` as their only rendering —
+   not a fallback, the only path — so a real Supervisor approving a real
+   request had no way to tell who it was for. The employee list was
+   already fetched at the top of the page (for an unrelated purpose) but
+   never passed down. **Fix**: thread it down and resolve the real name,
+   falling back to the truncated id only if the record genuinely can't be
+   found. Verified live: both surfaces now show the requester's real name.
+2. **(Fixed) An employee's own open swap request rendered twice.** An open
+   swap (no named counterpart) the requester created themselves is a
+   genuine member of both `list_my_shift_swaps` and
+   `list_open_shift_swaps` — the page concatenated both without deduping.
+   Confirmed via React's own duplicate-key warning before touching any
+   code. **Fix**: dedupe the combined list by swap id. Verified live: one
+   card renders, warning gone.
+
+Both fixes verified: `tsc -b` clean across the monorepo, full test suite
+still 26/26 files, 134/134 tests passing.
+
 ## 5. Remaining issues
 
 **Phase I browser testing — now fully complete:**
