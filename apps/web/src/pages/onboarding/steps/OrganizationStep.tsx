@@ -8,6 +8,11 @@ import { uploadOrganizationLogo } from '../../../lib/avatars.js';
 import { useSession } from '../../../auth/SessionProvider.js';
 import { AuthBanner, AuthInput } from '../../auth/AuthInputs.js';
 import { ObSelect, WizardFooter } from '../OnboardingFields.js';
+import { useFormDraft, clearFormDraft } from '../../../lib/useFormDraft.js';
+
+/** Most manager sign-ups target a Nigerian operation — prefilled, not locked, so it stays a one-click change for anyone else. */
+const DEFAULT_TIME_ZONE = 'Africa/Lagos';
+const ORG_DRAFT_KEY = 'shiftos.draft.organizationStep';
 
 function slugify(name: string): string {
   return name
@@ -89,11 +94,29 @@ export default function OrganizationStep(): React.ReactElement {
   const [departmentCountEstimate, setDepartmentCountEstimate] = useState('');
   const [estimatedEmployees, setEstimatedEmployees] = useState('');
   const [country, setCountry] = useState('');
-  const [timeZone, setTimeZone] = useState('');
+  const [timeZone, setTimeZone] = useState(DEFAULT_TIME_ZONE);
   const [error, setError] = useState<string | null>(null);
   const [metadataWarning, setMetadataWarning] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const countryOptions = useMemo(() => getCountryOptions(), []);
+
+  // Recovers this form if a reload interrupted it before create_organization_with_owner
+  // ran — nothing about the organization exists yet at that point, so without this an
+  // accidental reload would silently erase everything typed.
+  useFormDraft(
+    ORG_DRAFT_KEY,
+    { name, slug, slugTouched, businessType, departmentCountEstimate, estimatedEmployees, country, timeZone },
+    (saved) => {
+      if (saved.name) setName(saved.name);
+      if (saved.slug) setSlug(saved.slug);
+      if (saved.slugTouched) setSlugTouched(saved.slugTouched);
+      if (saved.businessType) setBusinessType(saved.businessType);
+      if (saved.departmentCountEstimate) setDepartmentCountEstimate(saved.departmentCountEstimate);
+      if (saved.estimatedEmployees) setEstimatedEmployees(saved.estimatedEmployees);
+      if (saved.country) setCountry(saved.country);
+      if (saved.timeZone) setTimeZone(saved.timeZone);
+    }
+  );
 
   const handleNameChange = (value: string): void => {
     setName(value);
@@ -146,6 +169,7 @@ export default function OrganizationStep(): React.ReactElement {
       setMetadata(orgMetadata);
     }
 
+    clearFormDraft(ORG_DRAFT_KEY);
     setOrganizationId(newOrganizationId as string);
     setSubmitting(false);
   };

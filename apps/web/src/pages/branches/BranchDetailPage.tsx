@@ -24,6 +24,9 @@ import type { Branch } from '../../types/domain.js';
 /** Same preset list the onboarding wizard's Branch step uses (settings.storeType) — kept in sync manually since it's just a small constant, not worth sharing a module for two call sites. */
 const STORE_TYPES = ['Supermarket', 'Convenience Store', 'Restaurant', 'Warehouse', 'Kitchen / Production', 'Office', 'Other'];
 
+/** Most orgs on ShiftOS run in Nigeria — prefilled on create, not locked, so it's a one-click change for anyone else. Overwritten by the loaded branch's own settings.timeZone when editing an existing one (see the effect below). */
+const DEFAULT_TIME_ZONE = 'Africa/Lagos';
+
 /** Same IANA-timezone source the onboarding wizard's Branch step uses (settings.timeZone) — see that file's own comment for the fallback rationale. */
 function getTimeZoneOptions(): string[] {
   try {
@@ -70,7 +73,7 @@ export default function BranchDetailPage(): React.ReactElement {
   const [country, setCountry] = useState('');
   const [branchState, setBranchState] = useState('');
   const [city, setCity] = useState('');
-  const [timeZone, setTimeZone] = useState('');
+  const [timeZone, setTimeZone] = useState(DEFAULT_TIME_ZONE);
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false);
   const timeZoneOptions = useMemo(() => getTimeZoneOptions(), []);

@@ -8,7 +8,12 @@ import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import { OnboardingWizardShell, type OnboardingStepId } from './OnboardingWizardShell.js';
 import { AuthBanner, AuthInput } from '../auth/AuthInputs.js';
 import { ObSelect, WizardFooter } from './OnboardingFields.js';
+import { useFormDraft, clearFormDraft } from '../../lib/useFormDraft.js';
 import type { Branch, Department, Invitation, Organization, Role } from '../../types/domain.js';
+
+/** Most manager sign-ups target a Nigerian operation — prefilled, not locked, so it stays a one-click change for anyone else. */
+const DEFAULT_TIME_ZONE = 'Africa/Lagos';
+const BRANCH_DRAFT_KEY = 'shiftos.draft.onboardingBranch';
 
 const STEPS = ['branch', 'supervisor', 'departments', 'finish'] as const;
 type Step = (typeof STEPS)[number];
@@ -104,8 +109,19 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
   const [branchState, setBranchState] = useState('');
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
-  const [timeZone, setTimeZone] = useState('');
+  const [timeZone, setTimeZone] = useState(DEFAULT_TIME_ZONE);
   const [error, setError] = useState<string | null>(null);
+
+  // Recovers this form if a reload interrupted it before create_branch ran.
+  useFormDraft(BRANCH_DRAFT_KEY, { name, storeType, country, branchState, city, address, timeZone }, (saved) => {
+    if (saved.name) setName(saved.name);
+    if (saved.storeType) setStoreType(saved.storeType);
+    if (saved.country) setCountry(saved.country);
+    if (saved.branchState) setBranchState(saved.branchState);
+    if (saved.city) setCity(saved.city);
+    if (saved.address) setAddress(saved.address);
+    if (saved.timeZone) setTimeZone(saved.timeZone);
+  });
 
   const stateOptions = useMemo(() => getStateOptions(country), [country]);
   const regionLabel = useMemo(() => getRegionLabel(country), [country]);
@@ -120,7 +136,10 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
     'create_branch',
     {
       invalidates: ['list_branches'],
-      onSuccess: onNext,
+      onSuccess: () => {
+        clearFormDraft(BRANCH_DRAFT_KEY);
+        onNext();
+      },
       onError: (err) => setError(err.message)
     }
   );
