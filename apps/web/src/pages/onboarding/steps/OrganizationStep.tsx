@@ -125,7 +125,11 @@ export default function OrganizationStep(): React.ReactElement {
 
   const handleNameChange = (value: string): void => {
     setName(value);
-    if (!slugTouched) setSlug(slugify(value));
+    // Once the organization exists, the slug is already persisted and locked
+    // (see the disabled Workspace Name field below) — re-deriving it from a
+    // post-creation name edit would show a value that was never actually
+    // saved, since the edit path below never sends slug to update_organization.
+    if (!organizationId && !slugTouched) setSlug(slugify(value));
   };
 
   const handleSubmit = async (event: React.FormEvent): Promise<void> => {
@@ -158,6 +162,11 @@ export default function OrganizationStep(): React.ReactElement {
       try {
         await callRpc('update_organization', organizationId, { name: name.trim(), metadata: orgMetadata });
         setMetadata(orgMetadata);
+        // Clears any stale "some details weren't saved" banner from an
+        // earlier failed save — otherwise a successful edit here would still
+        // show it on the logo screen, since that warning lives in this
+        // component's state and isn't tied to any one save attempt.
+        setMetadataWarning(null);
         clearFormDraft(ORG_DRAFT_KEY);
         setStep('logo');
       } catch {
