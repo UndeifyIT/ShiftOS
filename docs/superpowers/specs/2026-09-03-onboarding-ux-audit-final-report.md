@@ -1,9 +1,9 @@
 # ShiftOS Onboarding, Context-Awareness & Empty-State UX Audit — Final Report
 
 Branch: `onboarding-ux-audit` (base: `main` @ `a5c664e`)
-25 commits total (15 from the 10-task plan + final review fix, plus 10 more from
-live Phase I browser testing — now fully complete: five real bugs found and
-fixed, plus this report's own updates).
+30 commits total (15 from the 10-task plan + final review fix, plus 15 more
+from live Phase I browser testing and user follow-ups — now fully complete:
+seven real bugs found and fixed, plus this report's own updates).
 
 ## 1. Problems found (Phase 0 audit)
 
@@ -466,6 +466,66 @@ real requester — no unit/integration test exercises this UI path:
 
 Both fixes verified: `tsc -b` clean across the monorepo, full test suite
 still 26/26 files, 134/134 tests passing.
+
+## 4g. First-time-signup guardrails, editable Supervisor permissions, onboarding Back navigation (user follow-ups)
+
+Three separate user-reported gaps, all fixed and live-tested:
+
+1. **(Fixed) Complete Profile's Job Role dropdown had no Manager option and
+   let anyone self-signup into any role.** A true first-time signup (no
+   invitation) had no way to pick "Manager" — the only role self-signup can
+   legitimately claim, since every other role is granted by an invitation —
+   and the field was optional. Job Role is now compulsory; Manager is
+   offered only when no invitation was found; picking anything else on that
+   path blocks submission with an explicit message directing them to wait
+   for a real invite instead. Invited signups are unaffected — role stays
+   locked to whatever the inviter actually granted. Verified live: selecting
+   Employee on a fresh signup is blocked with the correct message; selecting
+   Manager proceeds.
+2. **(Fixed) Onboarding's Supervisor permissions checklist was static and
+   decorative.** A manager could see what a Supervisor could do but never
+   change it, and the underlying `role_permissions` were untouched by the
+   UI entirely. Added `get_role_capabilities`/`update_role_permissions` RPCs
+   (`MembershipService`, backed by the existing `RolePermissionRepository`)
+   keyed off a small `ROLE_CAPABILITY_GROUPS` map (e.g. "Manage schedules" →
+   `schedules.create/update/publish/archive`). The checklist now reads/writes
+   these live. Verified live end-to-end: toggling "Assign tasks" on, then
+   independently querying the real database, confirmed `tasks.create` and
+   `tasks.assign` were actually granted to the org's Supervisor role (not
+   just reflected client-side); toggling it back off confirmed both were
+   actually revoked. "Change organization settings"/"Delete employees" stay
+   fixed, non-editable rows — a branch-scoped role is never granted those.
+3. **(Fixed) No way to go back and edit earlier onboarding steps.** Added
+   Back navigation through the rest of onboarding: the Organization step's
+   Logo screen can now return to re-edit organization details (name,
+   business type, country, timezone) instead of only "Continue" or losing
+   that screen forever; `FinishStep` can go back to Departments (the
+   Branch↔Supervisor↔Departments links already existed). Editing after Back
+   calls `update_organization` rather than re-running
+   `create_organization_with_owner` (which would create a second
+   organization for the same person).
+   Live testing surfaced and fixed **two more real bugs** in this new path
+   before it shipped: the logo upload never reported its saved `logoPath`
+   back to the parent's metadata state, so going back and re-saving details
+   would have silently dropped an uploaded logo; and a stale "some details
+   weren't saved" warning banner (set by an earlier failed save) was never
+   cleared on a later successful save, so it stayed stuck on the logo screen
+   even after the retry succeeded. Also fixed a related cosmetic bug the
+   Back flow exposed: editing the organization name after creation was still
+   silently re-deriving the (locked, already-persisted) Workspace Name
+   slug, showing a value that was never actually saved.
+
+Also, per a separate user request: Time Zone fields (Organization step,
+onboarding Branch step, Branch detail/create) now default to `Africa/Lagos`
+instead of forcing an explicit pick, and a small `useFormDraft` hook
+(sessionStorage-backed, mirroring the existing signup→profile name handoff)
+now recovers Complete Profile, the Organization step, and the Branch step if
+a reload interrupts them mid-fill.
+
+All of the above verified live via real signup, real org creation, a real
+Back→edit→re-save round trip, and a real permission toggle checked against
+the live database — not just traced through the code. `tsc -b` clean across
+the monorepo; unit suite still passing (63/63).
 
 ## 5. Remaining issues
 
