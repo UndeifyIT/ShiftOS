@@ -28,7 +28,7 @@
 ### Task 1: Migration — create `schedule_rosters` table
 
 **Files:**
-- Create: `supabase/migrations/055_create_schedule_rosters.sql`
+- Create: `supabase/migrations/059_create_schedule_rosters.sql`
 
 **Interfaces:**
 - Produces: table `public.schedule_rosters (id, organization_id, schedule_id, employee_id, added_by, added_at, deleted_at)`, unique on `(schedule_id, employee_id) WHERE deleted_at IS NULL`.
@@ -36,7 +36,7 @@
 - [ ] **Step 1: Write the migration**
 
 ```sql
--- 055_create_schedule_rosters.sql
+-- 059_create_schedule_rosters.sql
 -- Migration: create schedule_rosters table
 --
 -- Tracks which employees are "on" a given week's schedule, independent of
@@ -156,13 +156,13 @@ ALTER TABLE public.schedule_rosters ENABLE ROW LEVEL SECURITY;
 
 - [ ] **Step 2: Apply the migration locally and verify it's idempotent**
 
-Run: `psql "$DATABASE_URL" -f supabase/migrations/055_create_schedule_rosters.sql` (repo root `.env` has `DATABASE_URL`)
+Run: `psql "$DATABASE_URL" -f supabase/migrations/059_create_schedule_rosters.sql` (repo root `.env` has `DATABASE_URL`)
 Expected: succeeds with no output errors. Run the exact same command a second time — expected: still succeeds (every guard is `IF NOT EXISTS`), proving idempotency.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add supabase/migrations/055_create_schedule_rosters.sql
+git add supabase/migrations/059_create_schedule_rosters.sql
 git commit -m "feat(scheduling): add schedule_rosters table"
 ```
 
@@ -171,7 +171,7 @@ git commit -m "feat(scheduling): add schedule_rosters table"
 ### Task 2: Migration — seed `shifttemplates.*` permissions
 
 **Files:**
-- Create: `supabase/migrations/056_seed_shift_template_permissions.sql`
+- Create: `supabase/migrations/060_seed_shift_template_permissions.sql`
 
 **Interfaces:**
 - Produces: permission codes `shifttemplates.read`, `shifttemplates.create`, both granted only to the Supervisor role (Phase 1 has no UI path where Manager opens the template picker — Manager can't assign shifts at all in Phase 1, matching `PER-003-SCHEDULING.md`'s "Assign Employee to Shift: Manager Deny").
@@ -179,7 +179,7 @@ git commit -m "feat(scheduling): add schedule_rosters table"
 - [ ] **Step 1: Write the migration**
 
 ```sql
--- 056_seed_shift_template_permissions.sql
+-- 060_seed_shift_template_permissions.sql
 -- Migration: permission catalog rows for the shift-templates RPCs
 -- (list_shift_templates, create_shift_template) added in this pass.
 --
@@ -271,14 +271,14 @@ END$$;
 
 - [ ] **Step 2: Apply and verify**
 
-Run: `psql "$DATABASE_URL" -f supabase/migrations/056_seed_shift_template_permissions.sql`
+Run: `psql "$DATABASE_URL" -f supabase/migrations/060_seed_shift_template_permissions.sql`
 Expected: succeeds. Then run: `psql "$DATABASE_URL" -c "SELECT code FROM permissions WHERE code LIKE 'shifttemplates.%' ORDER BY code;"`
 Expected: two rows, `shifttemplates.create` and `shifttemplates.read`.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add supabase/migrations/056_seed_shift_template_permissions.sql
+git add supabase/migrations/060_seed_shift_template_permissions.sql
 git commit -m "feat(scheduling): seed shifttemplates permissions for Supervisor"
 ```
 
@@ -1102,7 +1102,7 @@ export const schedulingOperations = [
 
 - [ ] **Step 4: Wire into the registry**
 
-In `packages/api/src/registry.ts`, add the three names to the existing scheduling import (extend the destructured import list already there) and add three `registry.register(...)` calls directly after `registry.register(publishSchedule);`:
+In `packages/api/src/registry.ts`, add the three names to the existing scheduling import (extend the destructured import list already there) and add three `registry.register(...)` calls directly after `registry.register(createShiftTemplate);` (the last registration Task 7 added — by this point in the task sequence, Tasks 5 and 7 have already inserted the roster and template registrations directly after the original `registry.register(publishSchedule);` line, so anchor to the end of that accumulated block, not to `publishSchedule` itself):
 
 ```typescript
   registry.register(assignShiftToEmployeeOnDate);
