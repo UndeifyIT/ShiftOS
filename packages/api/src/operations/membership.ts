@@ -1,6 +1,6 @@
 import { MembershipService } from '@shiftos/services';
 import { defineRpc } from '../rpc.js';
-import { asRecord, requiredStringField, stringArrayField, stringField } from '../parse.js';
+import { asRecord, recordField, requiredStringField, stringArrayField, stringField } from '../parse.js';
 
 export const listMembers = defineRpc('list_members', async (context) => {
   return new MembershipService(context).listMembers();
@@ -45,6 +45,21 @@ export const resendInvitation = defineRpc('resend_invitation', async (context, r
   return new MembershipService(context).resendInvitation(requiredStringField(input, 'invitationId'));
 });
 
+export const getRoleCapabilities = defineRpc('get_role_capabilities', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new MembershipService(context).getRoleCapabilities(requiredStringField(input, 'roleId'));
+});
+
+export const updateRolePermissions = defineRpc('update_role_permissions', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  const rawCapabilities = recordField(input, 'capabilities') ?? {};
+  const capabilities: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(rawCapabilities)) {
+    capabilities[key] = value === true;
+  }
+  return new MembershipService(context).updateRolePermissions(requiredStringField(input, 'roleId'), capabilities);
+});
+
 export const membershipOperations = [
   listMembers,
   listRoles,
@@ -52,5 +67,7 @@ export const membershipOperations = [
   listInvitations,
   inviteMember,
   revokeInvitation,
-  resendInvitation
+  resendInvitation,
+  getRoleCapabilities,
+  updateRolePermissions
 ];

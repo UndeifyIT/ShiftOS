@@ -47,7 +47,7 @@ export default function OnboardingWizard(): React.ReactElement {
       {step === 'branch' ? <BranchStep onNext={() => setStep('supervisor')} /> : null}
       {step === 'supervisor' ? <SupervisorStep onNext={() => setStep('departments')} onBack={() => setStep('branch')} /> : null}
       {step === 'departments' ? <DepartmentsStep onNext={() => setStep('finish')} onBack={() => setStep('supervisor')} /> : null}
-      {step === 'finish' ? <FinishStep onFinish={() => void refresh()} /> : null}
+      {step === 'finish' ? <FinishStep onBack={() => setStep('departments')} onFinish={() => void refresh()} /> : null}
     </OnboardingWizardShell>
   );
 }
@@ -267,30 +267,47 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
 }
 
 /**
- * Static, read-only mirror of the Supervisor role's fixed permission set
- * (design's `Supervisor.permissions`, `ShiftOS Onboarding.dc.html` ~line
- * 448). Informational only — spec decision 4 explicitly rules out an
- * editable per-invitation permission override, so this never feeds into
- * `invite_member`'s call.
+ * Editable mirror of the Supervisor role's real permission set (design's
+ * `Supervisor.permissions`, `ShiftOS Onboarding.dc.html` ~line 448).
+ * `capabilityKey` must match a key in ROLE_CAPABILITY_GROUPS
+ * (packages/services/src/organization/membershipService.ts) — that's the
+ * shared contract between this checklist and update_role_permissions.
+ * "Change organization settings"/"Delete employees" have no capabilityKey:
+ * a branch-scoped role like Supervisor can never be granted those, by
+ * design, so they stay fixed "cannot" indicators with nothing to toggle.
  */
-const SUPERVISOR_PERMISSIONS: { label: string; on?: boolean; locked?: boolean }[] = [
-  { label: 'Manage schedules', on: true },
-  { label: 'Mark attendance', on: true },
-  { label: 'Assign tasks', on: false },
-  { label: 'Approve swaps', on: true },
-  { label: 'Post announcements', on: false },
-  { label: 'View reports', on: false },
+const SUPERVISOR_PERMISSIONS: { label: string; capabilityKey?: string; locked?: boolean }[] = [
+  { label: 'Manage schedules', capabilityKey: 'manageSchedules' },
+  { label: 'Mark attendance', capabilityKey: 'markAttendance' },
+  { label: 'Assign tasks', capabilityKey: 'assignTasks' },
+  { label: 'Approve swaps', capabilityKey: 'approveSwaps' },
+  { label: 'Post announcements', capabilityKey: 'postAnnouncements' },
+  { label: 'View reports', capabilityKey: 'viewReports' },
   { label: 'Change organization settings', locked: true },
   { label: 'Delete employees', locked: true }
 ];
 
-/** Read-only checklist of what a Supervisor can/can't do, in the design's permission-chip styling (on: green, off: quiet, locked: red). See SUPERVISOR_PERMISSIONS. */
-function SupervisorPermissionsChecklist(): React.ReactElement {
+/**
+ * Interactive checklist of what the Supervisor role can/can't do (design's
+ * permission-chip styling: on green, off quiet, locked red). Toggling a row
+ * calls update_role_permissions, which grants/revokes the real underlying
+ * role_permissions rows — this changes what EVERY current and future
+ * Supervisor in this organization can do, not just the invitation about to
+ * be sent (permissions live on the role, not on an invitation; see
+ * MembershipService.updateRolePermissions's own comment).
+ */
+function SupervisorPermissionsChecklist({ roleId }: { roleId: string }): React.ReactElement {
+  const { data: capabilities, isLoading } = useRpcQuery<Record<string, boolean>>('get_role_capabilities', { roleId });
+  const updateMutation = useRpcMutation<Record<string, boolean>, { roleId: string; capabilities: Record<string, boolean> }>(
+    'update_role_permissions',
+    { invalidates: ['get_role_capabilities'] }
+  );
+
   return (
     <div>
       <p className="text-[13px] font-extrabold text-neutral-900">Permissions</p>
       <p className="mb-3 mt-1 text-xs text-neutral-500">
-        What this supervisor will access and manage. Least privilege by default &mdash; you can change these later in Members.
+        What this supervisor will access and manage. Applies to every Supervisor in this organization &mdash; you can change these later in Members.
       </p>
       <ul className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-[9px]">
         {SUPERVISOR_PERMISSIONS.map((permission) => {
@@ -298,32 +315,43 @@ function SupervisorPermissionsChecklist(): React.ReactElement {
             ? `Cannot ${permission.label.charAt(0).toLowerCase()}${permission.label.slice(1)}`
             : permission.label;
           const locked = permission.locked;
-          const on = permission.on;
+          const on = permission.capabilityKey ? Boolean(capabilities?.[permission.capabilityKey]) : false;
+          const disabled = locked || isLoading || updateMutation.isPending;
           return (
-            <li
-              key={permission.label}
-              className={[
-                'flex items-center gap-[9px] rounded-xl px-3 py-2.5 text-[12.5px] font-bold',
-                locked
-                  ? 'border border-[#F3C6BD] bg-error-50 text-[#8E2A17]'
-                  : on
-                    ? 'border border-[#BFE6CF] bg-success-50 text-[#1E6B45]'
-                    : 'border border-neutral-200 bg-white text-neutral-500'
-              ].join(' ')}
-            >
-              <span
+            <li key={permission.label}>
+              <button
+                type="button"
+                disabled={disabled}
+                aria-pressed={locked ? undefined : on}
+                onClick={() => {
+                  if (!permission.capabilityKey) return;
+                  updateMutation.mutate({ roleId, capabilities: { [permission.capabilityKey]: !on } });
+                }}
                 className={[
-                  'flex size-[18px] shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold text-white',
-                  locked ? 'bg-error-500' : on ? 'bg-success-500' : 'border-[1.5px] border-neutral-200 text-transparent'
+                  'flex w-full items-center gap-[9px] rounded-xl px-3 py-2.5 text-left text-[12.5px] font-bold transition-colors',
+                  locked
+                    ? 'cursor-not-allowed border border-[#F3C6BD] bg-error-50 text-[#8E2A17]'
+                    : on
+                      ? 'cursor-pointer border border-[#BFE6CF] bg-success-50 text-[#1E6B45]'
+                      : 'cursor-pointer border border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300',
+                  disabled && !locked ? 'cursor-wait opacity-70' : ''
                 ].join(' ')}
               >
-                {locked ? <X className="size-2.5" aria-hidden="true" /> : on ? <Check className="size-2.5" aria-hidden="true" /> : ''}
-              </span>
-              {label}
+                <span
+                  className={[
+                    'flex size-[18px] shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold text-white',
+                    locked ? 'bg-error-500' : on ? 'bg-success-500' : 'border-[1.5px] border-neutral-200 text-transparent'
+                  ].join(' ')}
+                >
+                  {locked ? <X className="size-2.5" aria-hidden="true" /> : on ? <Check className="size-2.5" aria-hidden="true" /> : ''}
+                </span>
+                {label}
+              </button>
             </li>
           );
         })}
       </ul>
+      {updateMutation.isError ? <p className="mt-2 text-[11.5px] font-semibold text-error-600">Couldn&apos;t save that change — try again.</p> : null}
     </div>
   );
 }
@@ -445,9 +473,10 @@ function SupervisorStep({ onNext, onBack }: { onNext: () => void; onBack: () => 
           >
             {inviteMutation.isPending ? 'Sending…' : 'Send invitation'}
           </button>
-          <SupervisorPermissionsChecklist />
         </form>
       )}
+
+      {supervisorRole ? <SupervisorPermissionsChecklist roleId={supervisorRole.id} /> : null}
 
       <WizardFooter
         onBack={onBack}
@@ -630,7 +659,7 @@ function pluralize(count: number, singular: string, plural: string = `${singular
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function FinishStep({ onFinish }: { onFinish: () => void }): React.ReactElement {
+function FinishStep({ onBack, onFinish }: { onBack: () => void; onFinish: () => void }): React.ReactElement {
   const { activeOrganization } = useSession();
   const [error, setError] = useState<string | null>(null);
 
@@ -718,18 +747,28 @@ function FinishStep({ onFinish }: { onFinish: () => void }): React.ReactElement 
         </Link>
       </div>
 
-      <button
-        type="button"
-        onClick={() =>
-          completeMutation.mutate({
-            metadata: { ...(activeOrganization?.metadata ?? {}), onboardingCompletedAt: new Date().toISOString() }
-          })
-        }
-        disabled={completeMutation.isPending}
-        className="mt-5 h-12 w-full max-w-[320px] cursor-pointer rounded-[13px] bg-brand-500 text-[14.5px] font-bold text-white shadow-[0_14px_30px_-16px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600 disabled:cursor-progress disabled:bg-[#F5A98A]"
-      >
-        {completeMutation.isPending ? 'Saving…' : 'Go to dashboard →'}
-      </button>
+      <div className="mt-5 flex w-full max-w-[420px] flex-wrap items-center justify-center gap-2.5">
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={completeMutation.isPending}
+          className="h-12 cursor-pointer rounded-[13px] border border-neutral-200 bg-white px-[18px] text-[14.5px] font-bold text-neutral-900 transition-colors hover:border-neutral-300 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          &larr; Back
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            completeMutation.mutate({
+              metadata: { ...(activeOrganization?.metadata ?? {}), onboardingCompletedAt: new Date().toISOString() }
+            })
+          }
+          disabled={completeMutation.isPending}
+          className="h-12 flex-1 cursor-pointer rounded-[13px] bg-brand-500 text-[14.5px] font-bold text-white shadow-[0_14px_30px_-16px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600 disabled:cursor-progress disabled:bg-[#F5A98A]"
+        >
+          {completeMutation.isPending ? 'Saving…' : 'Go to dashboard →'}
+        </button>
+      </div>
     </div>
   );
 }

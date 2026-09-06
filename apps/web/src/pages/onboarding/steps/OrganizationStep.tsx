@@ -85,6 +85,11 @@ type LogoState = 'empty' | 'uploading' | 'uploaded' | 'error';
 export default function OrganizationStep(): React.ReactElement {
   const { refresh, signOut } = useSession();
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+  // Separate from organizationId so "Back" from the logo step can return here
+  // without losing the fact that the organization (and this user's Owner
+  // membership) already exists — handleSubmit below checks organizationId,
+  // not this, to decide create vs. edit.
+  const [step, setStep] = useState<'details' | 'logo'>('details');
   const [metadata, setMetadata] = useState<Record<string, unknown>>({});
 
   const [name, setName] = useState('');
@@ -136,6 +141,32 @@ export default function OrganizationStep(): React.ReactElement {
     setSubmitting(true);
     setError(null);
 
+    const orgMetadata: Record<string, unknown> = {
+      ...metadata,
+      businessType,
+      departmentCountEstimate,
+      estimatedEmployees,
+      country,
+      timeZone
+    };
+
+    // Re-entering this form via "Back" from the logo step — the organization
+    // and this user's Owner membership already exist, so save the edits
+    // instead of calling create_organization_with_owner again (which would
+    // create a second organization for the same person).
+    if (organizationId) {
+      try {
+        await callRpc('update_organization', organizationId, { name: name.trim(), metadata: orgMetadata });
+        setMetadata(orgMetadata);
+        clearFormDraft(ORG_DRAFT_KEY);
+        setStep('logo');
+      } catch {
+        setError('We could not save your changes. Please try again.');
+      }
+      setSubmitting(false);
+      return;
+    }
+
     const { data: newOrganizationId, error: rpcError } = await supabase.rpc('create_organization_with_owner', {
       p_name: name.trim(),
       p_slug: slug.trim()
@@ -146,18 +177,11 @@ export default function OrganizationStep(): React.ReactElement {
       return;
     }
 
-    const orgMetadata: Record<string, unknown> = {
-      businessType,
-      departmentCountEstimate,
-      estimatedEmployees,
-      country,
-      timeZone,
-      // Marks this org as having gone through the new multi-step wizard (as
-      // opposed to a legacy org from the old single-step flow) — App.tsx's
-      // OnboardingGate reads this to decide whether the branch-count
-      // heuristic applies, so the wizard survives a mid-onboarding reload.
-      onboardingStartedAt: new Date().toISOString()
-    };
+    // Marks this org as having gone through the new multi-step wizard (as
+    // opposed to a legacy org from the old single-step flow) — App.tsx's
+    // OnboardingGate reads this to decide whether the branch-count
+    // heuristic applies, so the wizard survives a mid-onboarding reload.
+    orgMetadata.onboardingStartedAt = new Date().toISOString();
     try {
       await callRpc('update_organization', newOrganizationId as string, { metadata: orgMetadata });
       setMetadata(orgMetadata);
@@ -171,16 +195,19 @@ export default function OrganizationStep(): React.ReactElement {
 
     clearFormDraft(ORG_DRAFT_KEY);
     setOrganizationId(newOrganizationId as string);
+    setStep('logo');
     setSubmitting(false);
   };
 
-  if (organizationId) {
+  if (step === 'logo' && organizationId) {
     return (
       <OrganizationLogoStep
         organizationId={organizationId}
         organizationName={name.trim()}
         metadata={metadata}
         warning={metadataWarning}
+        onBack={() => setStep('details')}
+        onMetadataChange={setMetadata}
         onContinue={() => void refresh()}
       />
     );
@@ -253,11 +280,17 @@ export default function OrganizationStep(): React.ReactElement {
         </FormField>
       </div>
 
-      <FormField label="Workspace Name" htmlFor="orgSlug" required hint="This is your unique workspace URL. You can change it later.">
+      <FormField
+        label="Workspace Name"
+        htmlFor="orgSlug"
+        required
+        hint={organizationId ? "Can't be changed from here once your workspace is created." : 'This is your unique workspace URL. You can change it later.'}
+      >
         {(fieldProps) => (
           <AuthInput
             {...fieldProps}
             value={slug}
+            disabled={Boolean(organizationId)}
             onChange={(e) => {
               setSlugTouched(true);
               setSlug(slugify(e.target.value));
@@ -292,12 +325,17 @@ function OrganizationLogoStep({
   organizationName,
   metadata,
   warning,
+  onBack,
+  onMetadataChange,
   onContinue
 }: {
   organizationId: string;
   organizationName: string;
   metadata: Record<string, unknown>;
   warning: string | null;
+  onBack: () => void;
+  /** Keeps the parent's metadata state (what "Back" then re-saving the details form sends) in sync with what's actually persisted here — without this, going back after a logo upload would silently drop logoPath the next time the details form saves. */
+  onMetadataChange: (metadata: Record<string, unknown>) => void;
   onContinue: () => void;
 }): React.ReactElement {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -322,7 +360,9 @@ function OrganizationLogoStep({
       const path = await uploadOrganizationLogo(organizationId, file);
       // Best-effort: the org row already exists — a failure to persist the
       // logo path just leaves the org without a logoPath, not un-created.
-      await callRpc('update_organization', organizationId, { metadata: { ...metadata, logoPath: path } });
+      const nextMetadata = { ...metadata, logoPath: path };
+      await callRpc('update_organization', organizationId, { metadata: nextMetadata });
+      onMetadataChange(nextMetadata);
       setLogoState('uploaded');
     } catch {
       setLogoState('error');
@@ -432,18 +472,28 @@ function OrganizationLogoStep({
 
       {warning ? <AuthBanner tone="warn" title="Some details weren't saved" body={warning} /> : null}
 
-      <button
-        type="button"
-        onClick={handleContinue}
-        disabled={logoState === 'uploading' || continuing}
-        className={
-          continuing || logoState === 'uploading'
-            ? 'h-12 w-full cursor-progress rounded-[13px] bg-[#F5A98A] text-[14.5px] font-bold text-white'
-            : 'h-12 w-full cursor-pointer rounded-[13px] bg-brand-500 text-[14.5px] font-bold text-white shadow-[0_14px_30px_-16px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600'
-        }
-      >
-        {continuing ? 'Saving…' : 'Continue →'}
-      </button>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={logoState === 'uploading' || continuing}
+          className="h-12 cursor-pointer rounded-[13px] border border-neutral-200 bg-white px-[18px] text-[14.5px] font-bold text-neutral-900 transition-colors hover:border-neutral-300 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          &larr; Back
+        </button>
+        <button
+          type="button"
+          onClick={handleContinue}
+          disabled={logoState === 'uploading' || continuing}
+          className={
+            continuing || logoState === 'uploading'
+              ? 'h-12 flex-1 cursor-progress rounded-[13px] bg-[#F5A98A] text-[14.5px] font-bold text-white'
+              : 'h-12 flex-1 cursor-pointer rounded-[13px] bg-brand-500 text-[14.5px] font-bold text-white shadow-[0_14px_30px_-16px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600'
+          }
+        >
+          {continuing ? 'Saving…' : 'Continue →'}
+        </button>
+      </div>
       <p className="text-center text-[11.5px] leading-normal text-neutral-400">
         You can add a logo later once organization settings support it.
       </p>
