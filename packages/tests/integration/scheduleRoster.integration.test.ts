@@ -3,7 +3,11 @@ import { createTestContext, TEST_FIXTURES, type TestContext } from '../testEnv.j
 
 describe('schedule roster integration', () => {
   let ctx: TestContext;
-  let scheduleId: string | undefined;
+  // Every schedule this file creates is tracked so afterAll cleans up all of
+  // them -- a single shared variable let the second test overwrite the first
+  // test's id, leaking that schedule and its schedule_rosters rows into the
+  // fixture org and self-poisoning the next run.
+  const scheduleIds: string[] = [];
   let secondEmployeeId: string | undefined;
 
   beforeAll(() => {
@@ -11,12 +15,12 @@ describe('schedule roster integration', () => {
   });
 
   afterAll(async () => {
-    if (scheduleId) {
+    for (const id of scheduleIds) {
       await ctx.client.query('DELETE FROM schedule_rosters WHERE organization_id = $1 AND schedule_id = $2', [
         TEST_FIXTURES.organizationId,
-        scheduleId
+        id
       ]);
-      await ctx.client.query('DELETE FROM schedules WHERE organization_id = $1 AND id = $2', [TEST_FIXTURES.organizationId, scheduleId]);
+      await ctx.client.query('DELETE FROM schedules WHERE organization_id = $1 AND id = $2', [TEST_FIXTURES.organizationId, id]);
     }
     if (secondEmployeeId) {
       await ctx.client.query('DELETE FROM employees WHERE organization_id = $1 AND id = $2', [TEST_FIXTURES.organizationId, secondEmployeeId]);
@@ -31,7 +35,8 @@ describe('schedule roster integration', () => {
       startDate: '2027-10-04',
       endDate: '2027-10-10'
     });
-    scheduleId = schedule.id;
+    scheduleIds.push(schedule.id);
+    const scheduleId = schedule.id;
 
     const added = await ctx.call<{ id: string; employee_id: string }>('add_employee_to_schedule', {
       scheduleId,
@@ -78,7 +83,8 @@ describe('schedule roster integration', () => {
       startDate: '2027-10-11',
       endDate: '2027-10-17'
     });
-    scheduleId = schedule.id;
+    scheduleIds.push(schedule.id);
+    const scheduleId = schedule.id;
 
     const result = await ctx.callRaw('add_employee_to_schedule', { scheduleId, employeeId: secondEmployeeId });
     expect(result.success).toBe(false);
