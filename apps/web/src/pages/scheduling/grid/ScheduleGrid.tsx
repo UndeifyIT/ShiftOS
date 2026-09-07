@@ -29,10 +29,10 @@ function activeCellKey(employeeId: string, date: string): string {
 /** The weekly employee × day grid — WEB-012 replacement (design handoff "Manager/Schedules" / "Supervisor/Schedules"). */
 export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProps): React.ReactElement {
   const { data: roster, isLoading: rosterLoading } = useRpcQuery<ScheduleRosterEntry[]>('list_schedule_roster', { scheduleId });
-  const { data: employees } = useRpcQuery<Employee[]>('list_employees', { branchId: schedule.branch_id });
+  const { data: employees, isLoading: employeesLoading } = useRpcQuery<Employee[]>('list_employees', { branchId: schedule.branch_id });
   const { data: shifts, isLoading: shiftsLoading } = useRpcQuery<Shift[]>('list_shifts_for_schedule', { scheduleId });
-  const { data: assignments } = useRpcQuery<ShiftAssignment[]>('list_assignments_for_schedule', { scheduleId });
-  const { data: conflicts } = useRpcQuery<ScheduleConflict[]>('get_schedule_conflicts', { scheduleId });
+  const { data: assignments, isLoading: assignmentsLoading } = useRpcQuery<ShiftAssignment[]>('list_assignments_for_schedule', { scheduleId });
+  const { data: conflicts, isLoading: conflictsLoading } = useRpcQuery<ScheduleConflict[]>('get_schedule_conflicts', { scheduleId });
 
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
   const [activeCell, setActiveCell] = useState<{ employeeId: string; date: string } | null>(null);
@@ -86,7 +86,7 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
     { invalidates: ['list_schedule_roster'] }
   );
 
-  const isLoading = rosterLoading || shiftsLoading;
+  const isLoading = rosterLoading || shiftsLoading || employeesLoading || assignmentsLoading || conflictsLoading;
   const scheduledCount = rosterEmployees.filter((e) => days.some((d) => cellAssignments.has(activeCellKey(e.id, d)))).length;
 
   const activeEmployee = activeCell ? employeesById.get(activeCell.employeeId) : undefined;
