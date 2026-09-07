@@ -55,7 +55,7 @@ export function AssignShiftModal({
     setSaveAsTemplate(false);
     setTemplateName('');
     setError(null);
-  }, [existing, open]);
+  }, [existing?.assignment.id ?? null, open]);
 
   const assignMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
     'assign_shift_to_employee_on_date',
