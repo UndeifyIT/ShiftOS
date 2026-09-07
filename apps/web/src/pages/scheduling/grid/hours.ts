@@ -9,9 +9,15 @@ export interface EmployeeHoursSummary {
 /** Hardcoded for Phase 1, not an org setting (spec §3.5). */
 const OVERTIME_THRESHOLD_HOURS = 40;
 
-function durationToHours(duration: string): number {
-  const [hours, minutes] = duration.split(':').map(Number);
-  return hours + minutes / 60;
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+function computeShiftDurationMinutes(shift: Shift): number {
+  const startMinutes = timeToMinutes(shift.start_time);
+  const endMinutes = timeToMinutes(shift.end_time);
+  return shift.crosses_midnight ? 1440 - startMinutes + endMinutes : endMinutes - startMinutes;
 }
 
 /** Sums each roster employee's active-assignment hours for the week (breaks subtracted); flags anyone over the 40-hour threshold. */
@@ -27,7 +33,7 @@ export function computeHoursSummary(
     if (assignment.assignment_status === 'cancelled' || assignment.assignment_status === 'declined') continue;
     const shift = shiftsById.get(assignment.shift_id);
     if (!shift) continue;
-    const hours = durationToHours(shift.duration) - shift.break_minutes / 60;
+    const hours = computeShiftDurationMinutes(shift) / 60 - shift.break_minutes / 60;
     hoursByEmployee.set(assignment.employee_id, (hoursByEmployee.get(assignment.employee_id) ?? 0) + hours);
   }
 
