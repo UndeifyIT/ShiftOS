@@ -17,10 +17,24 @@ import { DatabaseError, ShiftOSError } from '@shiftos/errors';
  */
 const DATE_OID = 1082;
 
+/**
+ * Postgres OID for the `interval` type. `pg`'s default parser returns an object
+ * representing the interval's components (e.g., `{ hours: 8 }` for 8 hours),
+ * but every repository type declares `duration: string` (matching the computed
+ * format `HH:MM:SS` produced by `computeDuration()` in the service layer).
+ * Return interval as raw text instead, preserving it as a string to match
+ * the repository interface and allow string methods like `.split(':')`.
+ */
+const INTERVAL_OID = 1186;
+
 function createTypeParsers(): PoolConfig['types'] {
   return {
-    getTypeParser: (oid: number, format?: string) =>
-      oid === DATE_OID ? (value: string) => value : pgTypes.getTypeParser(oid, format as 'text' | 'binary' | undefined)
+    getTypeParser: (oid: number, format?: string) => {
+      if (oid === DATE_OID || oid === INTERVAL_OID) {
+        return (value: string) => value;
+      }
+      return pgTypes.getTypeParser(oid, format as 'text' | 'binary' | undefined);
+    }
   };
 }
 

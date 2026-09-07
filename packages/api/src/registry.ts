@@ -14,6 +14,7 @@ import {
   publishSchedule
 } from './operations/scheduling.js';
 import { addEmployeeToSchedule, removeEmployeeFromSchedule, listScheduleRoster } from './operations/scheduleRoster.js';
+import { listShiftTemplates, createShiftTemplate } from './operations/shiftTemplate.js';
 import {
   createTask, getTask, updateTask, assignTask, completeTask, verifyTask, reopenTask, cancelTask, archiveTask, listTasks, getTaskHistory
 } from './operations/task.js';
@@ -120,6 +121,8 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(addEmployeeToSchedule);
   registry.register(removeEmployeeFromSchedule);
   registry.register(listScheduleRoster);
+  registry.register(listShiftTemplates);
+  registry.register(createShiftTemplate);
 
   registry.register(createTask);
   registry.register(getTask);
