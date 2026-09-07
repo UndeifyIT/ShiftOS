@@ -618,6 +618,14 @@ export class SchedulingService {
     const assignment = await this.assignments.getByIdOrThrow(this.context.organizationId, assignmentId);
     const shift = await this.shifts.getByIdOrThrow(this.context.organizationId, assignment.shift_id);
     this.context.requireBranchAccess(shift.branch_id);
+    // Shifts have no schedule_id FK (see the class doc), so the owning
+    // schedule is resolved by branch + covering date range. A null result
+    // (no schedule covers this date — an edge case, not the common path)
+    // leaves the edit alone rather than blocking it.
+    const coveringSchedule = await this.schedules.findCoveringDate(this.context.organizationId, shift.branch_id, shift.shift_date);
+    if (coveringSchedule?.status === 'archived') {
+      throw new ValidationError('Cannot edit an archived schedule');
+    }
 
     let updatedShift = shift;
     if (input.startTime !== undefined || input.endTime !== undefined || input.crossesMidnight !== undefined || input.breakMinutes !== undefined) {
@@ -647,6 +655,12 @@ export class SchedulingService {
     const assignment = await this.assignments.getByIdOrThrow(this.context.organizationId, assignmentId);
     const shift = await this.shifts.getByIdOrThrow(this.context.organizationId, assignment.shift_id);
     this.context.requireBranchAccess(shift.branch_id);
+    // See updateAssignedShiftOnDate: the owning schedule is inferred by
+    // branch + covering date range, and a null result doesn't block the edit.
+    const coveringSchedule = await this.schedules.findCoveringDate(this.context.organizationId, shift.branch_id, shift.shift_date);
+    if (coveringSchedule?.status === 'archived') {
+      throw new ValidationError('Cannot edit an archived schedule');
+    }
 
     const archived = await this.assignments.archive(this.context.organizationId, assignmentId);
     const remaining = await this.assignments.findByShift(this.context.organizationId, shift.id);

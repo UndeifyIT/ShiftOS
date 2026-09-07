@@ -179,7 +179,7 @@ export default function ScheduleBuilderPage(): React.ReactElement {
       />
 
       {tab === 'shifts' ? (
-        <ScheduleGrid scheduleId={scheduleId} schedule={schedule} canEdit={canCreateShift} />
+        <ScheduleGrid scheduleId={scheduleId} schedule={schedule} canEdit={canCreateShift && schedule.status !== 'archived'} />
       ) : (
         <DataTable<ScheduleVersion>
           columns={[

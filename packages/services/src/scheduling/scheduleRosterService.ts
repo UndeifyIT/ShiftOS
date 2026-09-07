@@ -31,6 +31,9 @@ export class ScheduleRosterService {
 
     const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
     this.context.requireBranchAccess(schedule.branch_id);
+    if (schedule.status === 'archived') {
+      throw new ValidationError('Cannot edit an archived schedule');
+    }
 
     const employee = await this.employees.getByIdOrThrow(this.context.organizationId, employeeId);
     if (employee.branch_id !== schedule.branch_id) {
@@ -56,6 +59,9 @@ export class ScheduleRosterService {
 
     const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
     this.context.requireBranchAccess(schedule.branch_id);
+    if (schedule.status === 'archived') {
+      throw new ValidationError('Cannot edit an archived schedule');
+    }
 
     const existing = await this.roster.findEntry(this.context.organizationId, scheduleId, employeeId);
     if (!existing) {
