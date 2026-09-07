@@ -21,22 +21,12 @@ import {
 import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import type { Branch, Employee, Schedule, ScheduleStatus, ScheduleVersion, Shift } from '../../types/domain.js';
-import { ShiftModal } from './ShiftModal.js';
+import type { Branch, Schedule, ScheduleStatus, ScheduleVersion } from '../../types/domain.js';
+import { ScheduleGrid } from './grid/ScheduleGrid.js';
 
 const STATUS_TONE: Record<ScheduleStatus, 'neutral' | 'success' | 'warning'> = {
   draft: 'warning',
   published: 'success',
-  archived: 'neutral'
-};
-
-const SHIFT_STATUS_TONE: Record<Shift['status'], 'neutral' | 'success' | 'warning' | 'error' | 'info' | 'pending'> = {
-  draft: 'warning',
-  published: 'success',
-  scheduled: 'info',
-  active: 'pending',
-  completed: 'success',
-  cancelled: 'error',
   archived: 'neutral'
 };
 
@@ -118,25 +108,17 @@ export default function ScheduleBuilderPage(): React.ReactElement {
   const canPublish = hasPermission('schedules.publish');
 
   const [tab, setTab] = useState<'shifts' | 'versions'>('shifts');
-  const [shiftModalOpen, setShiftModalOpen] = useState(false);
-  const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [publishOpen, setPublishOpen] = useState(false);
   const [changesSummary, setChangesSummary] = useState('');
 
   const { data: schedule, isLoading, error, refetch } = useRpcQuery<Schedule>('get_schedule', scheduleId ? { scheduleId } : undefined, {
     enabled: !!scheduleId && canRead
   });
-  const { data: shifts, isLoading: shiftsLoading } = useRpcQuery<Shift[]>(
-    'list_shifts_for_schedule',
-    scheduleId ? { scheduleId } : undefined,
-    { enabled: !!scheduleId && canRead && tab === 'shifts' }
-  );
   const { data: versions, isLoading: versionsLoading } = useRpcQuery<ScheduleVersion[]>(
     'list_schedule_versions',
     scheduleId ? { scheduleId } : undefined,
     { enabled: !!scheduleId && canRead && tab === 'versions' }
   );
-  const { data: employees } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: !!scheduleId && canRead });
 
   const publishMutation = useRpcMutation<Schedule, { scheduleId: string; changesSummary?: string }>('publish_schedule', {
     invalidates: ['get_schedule', 'list_schedule_versions', 'list_schedules'],
@@ -197,39 +179,7 @@ export default function ScheduleBuilderPage(): React.ReactElement {
       />
 
       {tab === 'shifts' ? (
-        <>
-          {canCreateShift ? (
-            <div className="mb-4">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setEditingShift(null);
-                  setShiftModalOpen(true);
-                }}
-              >
-                Add Shift
-              </Button>
-            </div>
-          ) : null}
-          <DataTable<Shift>
-            columns={[
-              { key: 'title', header: 'Title', primary: true, render: (s) => s.title },
-              { key: 'date', header: 'Date', render: (s) => new Date(s.shift_date).toLocaleDateString() },
-              { key: 'time', header: 'Time', render: (s) => `${s.start_time.slice(0, 5)} – ${s.end_time.slice(0, 5)}` },
-              { key: 'status', header: 'Status', render: (s) => <Badge tone={SHIFT_STATUS_TONE[s.status]}>{s.status}</Badge> }
-            ]}
-            rows={shifts ?? []}
-            rowKey={(s) => s.id}
-            loading={shiftsLoading}
-            onRowClick={(s) => {
-              setEditingShift(s);
-              setShiftModalOpen(true);
-            }}
-            emptyTitle="No shifts yet"
-            emptyDescription="At least one shift is required before this schedule can be published."
-            emptyAction={canCreateShift ? { label: 'Add Shift', onClick: () => setShiftModalOpen(true) } : undefined}
-          />
-        </>
+        <ScheduleGrid scheduleId={scheduleId} schedule={schedule} canEdit={canCreateShift} />
       ) : (
         <DataTable<ScheduleVersion>
           columns={[
@@ -244,17 +194,6 @@ export default function ScheduleBuilderPage(): React.ReactElement {
           emptyDescription="This schedule has no publish history yet."
         />
       )}
-
-      {shiftModalOpen ? (
-        <ShiftModal
-          open={shiftModalOpen}
-          onClose={() => setShiftModalOpen(false)}
-          scheduleId={scheduleId}
-          shift={editingShift}
-          employees={(employees ?? []).filter((e) => e.branch_id === schedule.branch_id)}
-          onCreated={(created) => setEditingShift(created)}
-        />
-      ) : null}
 
       <ConfirmationDialog
         open={publishOpen}
