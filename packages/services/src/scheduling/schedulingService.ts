@@ -71,6 +71,15 @@ export interface UpdateAssignedShiftInput {
   notes?: string | null;
 }
 
+export interface ScheduleConflict {
+  employeeId: string;
+  date: string;
+  kind: 'double_booking' | 'long_shift';
+  detail: string;
+}
+
+const LONG_SHIFT_HOURS_THRESHOLD = 10;
+
 /**
  * Schedule -> Schedule Version -> Shifts -> Shift Assignments (see
  * docs/backend/API-012-SCHEDULING-WORKFLOW.md).
@@ -616,6 +625,70 @@ export class SchedulingService {
     );
     if (shifts.length === 0) return [];
     return this.assignments.listForShifts(this.context.organizationId, shifts.map((shift) => shift.id));
+  }
+
+  /**
+   * Computed on read, nothing stored — SCH-012 §2.3 "validation does not
+   * modify data". Detects two conditions: an employee double-booked across
+   * overlapping active assignments on the same date, and any single shift
+   * exceeding the 10-hour rule. Not wired into publishSchedule's validation
+   * (spec §3.4) — conflicts are advisory in Phase 1, matching publish's
+   * existing "at least one shift" - only check.
+   */
+  async getScheduleConflicts(scheduleId: string): Promise<ScheduleConflict[]> {
+    assertUuid(scheduleId, 'scheduleId');
+    await this.context.requirePermission('schedules.read');
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+
+    const shifts = await this.shifts.findByBranchAndDateRange(
+      this.context.organizationId,
+      schedule.branch_id,
+      schedule.start_date,
+      schedule.end_date
+    );
+    if (shifts.length === 0) return [];
+
+    const shiftsById = new Map(shifts.map((shift) => [shift.id, shift]));
+    const assignments = await this.assignments.listForShifts(this.context.organizationId, shifts.map((shift) => shift.id));
+
+    const conflicts: ScheduleConflict[] = [];
+    const shiftsByEmployeeDate = new Map<string, Shift[]>();
+
+    for (const assignment of assignments) {
+      if (assignment.assignment_status === 'cancelled' || assignment.assignment_status === 'declined') continue;
+      const shift = shiftsById.get(assignment.shift_id);
+      if (!shift) continue;
+
+      const key = `${assignment.employee_id}:${shift.shift_date}`;
+      const list = shiftsByEmployeeDate.get(key) ?? [];
+      list.push(shift);
+      shiftsByEmployeeDate.set(key, list);
+
+      const [hoursPart, minutesPart] = shift.duration.split(':').map(Number);
+      const totalHours = hoursPart + minutesPart / 60;
+      if (totalHours > LONG_SHIFT_HOURS_THRESHOLD) {
+        conflicts.push({
+          employeeId: assignment.employee_id,
+          date: shift.shift_date,
+          kind: 'long_shift',
+          detail: `${shift.title} is ${hoursPart}h${minutesPart > 0 ? ` ${minutesPart}m` : ''} — over the 10-hour rule`
+        });
+      }
+    }
+
+    for (const [key, dayShifts] of shiftsByEmployeeDate) {
+      if (dayShifts.length < 2) continue;
+      const [employeeId, date] = key.split(':');
+      conflicts.push({
+        employeeId,
+        date,
+        kind: 'double_booking',
+        detail: `Double-booked across ${dayShifts.length} shifts on ${date}`
+      });
+    }
+
+    return conflicts;
   }
 
   // ==================== Publishing ====================
