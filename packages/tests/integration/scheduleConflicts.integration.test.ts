@@ -96,4 +96,39 @@ describe('schedule conflicts integration', () => {
     const conflicts = await ctx.call<Array<{ kind: string; date: string }>>('get_schedule_conflicts', { scheduleId });
     expect(conflicts.some((c) => c.kind === 'double_booking' && c.date === '2027-11-11')).toBe(true);
   });
+
+  it('does not flag two non-overlapping shifts on the same date as a double-booking', async () => {
+    // A split shift is legal: same employee, same day, but the two windows
+    // never overlap, so this must not be reported as a double-booking.
+    const morning = await ctx.call<{ id: string }>('create_shift', {
+      scheduleId,
+      title: 'Split shift morning',
+      shiftDate: '2027-11-12',
+      startTime: '09:00',
+      endTime: '13:00'
+    });
+    shiftIds.push(morning.id);
+    const morningAssignment = await ctx.call<{ id: string }>('assign_employee', {
+      shiftId: morning.id,
+      employeeId: TEST_FIXTURES.employeeId
+    });
+    assignmentIds.push(morningAssignment.id);
+
+    const afternoon = await ctx.call<{ id: string }>('create_shift', {
+      scheduleId,
+      title: 'Split shift afternoon',
+      shiftDate: '2027-11-12',
+      startTime: '14:00',
+      endTime: '18:00'
+    });
+    shiftIds.push(afternoon.id);
+    const afternoonAssignment = await ctx.call<{ id: string }>('assign_employee', {
+      shiftId: afternoon.id,
+      employeeId: TEST_FIXTURES.employeeId
+    });
+    assignmentIds.push(afternoonAssignment.id);
+
+    const conflicts = await ctx.call<Array<{ kind: string; date: string }>>('get_schedule_conflicts', { scheduleId });
+    expect(conflicts.some((c) => c.kind === 'double_booking' && c.date === '2027-11-12')).toBe(false);
+  });
 });

@@ -81,6 +81,28 @@ export interface ScheduleConflict {
 const LONG_SHIFT_HOURS_THRESHOLD = 10;
 
 /**
+ * A shift's occupied window as minutes from midnight of its shift_date,
+ * extending past 1440 when it crosses midnight — the same normalization
+ * computeDuration() (./time.ts) applies when measuring a crossing shift's
+ * length.
+ */
+function shiftTimeRangeMinutes(shift: Shift): { start: number; end: number } {
+  const [startHours, startMinutes] = shift.start_time.split(':').map(Number);
+  const [endHours, endMinutes] = shift.end_time.split(':').map(Number);
+  const start = startHours * 60 + startMinutes;
+  let end = endHours * 60 + endMinutes;
+  if (shift.crosses_midnight) end += 24 * 60;
+  return { start, end };
+}
+
+/** True when two shifts on the same date actually overlap in time (touching endpoints don't count). */
+function shiftsOverlap(a: Shift, b: Shift): boolean {
+  const rangeA = shiftTimeRangeMinutes(a);
+  const rangeB = shiftTimeRangeMinutes(b);
+  return rangeA.start < rangeB.end && rangeB.start < rangeA.end;
+}
+
+/**
  * Schedule -> Schedule Version -> Shifts -> Shift Assignments (see
  * docs/backend/API-012-SCHEDULING-WORKFLOW.md).
  *
@@ -706,6 +728,18 @@ export class SchedulingService {
 
     for (const [key, dayShifts] of shiftsByEmployeeDate) {
       if (dayShifts.length < 2) continue;
+      // Two shifts on one date is only a double-booking if they actually
+      // overlap — a split shift (09:00-13:00 + 14:00-18:00) is legal.
+      let hasOverlap = false;
+      for (let i = 0; i < dayShifts.length && !hasOverlap; i += 1) {
+        for (let j = i + 1; j < dayShifts.length; j += 1) {
+          if (shiftsOverlap(dayShifts[i], dayShifts[j])) {
+            hasOverlap = true;
+            break;
+          }
+        }
+      }
+      if (!hasOverlap) continue;
       const [employeeId, date] = key.split(':');
       conflicts.push({
         employeeId,
