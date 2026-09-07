@@ -60,7 +60,7 @@ export function AssignShiftModal({
   const assignMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
     'assign_shift_to_employee_on_date',
     {
-      invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts'],
+      invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
       onSuccess: onClose,
       onError: (err) => setError(err.message)
     }
@@ -68,13 +68,13 @@ export function AssignShiftModal({
   const updateMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
     'update_assigned_shift_on_date',
     {
-      invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts'],
+      invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
       onSuccess: onClose,
       onError: (err) => setError(err.message)
     }
   );
   const removeMutation = useRpcMutation<unknown, { assignmentId: string }>('remove_assigned_shift_on_date', {
-    invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts'],
+    invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
     onSuccess: onClose,
     onError: (err) => setError(err.message)
   });
