@@ -170,7 +170,9 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
           <ScheduleConflictsPanel
             conflicts={conflicts ?? []}
             employeesById={employeesById}
-            onSelectConflict={(conflict) => setActiveCell({ employeeId: conflict.employeeId, date: conflict.date })}
+            onSelectConflict={
+              canEdit ? (conflict) => setActiveCell({ employeeId: conflict.employeeId, date: conflict.date }) : undefined
+            }
           />
         </aside>
       </div>
