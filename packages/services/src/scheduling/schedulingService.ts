@@ -516,49 +516,76 @@ export class SchedulingService {
     assertNonEmptyString(startTime, 'startTime');
     assertNonEmptyString(endTime, 'endTime');
 
-    await this.replaceActiveAssignmentOnDate(schedule, employeeId, date);
-
     const duration = computeDuration(startTime, endTime, crossesMidnight);
-    const shift = await this.shifts.insert(this.context.organizationId, {
-      branch_id: schedule.branch_id,
-      template_id: templateId,
-      title,
-      description: null,
-      shift_date: date,
-      start_time: startTime,
-      end_time: endTime,
-      duration,
-      crosses_midnight: crossesMidnight,
-      break_minutes: input.breakMinutes ?? 0,
-      status: 'draft'
-    } as Partial<Shift>);
 
-    const assignment = await this.assignments.insert(this.context.organizationId, {
-      shift_id: shift.id,
-      employee_id: employeeId,
-      assignment_status: 'assigned',
-      assigned_by: this.context.userId,
-      notes: input.notes ?? null
-    } as Partial<ShiftAssignment>);
+    // The replace + both inserts must succeed or fail together (spec §3.3):
+    // otherwise a failure partway through can archive the employee's existing
+    // assignment (and cancel its shift) while creating nothing to replace it,
+    // or create an orphan shift with no assignment. Repositories are rebuilt
+    // against the transaction-scoped client so all writes share one
+    // BEGIN/COMMIT — same pattern as publishScheduleWithVersion().
+    return this.context.client.transaction(async (trxClient) => {
+      const shiftsRepo = new ShiftRepository(trxClient);
+      const assignmentsRepo = new ShiftAssignmentRepository(trxClient);
 
-    return { shift, assignment };
+      await this.replaceActiveAssignmentOnDate(shiftsRepo, assignmentsRepo, schedule, employeeId, date);
+
+      const shift = await shiftsRepo.insert(this.context.organizationId, {
+        branch_id: schedule.branch_id,
+        template_id: templateId,
+        title,
+        description: null,
+        shift_date: date,
+        start_time: startTime,
+        end_time: endTime,
+        duration,
+        crosses_midnight: crossesMidnight,
+        break_minutes: input.breakMinutes ?? 0,
+        status: 'draft'
+      } as Partial<Shift>);
+
+      const assignment = await assignmentsRepo.insert(this.context.organizationId, {
+        shift_id: shift.id,
+        employee_id: employeeId,
+        assignment_status: 'assigned',
+        assigned_by: this.context.userId,
+        notes: input.notes ?? null
+      } as Partial<ShiftAssignment>);
+
+      return { shift, assignment };
+    });
   }
 
-  /** If `employeeId` has an active (assigned/confirmed) assignment on `date`, cancels its shift and archives the assignment first. Phase 1 has one block per employee per day, so this is what makes re-assigning a filled cell a clean replace rather than a stack. */
-  private async replaceActiveAssignmentOnDate(schedule: Schedule, employeeId: string, date: string): Promise<void> {
-    const dayShifts = await this.shifts.findByBranchAndDateRange(this.context.organizationId, schedule.branch_id, date, date);
+  /**
+   * If `employeeId` has an active (assigned/confirmed) assignment on `date`,
+   * cancels its shift and archives the assignment first. Phase 1 has one block
+   * per employee per day, so this is what makes re-assigning a filled cell a
+   * clean replace rather than a stack.
+   *
+   * Takes its repositories as parameters rather than using `this.shifts` /
+   * `this.assignments` so the caller can hand it transaction-scoped instances —
+   * those fields are bound to the outer, non-transactional client.
+   */
+  private async replaceActiveAssignmentOnDate(
+    shiftsRepo: ShiftRepository,
+    assignmentsRepo: ShiftAssignmentRepository,
+    schedule: Schedule,
+    employeeId: string,
+    date: string
+  ): Promise<void> {
+    const dayShifts = await shiftsRepo.findByBranchAndDateRange(this.context.organizationId, schedule.branch_id, date, date);
     if (dayShifts.length === 0) return;
 
-    const assignments = await this.assignments.listForShifts(this.context.organizationId, dayShifts.map((s) => s.id));
+    const assignments = await assignmentsRepo.listForShifts(this.context.organizationId, dayShifts.map((s) => s.id));
     const existing = assignments.find(
       (a) => a.employee_id === employeeId && (a.assignment_status === 'assigned' || a.assignment_status === 'confirmed')
     );
     if (!existing) return;
 
-    await this.assignments.archive(this.context.organizationId, existing.id);
-    const remaining = await this.assignments.findByShift(this.context.organizationId, existing.shift_id);
+    await assignmentsRepo.archive(this.context.organizationId, existing.id);
+    const remaining = await assignmentsRepo.findByShift(this.context.organizationId, existing.shift_id);
     if (remaining.length === 0) {
-      await this.shifts.cancel(this.context.organizationId, existing.shift_id);
+      await shiftsRepo.cancel(this.context.organizationId, existing.shift_id);
     }
   }
 
