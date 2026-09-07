@@ -601,6 +601,23 @@ export class SchedulingService {
     return { assignment: archived, shiftCancelled };
   }
 
+  /** All active+inactive assignments across every shift in the schedule's date range, in one call — what the weekly grid needs to build its employee×day cells (list_assignments_for_shift is per-shift only). */
+  async listAssignmentsForSchedule(scheduleId: string): Promise<ShiftAssignment[]> {
+    assertUuid(scheduleId, 'scheduleId');
+    await this.context.requirePermission('shifts.read');
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+
+    const shifts = await this.shifts.findByBranchAndDateRange(
+      this.context.organizationId,
+      schedule.branch_id,
+      schedule.start_date,
+      schedule.end_date
+    );
+    if (shifts.length === 0) return [];
+    return this.assignments.listForShifts(this.context.organizationId, shifts.map((shift) => shift.id));
+  }
+
   // ==================== Publishing ====================
 
   /**
