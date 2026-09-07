@@ -26,6 +26,14 @@ function activeCellKey(employeeId: string, date: string): string {
   return `${employeeId}:${date}`;
 }
 
+/** Adds `count` days to a 'YYYY-MM-DD' date string using pure UTC arithmetic — never routes through local-timezone parsing, so this is correct in every timezone (unlike `new Date(dateStr + 'T00:00:00').toISOString()`, which shifts a day early in any positive-UTC-offset timezone). */
+function addDaysToDateString(dateString: string, count: number): string {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + count);
+  return date.toISOString().slice(0, 10);
+}
+
 /** The weekly employee × day grid — WEB-012 replacement (design handoff "Manager/Schedules" / "Supervisor/Schedules"). */
 export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProps): React.ReactElement {
   const { data: roster, isLoading: rosterLoading } = useRpcQuery<ScheduleRosterEntry[]>('list_schedule_roster', { scheduleId });
@@ -43,10 +51,8 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
 
   const days = useMemo(() => {
     const result: string[] = [];
-    const cursor = new Date(`${schedule.start_date}T00:00:00`);
     for (let i = 0; i < 7; i += 1) {
-      result.push(cursor.toISOString().slice(0, 10));
-      cursor.setDate(cursor.getDate() + 1);
+      result.push(addDaysToDateString(schedule.start_date, i));
     }
     return result;
   }, [schedule.start_date]);
