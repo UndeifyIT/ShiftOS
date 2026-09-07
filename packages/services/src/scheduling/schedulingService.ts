@@ -3,6 +3,7 @@ import {
   ScheduleVersionRepository,
   ShiftRepository,
   ShiftAssignmentRepository,
+  ShiftTemplateRepository,
   EmployeeRepository,
   UserRepository,
   publishScheduleWithVersion,
@@ -53,6 +54,23 @@ export interface UpdateShiftInput {
   breakMinutes?: number;
 }
 
+export interface AssignShiftToEmployeeInput {
+  templateId?: string | null;
+  startTime?: string;
+  endTime?: string;
+  crossesMidnight?: boolean;
+  breakMinutes?: number;
+  notes?: string | null;
+}
+
+export interface UpdateAssignedShiftInput {
+  startTime?: string;
+  endTime?: string;
+  crossesMidnight?: boolean;
+  breakMinutes?: number;
+  notes?: string | null;
+}
+
 /**
  * Schedule -> Schedule Version -> Shifts -> Shift Assignments (see
  * docs/backend/API-012-SCHEDULING-WORKFLOW.md).
@@ -80,6 +98,7 @@ export class SchedulingService {
   private readonly assignments: ShiftAssignmentRepository;
   private readonly employees: EmployeeRepository;
   private readonly users: UserRepository;
+  private readonly templates: ShiftTemplateRepository;
 
   constructor(private readonly context: ApplicationContext) {
     this.schedules = new ScheduleRepository(context.client);
@@ -88,6 +107,7 @@ export class SchedulingService {
     this.assignments = new ShiftAssignmentRepository(context.client);
     this.employees = new EmployeeRepository(context.client);
     this.users = new UserRepository(context.client);
+    this.templates = new ShiftTemplateRepository(context.client);
   }
 
   /** Resolves "me" the same way attendance/announcements self-service does — email match to an employee record, never a client-supplied employeeId. */
@@ -434,6 +454,151 @@ export class SchedulingService {
     const shift = await this.shifts.getByIdOrThrow(this.context.organizationId, shiftId);
     this.context.requireBranchAccess(shift.branch_id);
     return this.assignments.findByShift(this.context.organizationId, shiftId);
+  }
+
+  // ==================== Grid cell assignment ====================
+
+  /**
+   * One-shot version of createShift + assignEmployee for the weekly grid's
+   * click-to-assign flow (docs/superpowers/specs/2026-09-06-schedule-grid-rebuild-design.md §3.3):
+   * a single call so the modal's one "Assign Shift" button can't leave a
+   * shift created with no assignment on a partial failure. Phase 1 is one
+   * shift block per employee per day, so re-assigning a cell that already
+   * has an active assignment replaces it (cancels the old shift first)
+   * rather than stacking a second block onto the same day.
+   */
+  async assignShiftToEmployeeOnDate(
+    scheduleId: string,
+    employeeId: string,
+    date: string,
+    input: AssignShiftToEmployeeInput
+  ): Promise<{ shift: Shift; assignment: ShiftAssignment }> {
+    assertUuid(scheduleId, 'scheduleId');
+    assertUuid(employeeId, 'employeeId');
+    await this.context.requirePermission('shifts.create');
+    await this.context.requirePermission('assignments.create');
+
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+    if (schedule.status === 'archived') {
+      throw new ValidationError('Cannot edit an archived schedule');
+    }
+    if (!isDateWithinRange(date, schedule.start_date, schedule.end_date)) {
+      throw new ValidationError('date must fall within the schedule period', [
+        `date must be between ${schedule.start_date} and ${schedule.end_date}`
+      ]);
+    }
+    await this.employees.getByIdOrThrow(this.context.organizationId, employeeId);
+
+    let templateId: string | null = null;
+    let startTime = input.startTime;
+    let endTime = input.endTime;
+    let crossesMidnight = input.crossesMidnight ?? false;
+    let title = 'Shift';
+
+    if (input.templateId) {
+      const template = await this.templates.getByIdOrThrow(this.context.organizationId, input.templateId);
+      templateId = template.id;
+      startTime = template.start_time.slice(0, 5);
+      endTime = template.end_time.slice(0, 5);
+      crossesMidnight = template.crosses_midnight;
+      title = template.name;
+    }
+    assertNonEmptyString(startTime, 'startTime');
+    assertNonEmptyString(endTime, 'endTime');
+
+    await this.replaceActiveAssignmentOnDate(schedule, employeeId, date);
+
+    const duration = computeDuration(startTime, endTime, crossesMidnight);
+    const shift = await this.shifts.insert(this.context.organizationId, {
+      branch_id: schedule.branch_id,
+      template_id: templateId,
+      title,
+      description: null,
+      shift_date: date,
+      start_time: startTime,
+      end_time: endTime,
+      duration,
+      crosses_midnight: crossesMidnight,
+      break_minutes: input.breakMinutes ?? 0,
+      status: 'draft'
+    } as Partial<Shift>);
+
+    const assignment = await this.assignments.insert(this.context.organizationId, {
+      shift_id: shift.id,
+      employee_id: employeeId,
+      assignment_status: 'assigned',
+      assigned_by: this.context.userId,
+      notes: input.notes ?? null
+    } as Partial<ShiftAssignment>);
+
+    return { shift, assignment };
+  }
+
+  /** If `employeeId` has an active (assigned/confirmed) assignment on `date`, cancels its shift and archives the assignment first. Phase 1 has one block per employee per day, so this is what makes re-assigning a filled cell a clean replace rather than a stack. */
+  private async replaceActiveAssignmentOnDate(schedule: Schedule, employeeId: string, date: string): Promise<void> {
+    const dayShifts = await this.shifts.findByBranchAndDateRange(this.context.organizationId, schedule.branch_id, date, date);
+    if (dayShifts.length === 0) return;
+
+    const assignments = await this.assignments.listForShifts(this.context.organizationId, dayShifts.map((s) => s.id));
+    const existing = assignments.find(
+      (a) => a.employee_id === employeeId && (a.assignment_status === 'assigned' || a.assignment_status === 'confirmed')
+    );
+    if (!existing) return;
+
+    await this.assignments.archive(this.context.organizationId, existing.id);
+    const remaining = await this.assignments.findByShift(this.context.organizationId, existing.shift_id);
+    if (remaining.length === 0) {
+      await this.shifts.cancel(this.context.organizationId, existing.shift_id);
+    }
+  }
+
+  async updateAssignedShiftOnDate(assignmentId: string, input: UpdateAssignedShiftInput): Promise<{ shift: Shift; assignment: ShiftAssignment }> {
+    assertUuid(assignmentId, 'assignmentId');
+    await this.context.requirePermission('shifts.update');
+
+    const assignment = await this.assignments.getByIdOrThrow(this.context.organizationId, assignmentId);
+    const shift = await this.shifts.getByIdOrThrow(this.context.organizationId, assignment.shift_id);
+    this.context.requireBranchAccess(shift.branch_id);
+
+    let updatedShift = shift;
+    if (input.startTime !== undefined || input.endTime !== undefined || input.crossesMidnight !== undefined || input.breakMinutes !== undefined) {
+      updatedShift = await this.updateShift(shift.id, {
+        startTime: input.startTime,
+        endTime: input.endTime,
+        crossesMidnight: input.crossesMidnight,
+        breakMinutes: input.breakMinutes
+      });
+    }
+
+    let updatedAssignment = assignment;
+    if (input.notes !== undefined) {
+      updatedAssignment = await this.assignments.patch(this.context.organizationId, assignmentId, {
+        notes: input.notes
+      } as Partial<ShiftAssignment>);
+    }
+
+    return { shift: updatedShift, assignment: updatedAssignment };
+  }
+
+  /** Removing the cell's only assignment also cancels the now-orphaned shift, so it doesn't linger as dangling data (spec §3.3/§6). */
+  async removeAssignedShiftOnDate(assignmentId: string): Promise<{ assignment: ShiftAssignment; shiftCancelled: boolean }> {
+    assertUuid(assignmentId, 'assignmentId');
+    await this.context.requirePermission('assignments.delete');
+
+    const assignment = await this.assignments.getByIdOrThrow(this.context.organizationId, assignmentId);
+    const shift = await this.shifts.getByIdOrThrow(this.context.organizationId, assignment.shift_id);
+    this.context.requireBranchAccess(shift.branch_id);
+
+    const archived = await this.assignments.archive(this.context.organizationId, assignmentId);
+    const remaining = await this.assignments.findByShift(this.context.organizationId, shift.id);
+    let shiftCancelled = false;
+    if (remaining.length === 0) {
+      await this.shifts.cancel(this.context.organizationId, shift.id);
+      shiftCancelled = true;
+    }
+
+    return { assignment: archived, shiftCancelled };
   }
 
   // ==================== Publishing ====================
