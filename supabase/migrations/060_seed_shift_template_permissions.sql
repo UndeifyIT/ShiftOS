@@ -34,6 +34,7 @@ AS $$
 DECLARE
   v_supervisor_role_id uuid;
   v_employee_role_id uuid;
+  v_admin_role_id uuid;
 BEGIN
   SELECT id INTO v_supervisor_role_id FROM public.roles
     WHERE organization_id = p_organization_id AND lower(name) = lower('Supervisor');
@@ -57,6 +58,9 @@ BEGIN
     'announcements.read', 'announcements.acknowledge',
     'shiftnotes.read', 'shiftnotes.create',
     'reports.read',
+    'attendance.clockin', 'attendance.read', 'attendance.correct', 'attendance.update',
+    'leave.read', 'leave.create', 'leave.cancel', 'leave.approve',
+    'notifications.read',
     'shifttemplates.read', 'shifttemplates.create'
   )
   ON CONFLICT (role_id, permission_id) DO NOTHING;
@@ -71,7 +75,27 @@ BEGIN
 
   INSERT INTO public.role_permissions (role_id, permission_id)
   SELECT v_employee_role_id, p.id FROM public.permissions p
-  WHERE p.is_active = true AND p.code IN ('employees.read', 'schedules.read', 'shifts.read', 'announcements.read', 'announcements.acknowledge', 'swaps.read', 'swaps.request', 'swaps.respond')
+  WHERE p.is_active = true AND p.code IN (
+    'employees.read', 'schedules.read', 'shifts.read',
+    'announcements.read', 'announcements.acknowledge',
+    'swaps.read', 'swaps.request', 'swaps.respond',
+    'attendance.clockin', 'attendance.read',
+    'leave.read', 'leave.create', 'leave.cancel',
+    'notifications.read'
+  )
+  ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+  SELECT id INTO v_admin_role_id FROM public.roles
+    WHERE organization_id = p_organization_id AND lower(name) = lower('Admin');
+  IF v_admin_role_id IS NULL THEN
+    INSERT INTO public.roles (organization_id, name, is_system, is_active, grants_org_wide_branch_access)
+    VALUES (p_organization_id, 'Admin', true, true, false)
+    RETURNING id INTO v_admin_role_id;
+  END IF;
+
+  INSERT INTO public.role_permissions (role_id, permission_id)
+  SELECT v_admin_role_id, p.id FROM public.permissions p
+  WHERE p.is_active = true AND p.code IN ('branches.read', 'employees.read', 'organizations.read', 'org.members.manage')
   ON CONFLICT (role_id, permission_id) DO NOTHING;
 END;
 $$;
