@@ -7,11 +7,16 @@ import { removeAvatar, uploadUserAvatar } from '../../lib/avatars.js';
 import { isNetworkError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
 import { AuthBanner, AuthInput, AuthSelect, AuthSubmit } from './AuthInputs.js';
+import { useFormDraft, clearFormDraft } from '../../lib/useFormDraft.js';
 
-// 'Manager'/'Owner' are never assigned via invitation (membershipService
-// rejects inviting an org-wide-branch-access role), so they're not real
-// options here — only roles invite_member can actually grant.
-const JOB_ROLES = ['Supervisor', 'Admin', 'Employee'] as const;
+// Manager is only offered here when no invitation was found for this
+// identity — self-signup (no invite link) can only legitimately claim the
+// Manager role, since every other role is granted by an invitation accepting
+// through invite_member (see the invitedRoleName branch below, and the
+// "only managers" check in handleSubmit). Owner isn't a selectable option
+// anywhere; create_organization_with_owner grants it automatically to
+// whoever completes the org-creation step right after this page.
+const JOB_ROLES = ['Manager', 'Supervisor', 'Admin', 'Employee'] as const;
 
 /** Drives the photo tile below — mirrors the 4-state widget in the design
  * handoff (`ShiftOS Auth.dc.html`'s Complete Profile `photo` state). Upload
@@ -33,6 +38,7 @@ const BENEFITS: AuthBenefit[] = [
 ];
 
 const PENDING_NAME_KEY = 'shiftos.pendingName';
+const PROFILE_DRAFT_KEY = 'shiftos.draft.completeProfile';
 
 /**
  * Not a numbered screen in FD-4 on its own — it's the concrete UI for the
@@ -65,6 +71,11 @@ export default function CompleteProfilePage(): React.ReactElement {
   // Owner completing their own profile after signup), in which case the
   // field stays a free choice.
   const [invitedRoleName, setInvitedRoleName] = useState<string | null>(null);
+  // False until the get_pending_invitation() check below has resolved either
+  // way. Guards the "only managers can self-signup" validation in
+  // handleSubmit against a real invitee submitting in the brief window
+  // before that RPC comes back — see the check there.
+  const [invitationChecked, setInvitationChecked] = useState(false);
 
   // SignUpPage stashes the name the person typed there so they don't have
   // to retype it here — best-effort only, cleared immediately after use.
@@ -82,6 +93,19 @@ export default function CompleteProfilePage(): React.ReactElement {
     }
   }, []);
 
+  // Recovers a draft of this page's own typed fields (not the photo — a File
+  // can't survive a reload, and it's already durably uploaded to Storage by
+  // the time it's picked, see handleFileSelected) if a previous attempt at
+  // this page was interrupted by a reload. Runs after the PENDING_NAME_KEY
+  // effect above, so a draft (this page's own more-recent edit) wins over
+  // that one-time signup prefill where both set the same field.
+  useFormDraft(PROFILE_DRAFT_KEY, { firstName, lastName, phone, jobTitle }, (saved) => {
+    if (saved.firstName) setFirstName(saved.firstName);
+    if (saved.lastName) setLastName(saved.lastName);
+    if (saved.phone) setPhone(saved.phone);
+    if (saved.jobTitle) setJobTitle(saved.jobTitle);
+  });
+
   // Mirrors AcceptInvitationPage's own get_pending_invitation() call rather
   // than passing role_name through router state -- this page can be reached
   // directly (a reload, a bookmarked link) without ever having rendered that
@@ -93,9 +117,12 @@ export default function CompleteProfilePage(): React.ReactElement {
     let cancelled = false;
     void (async () => {
       const { data } = await supabase.rpc('get_pending_invitation').maybeSingle<{ role_name: string; status: string }>();
-      if (cancelled || !data || data.status !== 'pending') return;
-      setInvitedRoleName(data.role_name);
-      setJobTitle(data.role_name);
+      if (cancelled) return;
+      if (data && data.status === 'pending') {
+        setInvitedRoleName(data.role_name);
+        setJobTitle(data.role_name);
+      }
+      setInvitationChecked(true);
     })();
     return () => {
       cancelled = true;
@@ -162,6 +189,22 @@ export default function CompleteProfilePage(): React.ReactElement {
       setError('First name, last name and phone number are needed.');
       return;
     }
+    if (!invitedRoleName) {
+      if (!invitationChecked) {
+        setError('Still checking your invitation — please try again in a moment.');
+        return;
+      }
+      if (!jobTitle) {
+        setError('Select your role to continue.');
+        return;
+      }
+      if (jobTitle !== 'Manager') {
+        setError(
+          'Only managers can create a ShiftOS account this way. If your organization already uses ShiftOS, ask your manager to send you an invitation instead.'
+        );
+        return;
+      }
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -193,6 +236,8 @@ export default function CompleteProfilePage(): React.ReactElement {
           setPhotoState('empty');
         }
         setError(submitError);
+      } else {
+        clearFormDraft(PROFILE_DRAFT_KEY);
       }
     } catch (err) {
       setError(isNetworkError(err) ? "Couldn't reach ShiftOS. Check your connection and try again." : 'Something went wrong. Please try again.');
@@ -340,7 +385,18 @@ export default function CompleteProfilePage(): React.ReactElement {
         <FormField label="Phone Number" htmlFor="phone" required>
           {(fieldProps) => <AuthInput {...fieldProps} type="tel" autoComplete="tel" placeholder="+234 802 345 6789" value={phone} onChange={(e) => setPhone(e.target.value)} />}
         </FormField>
-        <FormField label="Job Role" htmlFor="jobTitle" hint={invitedRoleName ? 'Set by your invitation' : 'Optional'}>
+        <FormField
+          label="Job Role"
+          htmlFor="jobTitle"
+          required
+          hint={
+            invitedRoleName
+              ? 'Set by your invitation'
+              : invitationChecked
+                ? 'Only managers can create a new ShiftOS account here'
+                : 'Checking your invitation…'
+          }
+        >
           {(fieldProps) =>
             invitedRoleName ? (
               <AuthSelect {...fieldProps} value={invitedRoleName} disabled>

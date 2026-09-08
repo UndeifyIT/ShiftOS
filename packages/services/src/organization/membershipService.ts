@@ -4,12 +4,35 @@ import {
   BranchRepository,
   InvitationRepository,
   InvitationBranchAccessRepository,
+  PermissionRepository,
+  RolePermissionRepository,
   type MembershipWithDetails,
   type RoleRecord,
   type InvitationWithRole
 } from '@shiftos/repositories';
 import { AuthorizationError, ValidationError, NotFoundError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
+
+/**
+ * The Supervisor permissions checklist onboarding shows
+ * (OnboardingWizard.tsx's SupervisorPermissionsChecklist) edits a role's real
+ * role_permissions through MembershipService.updateRolePermissions, one whole
+ * capability at a time -- not per-invitation (an invitation still just grants
+ * whatever the target role currently has). Each key here bundles every
+ * permission code that capability needs to actually work end to end (e.g.
+ * "assign tasks" needs both tasks.create and tasks.assign, or ticking the box
+ * would still hit a permission error the first time a supervisor tried it).
+ * Keep this key set in sync with the checklist's own SUPERVISOR_PERMISSIONS
+ * array in apps/web/src/pages/onboarding/OnboardingWizard.tsx.
+ */
+export const ROLE_CAPABILITY_GROUPS: Record<string, string[]> = {
+  manageSchedules: ['schedules.create', 'schedules.update', 'schedules.publish', 'schedules.archive'],
+  markAttendance: ['attendance.update', 'attendance.correct'],
+  assignTasks: ['tasks.create', 'tasks.assign'],
+  approveSwaps: ['swaps.approve'],
+  postAnnouncements: ['announcements.create'],
+  viewReports: ['reports.read']
+};
 
 export interface InviteMemberInput {
   email: string;
@@ -47,6 +70,8 @@ export class MembershipService {
   private readonly branches: BranchRepository;
   private readonly invitations: InvitationRepository;
   private readonly invitationBranchAccess: InvitationBranchAccessRepository;
+  private readonly permissions: PermissionRepository;
+  private readonly rolePermissions: RolePermissionRepository;
 
   constructor(private readonly context: ApplicationContext) {
     this.memberships = new OrganizationMembershipRepository(context.client);
@@ -54,6 +79,8 @@ export class MembershipService {
     this.branches = new BranchRepository(context.client);
     this.invitations = new InvitationRepository(context.client);
     this.invitationBranchAccess = new InvitationBranchAccessRepository(context.client);
+    this.permissions = new PermissionRepository(context.client);
+    this.rolePermissions = new RolePermissionRepository(context.client);
   }
 
   async listMembers(): Promise<MembershipWithDetails[]> {
@@ -192,5 +219,67 @@ export class MembershipService {
     }
     await this.context.audit('resend_invitation', 'invitation', invitationId, null, { email: invitation.email });
     return withRole;
+  }
+
+  /**
+   * Every ROLE_CAPABILITY_GROUPS key, resolved to whether the role currently
+   * grants ALL of that capability's permission codes — this is what the
+   * onboarding checklist (and any future role-editing screen) renders each
+   * toggle's on/off state from. Returning computed booleans rather than raw
+   * permission codes keeps the code-to-capability mapping a backend-only
+   * concern; the frontend only needs to know the capability keys, which it
+   * already must (to render each checklist row and to call
+   * updateRolePermissions).
+   */
+  async getRoleCapabilities(roleId: string): Promise<Record<string, boolean>> {
+    await this.context.requirePermission('org.members.manage');
+    await this.roles.getByIdOrThrow(this.context.organizationId, roleId);
+    const codes = new Set(await this.rolePermissions.findPermissionCodesForRole(this.context.organizationId, roleId));
+    return Object.fromEntries(
+      Object.entries(ROLE_CAPABILITY_GROUPS).map(([capability, requiredCodes]) => [
+        capability,
+        requiredCodes.every((code) => codes.has(code))
+      ])
+    );
+  }
+
+  /**
+   * Grants/revokes whole ROLE_CAPABILITY_GROUPS entries against a role's real
+   * role_permissions. Restricted to non-org-wide roles: the Owner role always
+   * holds every active permission (see create_organization_with_owner), and
+   * silently letting a caller revoke pieces of that through this generic path
+   * would be a much harder to audit way to strip an org's own owner of
+   * capability than doing it deliberately elsewhere.
+   */
+  async updateRolePermissions(roleId: string, capabilities: Record<string, boolean>): Promise<Record<string, boolean>> {
+    await this.context.requirePermission('org.members.manage');
+    const role = await this.roles.getByIdOrThrow(this.context.organizationId, roleId);
+    if (role.grants_org_wide_branch_access) {
+      throw new AuthorizationError("This role's permissions cannot be edited here.");
+    }
+
+    const currentCodes = new Set(
+      await this.rolePermissions.findPermissionCodesForRole(this.context.organizationId, roleId)
+    );
+
+    for (const [capability, shouldGrant] of Object.entries(capabilities)) {
+      const codes = ROLE_CAPABILITY_GROUPS[capability];
+      // Unknown capability key (e.g. an older/newer client) — ignore rather
+      // than error, so this stays forward- and backward-compatible.
+      if (!codes) continue;
+      for (const code of codes) {
+        if (shouldGrant === currentCodes.has(code)) continue;
+        const permission = await this.permissions.findByCode(code);
+        if (!permission) continue;
+        if (shouldGrant) {
+          await this.rolePermissions.grant(this.context.organizationId, roleId, permission.id);
+        } else {
+          await this.rolePermissions.revoke(this.context.organizationId, roleId, permission.id);
+        }
+      }
+    }
+
+    await this.context.audit('update_role_permissions', 'role', roleId, null, capabilities);
+    return this.getRoleCapabilities(roleId);
   }
 }
