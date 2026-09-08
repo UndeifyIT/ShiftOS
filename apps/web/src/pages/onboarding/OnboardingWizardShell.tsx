@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ArrowLeft, Building2, CalendarDays, Check, Folder, MessageSquare, Store, Users } from 'lucide-react';
 import { Shifty } from '../../components/shifty/Shifty.js';
 import { ShiftyMascot } from '../../components/shifty/mascot.js';
@@ -132,7 +131,7 @@ export interface OnboardingWizardShellProps {
 }
 
 export function OnboardingWizardShell({ currentStep, children }: OnboardingWizardShellProps): React.ReactElement {
-  const { profile } = useSession();
+  const { profile, signOut } = useSession();
   const [shiftyHidden, setShiftyHidden] = useState(false);
 
   const stepIndex = ONBOARDING_STEPS.findIndex((s) => s.id === currentStep);
@@ -295,13 +294,27 @@ export function OnboardingWizardShell({ currentStep, children }: OnboardingWizar
             </div>
 
             <div className="ml-auto flex flex-wrap items-center gap-2.5">
-              <Link
-                to="/"
+              <button
+                type="button"
+                // A plain <Link to="/"> here would never actually leave the
+                // wizard: App.tsx's onboarding gate renders this same wizard
+                // for every path except /organization as long as the caller
+                // is authenticated and onboardingCompletedAt isn't set, so
+                // clicking it looked like it did nothing. Signing out first
+                // is the only way to actually reach the marketing homepage
+                // mid-onboarding — the same mechanism the "Sign out" link on
+                // the Organization/Complete-profile steps already uses, just
+                // surfaced here too since this is the button people reach
+                // for on every later step where there's no separate sign-out
+                // link. In-progress data already saved server-side (each
+                // completed step) isn't lost; only the current step's unsaved
+                // draft would need re-entering after signing back in.
+                onClick={() => void signOut()}
                 className="inline-flex items-center gap-[7px] rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-xs font-bold text-neutral-500 transition-colors hover:border-brand-300"
               >
                 <ArrowLeft className="size-3.5" aria-hidden="true" />
                 Back to home
-              </Link>
+              </button>
               <a
                 href="mailto:hello@shiftos.app"
                 className="inline-flex items-center gap-[7px] rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-xs font-bold text-neutral-500 transition-colors hover:border-brand-300"
