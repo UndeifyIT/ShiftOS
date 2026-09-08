@@ -352,3 +352,38 @@ export interface Notification {
   read_at: string | null;
   created_at: string;
 }
+
+export interface ScheduleRosterEntry {
+  id: string;
+  organization_id: string;
+  schedule_id: string;
+  employee_id: string;
+  added_by: string;
+  added_at: string;
+  deleted_at: string | null;
+}
+
+export type ShiftTemplateStatus = 'active' | 'archived';
+
+export interface ShiftTemplate {
+  id: string;
+  organization_id: string;
+  branch_id: string;
+  name: string;
+  start_time: string;
+  end_time: string;
+  duration: string;
+  crosses_midnight: boolean;
+  notes: string | null;
+  status: ShiftTemplateStatus;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface ScheduleConflict {
+  employeeId: string;
+  date: string;
+  kind: 'double_booking' | 'long_shift';
+  detail: string;
+}

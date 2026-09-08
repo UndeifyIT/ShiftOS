@@ -149,6 +149,51 @@ export const listAssignmentsForShift = defineRpc('list_assignments_for_shift', a
   return new SchedulingService(context).listAssignmentsForShift(requiredStringField(input, 'shiftId'));
 });
 
+// ---- Grid cell assignment ----
+
+export const assignShiftToEmployeeOnDate = defineRpc('assign_shift_to_employee_on_date', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).assignShiftToEmployeeOnDate(
+    requiredStringField(input, 'scheduleId'),
+    requiredStringField(input, 'employeeId'),
+    requiredStringField(input, 'date'),
+    {
+      templateId: stringField(input, 'templateId') ?? null,
+      startTime: stringField(input, 'startTime'),
+      endTime: stringField(input, 'endTime'),
+      crossesMidnight: booleanField(input, 'crossesMidnight'),
+      breakMinutes: numberField(input, 'breakMinutes'),
+      notes: stringField(input, 'notes') ?? null
+    }
+  );
+});
+
+export const updateAssignedShiftOnDate = defineRpc('update_assigned_shift_on_date', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).updateAssignedShiftOnDate(requiredStringField(input, 'assignmentId'), {
+    startTime: stringField(input, 'startTime'),
+    endTime: stringField(input, 'endTime'),
+    crossesMidnight: booleanField(input, 'crossesMidnight'),
+    breakMinutes: numberField(input, 'breakMinutes'),
+    notes: stringField(input, 'notes') ?? (input.notes === null ? null : undefined)
+  });
+});
+
+export const removeAssignedShiftOnDate = defineRpc('remove_assigned_shift_on_date', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).removeAssignedShiftOnDate(requiredStringField(input, 'assignmentId'));
+});
+
+export const listAssignmentsForSchedule = defineRpc('list_assignments_for_schedule', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).listAssignmentsForSchedule(requiredStringField(input, 'scheduleId'));
+});
+
+export const getScheduleConflicts = defineRpc('get_schedule_conflicts', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).getScheduleConflicts(requiredStringField(input, 'scheduleId'));
+});
+
 // ---- Publishing ----
 
 export const publishSchedule = defineRpc('publish_schedule', async (context, rawInput: unknown) => {
@@ -165,5 +210,7 @@ export const schedulingOperations = [
   createShift, getShift, updateShift, cancelShift, archiveShift, listShiftsForSchedule, listShiftsForEmployeeInSchedule,
   listMyShiftAssignmentsInSchedule,
   assignEmployee, updateAssignmentStatus, removeAssignment, listAssignmentsForShift,
-  publishSchedule
+  publishSchedule,
+  assignShiftToEmployeeOnDate, updateAssignedShiftOnDate, removeAssignedShiftOnDate, listAssignmentsForSchedule,
+  getScheduleConflicts
 ];

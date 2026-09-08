@@ -11,6 +11,8 @@ export * from './organization/membershipService.js';
 export * from './identity/userService.js';
 export * from './workforce/employeeService.js';
 export * from './scheduling/schedulingService.js';
+export * from './scheduling/scheduleRosterService.js';
+export * from './scheduling/shiftTemplateService.js';
 export * from './scheduling/time.js';
 export * from './scheduling/shiftNoteService.js';
 export * from './workforce/departmentService.js';

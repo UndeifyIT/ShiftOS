@@ -3,6 +3,7 @@ import {
   ScheduleVersionRepository,
   ShiftRepository,
   ShiftAssignmentRepository,
+  ShiftTemplateRepository,
   EmployeeRepository,
   UserRepository,
   publishScheduleWithVersion,
@@ -53,6 +54,54 @@ export interface UpdateShiftInput {
   breakMinutes?: number;
 }
 
+export interface AssignShiftToEmployeeInput {
+  templateId?: string | null;
+  startTime?: string;
+  endTime?: string;
+  crossesMidnight?: boolean;
+  breakMinutes?: number;
+  notes?: string | null;
+}
+
+export interface UpdateAssignedShiftInput {
+  startTime?: string;
+  endTime?: string;
+  crossesMidnight?: boolean;
+  breakMinutes?: number;
+  notes?: string | null;
+}
+
+export interface ScheduleConflict {
+  employeeId: string;
+  date: string;
+  kind: 'double_booking' | 'long_shift';
+  detail: string;
+}
+
+const LONG_SHIFT_HOURS_THRESHOLD = 10;
+
+/**
+ * A shift's occupied window as minutes from midnight of its shift_date,
+ * extending past 1440 when it crosses midnight — the same normalization
+ * computeDuration() (./time.ts) applies when measuring a crossing shift's
+ * length.
+ */
+function shiftTimeRangeMinutes(shift: Shift): { start: number; end: number } {
+  const [startHours, startMinutes] = shift.start_time.split(':').map(Number);
+  const [endHours, endMinutes] = shift.end_time.split(':').map(Number);
+  const start = startHours * 60 + startMinutes;
+  let end = endHours * 60 + endMinutes;
+  if (shift.crosses_midnight) end += 24 * 60;
+  return { start, end };
+}
+
+/** True when two shifts on the same date actually overlap in time (touching endpoints don't count). */
+function shiftsOverlap(a: Shift, b: Shift): boolean {
+  const rangeA = shiftTimeRangeMinutes(a);
+  const rangeB = shiftTimeRangeMinutes(b);
+  return rangeA.start < rangeB.end && rangeB.start < rangeA.end;
+}
+
 /**
  * Schedule -> Schedule Version -> Shifts -> Shift Assignments (see
  * docs/backend/API-012-SCHEDULING-WORKFLOW.md).
@@ -80,6 +129,7 @@ export class SchedulingService {
   private readonly assignments: ShiftAssignmentRepository;
   private readonly employees: EmployeeRepository;
   private readonly users: UserRepository;
+  private readonly templates: ShiftTemplateRepository;
 
   constructor(private readonly context: ApplicationContext) {
     this.schedules = new ScheduleRepository(context.client);
@@ -88,6 +138,7 @@ export class SchedulingService {
     this.assignments = new ShiftAssignmentRepository(context.client);
     this.employees = new EmployeeRepository(context.client);
     this.users = new UserRepository(context.client);
+    this.templates = new ShiftTemplateRepository(context.client);
   }
 
   /** Resolves "me" the same way attendance/announcements self-service does — email match to an employee record, never a client-supplied employeeId. */
@@ -434,6 +485,285 @@ export class SchedulingService {
     const shift = await this.shifts.getByIdOrThrow(this.context.organizationId, shiftId);
     this.context.requireBranchAccess(shift.branch_id);
     return this.assignments.findByShift(this.context.organizationId, shiftId);
+  }
+
+  // ==================== Grid cell assignment ====================
+
+  /**
+   * One-shot version of createShift + assignEmployee for the weekly grid's
+   * click-to-assign flow (docs/superpowers/specs/2026-09-06-schedule-grid-rebuild-design.md §3.3):
+   * a single call so the modal's one "Assign Shift" button can't leave a
+   * shift created with no assignment on a partial failure. Phase 1 is one
+   * shift block per employee per day, so re-assigning a cell that already
+   * has an active assignment replaces it (cancels the old shift first)
+   * rather than stacking a second block onto the same day.
+   */
+  async assignShiftToEmployeeOnDate(
+    scheduleId: string,
+    employeeId: string,
+    date: string,
+    input: AssignShiftToEmployeeInput
+  ): Promise<{ shift: Shift; assignment: ShiftAssignment }> {
+    assertUuid(scheduleId, 'scheduleId');
+    assertUuid(employeeId, 'employeeId');
+    await this.context.requirePermission('shifts.create');
+    await this.context.requirePermission('assignments.create');
+
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+    if (schedule.status === 'archived') {
+      throw new ValidationError('Cannot edit an archived schedule');
+    }
+    if (!isDateWithinRange(date, schedule.start_date, schedule.end_date)) {
+      throw new ValidationError('date must fall within the schedule period', [
+        `date must be between ${schedule.start_date} and ${schedule.end_date}`
+      ]);
+    }
+    await this.employees.getByIdOrThrow(this.context.organizationId, employeeId);
+
+    let templateId: string | null = null;
+    let startTime = input.startTime;
+    let endTime = input.endTime;
+    let crossesMidnight = input.crossesMidnight ?? false;
+    let title = 'Shift';
+
+    if (input.templateId) {
+      const template = await this.templates.getByIdOrThrow(this.context.organizationId, input.templateId);
+      templateId = template.id;
+      startTime = template.start_time.slice(0, 5);
+      endTime = template.end_time.slice(0, 5);
+      crossesMidnight = template.crosses_midnight;
+      title = template.name;
+    }
+    assertNonEmptyString(startTime, 'startTime');
+    assertNonEmptyString(endTime, 'endTime');
+
+    const duration = computeDuration(startTime, endTime, crossesMidnight);
+
+    // The replace + both inserts must succeed or fail together (spec §3.3):
+    // otherwise a failure partway through can archive the employee's existing
+    // assignment (and cancel its shift) while creating nothing to replace it,
+    // or create an orphan shift with no assignment. Repositories are rebuilt
+    // against the transaction-scoped client so all writes share one
+    // BEGIN/COMMIT — same pattern as publishScheduleWithVersion().
+    return this.context.client.transaction(async (trxClient) => {
+      const shiftsRepo = new ShiftRepository(trxClient);
+      const assignmentsRepo = new ShiftAssignmentRepository(trxClient);
+
+      await this.replaceActiveAssignmentOnDate(shiftsRepo, assignmentsRepo, schedule, employeeId, date);
+
+      const shift = await shiftsRepo.insert(this.context.organizationId, {
+        branch_id: schedule.branch_id,
+        template_id: templateId,
+        title,
+        description: null,
+        shift_date: date,
+        start_time: startTime,
+        end_time: endTime,
+        duration,
+        crosses_midnight: crossesMidnight,
+        break_minutes: input.breakMinutes ?? 0,
+        status: 'draft'
+      } as Partial<Shift>);
+
+      const assignment = await assignmentsRepo.insert(this.context.organizationId, {
+        shift_id: shift.id,
+        employee_id: employeeId,
+        assignment_status: 'assigned',
+        assigned_by: this.context.userId,
+        notes: input.notes ?? null
+      } as Partial<ShiftAssignment>);
+
+      return { shift, assignment };
+    });
+  }
+
+  /**
+   * If `employeeId` has an active (assigned/confirmed) assignment on `date`,
+   * cancels its shift and archives the assignment first. Phase 1 has one block
+   * per employee per day, so this is what makes re-assigning a filled cell a
+   * clean replace rather than a stack.
+   *
+   * Takes its repositories as parameters rather than using `this.shifts` /
+   * `this.assignments` so the caller can hand it transaction-scoped instances —
+   * those fields are bound to the outer, non-transactional client.
+   */
+  private async replaceActiveAssignmentOnDate(
+    shiftsRepo: ShiftRepository,
+    assignmentsRepo: ShiftAssignmentRepository,
+    schedule: Schedule,
+    employeeId: string,
+    date: string
+  ): Promise<void> {
+    const dayShifts = await shiftsRepo.findByBranchAndDateRange(this.context.organizationId, schedule.branch_id, date, date);
+    if (dayShifts.length === 0) return;
+
+    const assignments = await assignmentsRepo.listForShifts(this.context.organizationId, dayShifts.map((s) => s.id));
+    const existing = assignments.find(
+      (a) => a.employee_id === employeeId && (a.assignment_status === 'assigned' || a.assignment_status === 'confirmed')
+    );
+    if (!existing) return;
+
+    await assignmentsRepo.archive(this.context.organizationId, existing.id);
+    const remaining = await assignmentsRepo.findByShift(this.context.organizationId, existing.shift_id);
+    if (remaining.length === 0) {
+      await shiftsRepo.cancel(this.context.organizationId, existing.shift_id);
+    }
+  }
+
+  async updateAssignedShiftOnDate(assignmentId: string, input: UpdateAssignedShiftInput): Promise<{ shift: Shift; assignment: ShiftAssignment }> {
+    assertUuid(assignmentId, 'assignmentId');
+    await this.context.requirePermission('shifts.update');
+
+    const assignment = await this.assignments.getByIdOrThrow(this.context.organizationId, assignmentId);
+    const shift = await this.shifts.getByIdOrThrow(this.context.organizationId, assignment.shift_id);
+    this.context.requireBranchAccess(shift.branch_id);
+    // Shifts have no schedule_id FK (see the class doc), so the owning
+    // schedule is resolved by branch + covering date range. A null result
+    // (no schedule covers this date — an edge case, not the common path)
+    // leaves the edit alone rather than blocking it.
+    const coveringSchedule = await this.schedules.findCoveringDate(this.context.organizationId, shift.branch_id, shift.shift_date);
+    if (coveringSchedule?.status === 'archived') {
+      throw new ValidationError('Cannot edit an archived schedule');
+    }
+
+    let updatedShift = shift;
+    if (input.startTime !== undefined || input.endTime !== undefined || input.crossesMidnight !== undefined || input.breakMinutes !== undefined) {
+      updatedShift = await this.updateShift(shift.id, {
+        startTime: input.startTime,
+        endTime: input.endTime,
+        crossesMidnight: input.crossesMidnight,
+        breakMinutes: input.breakMinutes
+      });
+    }
+
+    let updatedAssignment = assignment;
+    if (input.notes !== undefined) {
+      updatedAssignment = await this.assignments.patch(this.context.organizationId, assignmentId, {
+        notes: input.notes
+      } as Partial<ShiftAssignment>);
+    }
+
+    return { shift: updatedShift, assignment: updatedAssignment };
+  }
+
+  /** Removing the cell's only assignment also cancels the now-orphaned shift, so it doesn't linger as dangling data (spec §3.3/§6). */
+  async removeAssignedShiftOnDate(assignmentId: string): Promise<{ assignment: ShiftAssignment; shiftCancelled: boolean }> {
+    assertUuid(assignmentId, 'assignmentId');
+    await this.context.requirePermission('assignments.delete');
+
+    const assignment = await this.assignments.getByIdOrThrow(this.context.organizationId, assignmentId);
+    const shift = await this.shifts.getByIdOrThrow(this.context.organizationId, assignment.shift_id);
+    this.context.requireBranchAccess(shift.branch_id);
+    // See updateAssignedShiftOnDate: the owning schedule is inferred by
+    // branch + covering date range, and a null result doesn't block the edit.
+    const coveringSchedule = await this.schedules.findCoveringDate(this.context.organizationId, shift.branch_id, shift.shift_date);
+    if (coveringSchedule?.status === 'archived') {
+      throw new ValidationError('Cannot edit an archived schedule');
+    }
+
+    const archived = await this.assignments.archive(this.context.organizationId, assignmentId);
+    const remaining = await this.assignments.findByShift(this.context.organizationId, shift.id);
+    let shiftCancelled = false;
+    if (remaining.length === 0) {
+      await this.shifts.cancel(this.context.organizationId, shift.id);
+      shiftCancelled = true;
+    }
+
+    return { assignment: archived, shiftCancelled };
+  }
+
+  /** All active+inactive assignments across every shift in the schedule's date range, in one call — what the weekly grid needs to build its employee×day cells (list_assignments_for_shift is per-shift only). */
+  async listAssignmentsForSchedule(scheduleId: string): Promise<ShiftAssignment[]> {
+    assertUuid(scheduleId, 'scheduleId');
+    await this.context.requirePermission('shifts.read');
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+
+    const shifts = await this.shifts.findByBranchAndDateRange(
+      this.context.organizationId,
+      schedule.branch_id,
+      schedule.start_date,
+      schedule.end_date
+    );
+    if (shifts.length === 0) return [];
+    return this.assignments.listForShifts(this.context.organizationId, shifts.map((shift) => shift.id));
+  }
+
+  /**
+   * Computed on read, nothing stored — SCH-012 §2.3 "validation does not
+   * modify data". Detects two conditions: an employee double-booked across
+   * overlapping active assignments on the same date, and any single shift
+   * exceeding the 10-hour rule. Not wired into publishSchedule's validation
+   * (spec §3.4) — conflicts are advisory in Phase 1, matching publish's
+   * existing "at least one shift" - only check.
+   */
+  async getScheduleConflicts(scheduleId: string): Promise<ScheduleConflict[]> {
+    assertUuid(scheduleId, 'scheduleId');
+    await this.context.requirePermission('schedules.read');
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+
+    const shifts = await this.shifts.findByBranchAndDateRange(
+      this.context.organizationId,
+      schedule.branch_id,
+      schedule.start_date,
+      schedule.end_date
+    );
+    if (shifts.length === 0) return [];
+
+    const shiftsById = new Map(shifts.map((shift) => [shift.id, shift]));
+    const assignments = await this.assignments.listForShifts(this.context.organizationId, shifts.map((shift) => shift.id));
+
+    const conflicts: ScheduleConflict[] = [];
+    const shiftsByEmployeeDate = new Map<string, Shift[]>();
+
+    for (const assignment of assignments) {
+      if (assignment.assignment_status === 'cancelled' || assignment.assignment_status === 'declined') continue;
+      const shift = shiftsById.get(assignment.shift_id);
+      if (!shift) continue;
+
+      const key = `${assignment.employee_id}:${shift.shift_date}`;
+      const list = shiftsByEmployeeDate.get(key) ?? [];
+      list.push(shift);
+      shiftsByEmployeeDate.set(key, list);
+
+      const [hoursPart, minutesPart] = shift.duration.split(':').map(Number);
+      const totalHours = hoursPart + minutesPart / 60;
+      if (totalHours > LONG_SHIFT_HOURS_THRESHOLD) {
+        conflicts.push({
+          employeeId: assignment.employee_id,
+          date: shift.shift_date,
+          kind: 'long_shift',
+          detail: `${shift.title} is ${hoursPart}h${minutesPart > 0 ? ` ${minutesPart}m` : ''} — over the 10-hour rule`
+        });
+      }
+    }
+
+    for (const [key, dayShifts] of shiftsByEmployeeDate) {
+      if (dayShifts.length < 2) continue;
+      // Two shifts on one date is only a double-booking if they actually
+      // overlap — a split shift (09:00-13:00 + 14:00-18:00) is legal.
+      let hasOverlap = false;
+      for (let i = 0; i < dayShifts.length && !hasOverlap; i += 1) {
+        for (let j = i + 1; j < dayShifts.length; j += 1) {
+          if (shiftsOverlap(dayShifts[i], dayShifts[j])) {
+            hasOverlap = true;
+            break;
+          }
+        }
+      }
+      if (!hasOverlap) continue;
+      const [employeeId, date] = key.split(':');
+      conflicts.push({
+        employeeId,
+        date,
+        kind: 'double_booking',
+        detail: `Double-booked across ${dayShifts.length} shifts on ${date}`
+      });
+    }
+
+    return conflicts;
   }
 
   // ==================== Publishing ====================
