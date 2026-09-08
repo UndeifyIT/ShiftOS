@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { CalendarDays, Check, MessageSquare, Users, X } from 'lucide-react';
 import { FormField, SearchableSelect, Skeleton, SkeletonRows } from '@shiftos/ui';
 import { getCountryOptions, getRegionLabel, getStateOptions, resolveCountryValue } from '@shiftos/geography';
@@ -83,6 +83,13 @@ function getTimeZoneOptions(): string[] {
 }
 
 function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
+  const navigate = useNavigate();
+  // Branch is the first step of this wizard's own local step state — the
+  // previous step (Organization) lives in a separately gated component that
+  // never remounts once the organization exists, so going back means routing
+  // to /organization instead of a setStep call (see App.tsx's onboarding
+  // gate, which carves out that one route for exactly this).
+  const goBackToOrganization = (): void => navigate('/organization');
   const { activeOrganization } = useSession();
   const { data: branches, isLoading } = useRpcQuery<Branch[]>('list_branches');
 
@@ -155,7 +162,7 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
           <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-neutral-900">Your first branch is set up</h2>
           <p className="mt-[7px] text-[13px] text-neutral-500">{branches[0]!.name} is ready to go.</p>
         </div>
-        <WizardFooter onNext={onNext} nextLabel="Continue →" />
+        <WizardFooter onBack={goBackToOrganization} onNext={onNext} nextLabel="Continue →" />
       </div>
     );
   }
@@ -261,7 +268,7 @@ function BranchStep({ onNext }: { onNext: () => void }): React.ReactElement {
         )}
       </FormField>
       {error ? <AuthBanner tone="bad" title={error} /> : null}
-      <WizardFooter onNext={() => undefined} nextLabel="Continue →" nextType="submit" saving={createMutation.isPending} />
+      <WizardFooter onBack={goBackToOrganization} onNext={() => undefined} nextLabel="Continue →" nextType="submit" saving={createMutation.isPending} />
     </form>
   );
 }

@@ -202,7 +202,19 @@ export function App(): React.ReactElement {
   if (status === 'ready' && isOrgWideMember && !activeOrganization?.metadata?.onboardingCompletedAt) {
     return (
       <SuspenseRoute>
-        <OnboardingGate />
+        <Routes>
+          {/*
+           * The Branch step's "Back" button (OnboardingWizard.tsx) has
+           * nowhere else to go — Organization is a different, separately
+           * gated component (OrganizationStep, above) that never remounts
+           * once the organization exists. Carving out this one route lets
+           * a mid-onboarding org-wide member revisit/edit what they entered
+           * there without exposing the rest of AppShellRoutes (whose nav
+           * assumes setup is finished).
+           */}
+          <Route path="/organization" element={<OnboardingWizardShell currentStep="Organization"><OrganizationSettingsPage /></OnboardingWizardShell>} />
+          <Route path="*" element={<OnboardingGate />} />
+        </Routes>
       </SuspenseRoute>
     );
   }
