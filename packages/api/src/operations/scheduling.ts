@@ -168,6 +168,23 @@ export const assignShiftToEmployeeOnDate = defineRpc('assign_shift_to_employee_o
   );
 });
 
+export const addShiftToEmployeeOnDate = defineRpc('add_shift_to_employee_on_date', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).addShiftToEmployeeOnDate(
+    requiredStringField(input, 'scheduleId'),
+    requiredStringField(input, 'employeeId'),
+    requiredStringField(input, 'date'),
+    {
+      templateId: stringField(input, 'templateId') ?? null,
+      startTime: stringField(input, 'startTime'),
+      endTime: stringField(input, 'endTime'),
+      crossesMidnight: booleanField(input, 'crossesMidnight'),
+      breakMinutes: numberField(input, 'breakMinutes'),
+      notes: stringField(input, 'notes') ?? null
+    }
+  );
+});
+
 export const updateAssignedShiftOnDate = defineRpc('update_assigned_shift_on_date', async (context, rawInput: unknown) => {
   const input = asRecord(rawInput);
   return new SchedulingService(context).updateAssignedShiftOnDate(requiredStringField(input, 'assignmentId'), {
@@ -211,6 +228,6 @@ export const schedulingOperations = [
   listMyShiftAssignmentsInSchedule,
   assignEmployee, updateAssignmentStatus, removeAssignment, listAssignmentsForShift,
   publishSchedule,
-  assignShiftToEmployeeOnDate, updateAssignedShiftOnDate, removeAssignedShiftOnDate, listAssignmentsForSchedule,
+  assignShiftToEmployeeOnDate, addShiftToEmployeeOnDate, updateAssignedShiftOnDate, removeAssignedShiftOnDate, listAssignmentsForSchedule,
   getScheduleConflicts
 ];

@@ -504,6 +504,38 @@ export class SchedulingService {
     date: string,
     input: AssignShiftToEmployeeInput
   ): Promise<{ shift: Shift; assignment: ShiftAssignment }> {
+    return this.insertShiftAssignment(scheduleId, employeeId, date, input, { replaceExisting: true });
+  }
+
+  /**
+   * Adds another shift to a cell without touching whatever's already there —
+   * split shifts (spec §3.1). Shares every validation/insert step with
+   * assignShiftToEmployeeOnDate via insertShiftAssignment; the two methods
+   * differ only in replaceExisting.
+   */
+  async addShiftToEmployeeOnDate(
+    scheduleId: string,
+    employeeId: string,
+    date: string,
+    input: AssignShiftToEmployeeInput
+  ): Promise<{ shift: Shift; assignment: ShiftAssignment }> {
+    return this.insertShiftAssignment(scheduleId, employeeId, date, input, { replaceExisting: false });
+  }
+
+  /**
+   * Shared body for assignShiftToEmployeeOnDate (replaceExisting: true) and
+   * addShiftToEmployeeOnDate (replaceExisting: false, split shifts — spec
+   * §3.1). Wraps validation + the replace-then-insert or plain-insert in one
+   * transaction so the modal's single button can't leave a half-created
+   * shift with no assignment on a partial failure.
+   */
+  private async insertShiftAssignment(
+    scheduleId: string,
+    employeeId: string,
+    date: string,
+    input: AssignShiftToEmployeeInput,
+    options: { replaceExisting: boolean }
+  ): Promise<{ shift: Shift; assignment: ShiftAssignment }> {
     assertUuid(scheduleId, 'scheduleId');
     assertUuid(employeeId, 'employeeId');
     await this.context.requirePermission('shifts.create');
@@ -540,17 +572,13 @@ export class SchedulingService {
 
     const duration = computeDuration(startTime, endTime, crossesMidnight);
 
-    // The replace + both inserts must succeed or fail together (spec §3.3):
-    // otherwise a failure partway through can archive the employee's existing
-    // assignment (and cancel its shift) while creating nothing to replace it,
-    // or create an orphan shift with no assignment. Repositories are rebuilt
-    // against the transaction-scoped client so all writes share one
-    // BEGIN/COMMIT — same pattern as publishScheduleWithVersion().
     return this.context.client.transaction(async (trxClient) => {
       const shiftsRepo = new ShiftRepository(trxClient);
       const assignmentsRepo = new ShiftAssignmentRepository(trxClient);
 
-      await this.replaceActiveAssignmentOnDate(shiftsRepo, assignmentsRepo, schedule, employeeId, date);
+      if (options.replaceExisting) {
+        await this.replaceActiveAssignmentOnDate(shiftsRepo, assignmentsRepo, schedule, employeeId, date);
+      }
 
       const shift = await shiftsRepo.insert(this.context.organizationId, {
         branch_id: schedule.branch_id,
