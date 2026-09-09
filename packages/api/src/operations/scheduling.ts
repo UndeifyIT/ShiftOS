@@ -221,6 +221,14 @@ export const findAdjacentSchedule = defineRpc('find_adjacent_schedule', async (c
   return new SchedulingService(context).findAdjacentSchedule(requiredStringField(input, 'scheduleId'), direction);
 });
 
+export const duplicateScheduleShifts = defineRpc('duplicate_schedule_shifts', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).duplicateScheduleShifts(
+    requiredStringField(input, 'sourceScheduleId'),
+    requiredStringField(input, 'targetScheduleId')
+  );
+});
+
 // ---- Publishing ----
 
 export const publishSchedule = defineRpc('publish_schedule', async (context, rawInput: unknown) => {
@@ -239,5 +247,5 @@ export const schedulingOperations = [
   assignEmployee, updateAssignmentStatus, removeAssignment, listAssignmentsForShift,
   publishSchedule,
   assignShiftToEmployeeOnDate, addShiftToEmployeeOnDate, updateAssignedShiftOnDate, removeAssignedShiftOnDate, listAssignmentsForSchedule,
-  getScheduleConflicts, findAdjacentSchedule
+  getScheduleConflicts, findAdjacentSchedule, duplicateScheduleShifts
 ];

@@ -804,6 +804,89 @@ export class SchedulingService {
     return this.schedules.findAdjacent(this.context.organizationId, schedule.branch_id, schedule.start_date, direction);
   }
 
+  /**
+   * "Copy last week" (spec §3.3): for every active assignment in the source
+   * schedule's date range, creates an equivalent shift+assignment in the
+   * target schedule at the same day-of-week offset. Notes are deliberately
+   * not copied — a fresh week shouldn't inherit last week's handover notes.
+   * One transaction: a partial failure must not leave a half-copied week.
+   */
+  async duplicateScheduleShifts(sourceScheduleId: string, targetScheduleId: string): Promise<{ copiedCount: number }> {
+    assertUuid(sourceScheduleId, 'sourceScheduleId');
+    assertUuid(targetScheduleId, 'targetScheduleId');
+    await this.context.requirePermission('shifts.create');
+    await this.context.requirePermission('assignments.create');
+
+    const source = await this.schedules.getByIdOrThrow(this.context.organizationId, sourceScheduleId);
+    const target = await this.schedules.getByIdOrThrow(this.context.organizationId, targetScheduleId);
+    this.context.requireBranchAccess(source.branch_id);
+    this.context.requireBranchAccess(target.branch_id);
+    if (target.status === 'archived') {
+      throw new ValidationError('Cannot edit an archived schedule');
+    }
+
+    const sourceShifts = await this.shifts.findByBranchAndDateRange(
+      this.context.organizationId,
+      source.branch_id,
+      source.start_date,
+      source.end_date
+    );
+    if (sourceShifts.length === 0) {
+      return { copiedCount: 0 };
+    }
+
+    const sourceAssignments = await this.assignments.listForShifts(this.context.organizationId, sourceShifts.map((s) => s.id));
+    const shiftsById = new Map(sourceShifts.map((s) => [s.id, s]));
+    const activeAssignments = sourceAssignments.filter(
+      (a) => a.assignment_status !== 'cancelled' && a.assignment_status !== 'declined'
+    );
+
+    const sourceStart = new Date(`${source.start_date}T00:00:00Z`);
+    const targetStart = new Date(`${target.start_date}T00:00:00Z`);
+
+    return this.context.client.transaction(async (trxClient) => {
+      const shiftsRepo = new ShiftRepository(trxClient);
+      const assignmentsRepo = new ShiftAssignmentRepository(trxClient);
+      let copiedCount = 0;
+
+      for (const assignment of activeAssignments) {
+        const sourceShift = shiftsById.get(assignment.shift_id);
+        if (!sourceShift) continue;
+
+        const sourceDate = new Date(`${sourceShift.shift_date}T00:00:00Z`);
+        const dayOffset = Math.round((sourceDate.getTime() - sourceStart.getTime()) / (24 * 60 * 60 * 1000));
+        const targetDate = new Date(targetStart.getTime() + dayOffset * 24 * 60 * 60 * 1000);
+        const targetDateString = targetDate.toISOString().slice(0, 10);
+
+        const newShift = await shiftsRepo.insert(this.context.organizationId, {
+          branch_id: target.branch_id,
+          template_id: sourceShift.template_id,
+          title: sourceShift.title,
+          description: null,
+          shift_date: targetDateString,
+          start_time: sourceShift.start_time,
+          end_time: sourceShift.end_time,
+          duration: sourceShift.duration,
+          crosses_midnight: sourceShift.crosses_midnight,
+          break_minutes: sourceShift.break_minutes,
+          status: 'draft'
+        } as Partial<Shift>);
+
+        await assignmentsRepo.insert(this.context.organizationId, {
+          shift_id: newShift.id,
+          employee_id: assignment.employee_id,
+          assignment_status: 'assigned',
+          assigned_by: this.context.userId,
+          notes: null
+        } as Partial<ShiftAssignment>);
+
+        copiedCount += 1;
+      }
+
+      return { copiedCount };
+    });
+  }
+
   // ==================== Publishing ====================
 
   /**

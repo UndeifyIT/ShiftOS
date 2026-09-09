@@ -16,7 +16,7 @@ import {
   assignEmployee, updateAssignmentStatus, removeAssignment, listAssignmentsForShift,
   publishSchedule,
   assignShiftToEmployeeOnDate, addShiftToEmployeeOnDate, updateAssignedShiftOnDate, removeAssignedShiftOnDate, listAssignmentsForSchedule,
-  getScheduleConflicts, findAdjacentSchedule
+  getScheduleConflicts, findAdjacentSchedule, duplicateScheduleShifts
 } from './operations/scheduling.js';
 import { addEmployeeToSchedule, removeEmployeeFromSchedule, listScheduleRoster } from './operations/scheduleRoster.js';
 import { listShiftTemplates, createShiftTemplate } from './operations/shiftTemplate.js';
@@ -137,6 +137,7 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(listAssignmentsForSchedule);
   registry.register(getScheduleConflicts);
   registry.register(findAdjacentSchedule);
+  registry.register(duplicateScheduleShifts);
 
   registry.register(createTask);
   registry.register(getTask);
