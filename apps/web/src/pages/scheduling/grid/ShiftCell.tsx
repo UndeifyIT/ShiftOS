@@ -52,6 +52,7 @@ export function ShiftCell({ cards, scheduleId, hasConflict, canEdit, onCardClick
             {canEdit ? (
               <ShiftCardMenu
                 card={card}
+                cellCards={cards}
                 scheduleId={scheduleId}
                 onEdit={() => onCardClick(card)}
                 onDuplicated={() => undefined}

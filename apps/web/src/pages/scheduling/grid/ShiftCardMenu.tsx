@@ -5,6 +5,7 @@ import type { ShiftCellCard } from './ShiftCell.js';
 
 export interface ShiftCardMenuProps {
   card: ShiftCellCard;
+  cellCards: ShiftCellCard[];
   scheduleId: string;
   onEdit: () => void;
   onDuplicated: () => void;
@@ -13,7 +14,7 @@ export interface ShiftCardMenuProps {
 }
 
 /** The "⋮" per-card menu (design handoff cardView's menuItem list): Edit shift, Duplicate, Move to drafts, Mark day off, Delete. */
-export function ShiftCardMenu({ card, scheduleId, onEdit, onDuplicated, onMoveToDrafts, onDeleted }: ShiftCardMenuProps): React.ReactElement {
+export function ShiftCardMenu({ card, cellCards, scheduleId, onEdit, onDuplicated, onMoveToDrafts, onDeleted }: ShiftCardMenuProps): React.ReactElement {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -37,6 +38,9 @@ export function ShiftCardMenu({ card, scheduleId, onEdit, onDuplicated, onMoveTo
     invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
     onSuccess: onDeleted
   });
+  const markOffMutation = useRpcMutation<unknown, { assignmentId: string }>('remove_assigned_shift_on_date', {
+    invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule']
+  });
 
   const handleDuplicate = (): void => {
     setOpen(false);
@@ -50,6 +54,11 @@ export function ShiftCardMenu({ card, scheduleId, onEdit, onDuplicated, onMoveTo
       breakMinutes: card.shift.break_minutes,
       notes: card.assignment.notes
     });
+  };
+
+  const handleMarkDayOff = (): void => {
+    setOpen(false);
+    cellCards.forEach((c) => markOffMutation.mutate({ assignmentId: c.assignment.id }));
   };
 
   const item = (label: string, onClick: () => void, danger = false): React.ReactElement => (
@@ -91,6 +100,7 @@ export function ShiftCardMenu({ card, scheduleId, onEdit, onDuplicated, onMoveTo
             setOpen(false);
             onMoveToDrafts(card);
           })}
+          {item('Mark day off', handleMarkDayOff)}
           {item('Delete', () => {
             setOpen(false);
             removeMutation.mutate({ assignmentId: card.assignment.id });
