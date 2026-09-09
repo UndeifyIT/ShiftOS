@@ -57,28 +57,59 @@ describe('duplicate schedule shifts integration', () => {
     shiftIds.push(sourceAssignment.shift.id);
     assignmentIds.push(sourceAssignment.assignment.id);
 
+    // Add a second shift on Wednesday (dayOffset = 2) to test offset arithmetic
+    const sourceAssignment2 = await ctx.call<{ shift: { id: string }; assignment: { id: string } }>('assign_shift_to_employee_on_date', {
+      scheduleId: sourceScheduleId,
+      employeeId: TEST_FIXTURES.employeeId,
+      date: '2028-01-05', // Wednesday of source week
+      startTime: '10:00',
+      endTime: '18:00',
+      notes: 'Another handover note — should not carry over'
+    });
+    shiftIds.push(sourceAssignment2.shift.id);
+    assignmentIds.push(sourceAssignment2.assignment.id);
+
     const result = await ctx.call<{ copiedCount: number }>('duplicate_schedule_shifts', {
       sourceScheduleId,
       targetScheduleId
     });
-    expect(result.copiedCount).toBe(1);
+    expect(result.copiedCount).toBe(2);
 
-    const targetShifts = await ctx.client.query<{ id: string; shift_date: string; start_time: string; end_time: string }>(
+    // Verify Monday shift (dayOffset = 0) copied correctly
+    const targetShiftsMonday = await ctx.client.query<{ id: string; shift_date: string; start_time: string; end_time: string }>(
       'SELECT id, shift_date::text, start_time::text, end_time::text FROM shifts WHERE organization_id = $1 AND branch_id = $2 AND shift_date = $3',
       [TEST_FIXTURES.organizationId, TEST_FIXTURES.branchId, '2028-01-10']
     );
-    expect(targetShifts).toHaveLength(1);
-    shiftIds.push(targetShifts[0].id);
-    expect(targetShifts[0].start_time.slice(0, 5)).toBe('09:00');
-    expect(targetShifts[0].end_time.slice(0, 5)).toBe('17:00');
+    expect(targetShiftsMonday).toHaveLength(1);
+    shiftIds.push(targetShiftsMonday[0].id);
+    expect(targetShiftsMonday[0].start_time.slice(0, 5)).toBe('09:00');
+    expect(targetShiftsMonday[0].end_time.slice(0, 5)).toBe('17:00');
 
-    const targetAssignments = await ctx.client.query<{ id: string; notes: string | null }>(
+    const targetAssignmentsMonday = await ctx.client.query<{ id: string; notes: string | null }>(
       'SELECT id, notes FROM shift_assignments WHERE organization_id = $1 AND shift_id = $2',
-      [TEST_FIXTURES.organizationId, targetShifts[0].id]
+      [TEST_FIXTURES.organizationId, targetShiftsMonday[0].id]
     );
-    expect(targetAssignments).toHaveLength(1);
-    assignmentIds.push(targetAssignments[0].id);
-    expect(targetAssignments[0].notes).toBeNull();
+    expect(targetAssignmentsMonday).toHaveLength(1);
+    assignmentIds.push(targetAssignmentsMonday[0].id);
+    expect(targetAssignmentsMonday[0].notes).toBeNull();
+
+    // Verify Wednesday shift (dayOffset = 2) copied correctly to target's Wednesday
+    const targetShiftsWednesday = await ctx.client.query<{ id: string; shift_date: string; start_time: string; end_time: string }>(
+      'SELECT id, shift_date::text, start_time::text, end_time::text FROM shifts WHERE organization_id = $1 AND branch_id = $2 AND shift_date = $3',
+      [TEST_FIXTURES.organizationId, TEST_FIXTURES.branchId, '2028-01-12']
+    );
+    expect(targetShiftsWednesday).toHaveLength(1);
+    shiftIds.push(targetShiftsWednesday[0].id);
+    expect(targetShiftsWednesday[0].start_time.slice(0, 5)).toBe('10:00');
+    expect(targetShiftsWednesday[0].end_time.slice(0, 5)).toBe('18:00');
+
+    const targetAssignmentsWednesday = await ctx.client.query<{ id: string; notes: string | null }>(
+      'SELECT id, notes FROM shift_assignments WHERE organization_id = $1 AND shift_id = $2',
+      [TEST_FIXTURES.organizationId, targetShiftsWednesday[0].id]
+    );
+    expect(targetAssignmentsWednesday).toHaveLength(1);
+    assignmentIds.push(targetAssignmentsWednesday[0].id);
+    expect(targetAssignmentsWednesday[0].notes).toBeNull();
   });
 
   it('is a no-op when the source schedule has zero shifts', async () => {
