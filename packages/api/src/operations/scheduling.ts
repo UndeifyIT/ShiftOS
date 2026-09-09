@@ -1,5 +1,6 @@
 import { SchedulingService } from '@shiftos/services';
 import type { AssignmentStatus } from '@shiftos/repositories';
+import { ValidationError } from '@shiftos/errors';
 import { defineRpc } from '../rpc.js';
 import { asRecord, requiredStringField, stringField, numberField, booleanField } from '../parse.js';
 
@@ -211,6 +212,15 @@ export const getScheduleConflicts = defineRpc('get_schedule_conflicts', async (c
   return new SchedulingService(context).getScheduleConflicts(requiredStringField(input, 'scheduleId'));
 });
 
+export const findAdjacentSchedule = defineRpc('find_adjacent_schedule', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  const direction = requiredStringField(input, 'direction');
+  if (direction !== 'prev' && direction !== 'next') {
+    throw new ValidationError('direction must be "prev" or "next"');
+  }
+  return new SchedulingService(context).findAdjacentSchedule(requiredStringField(input, 'scheduleId'), direction);
+});
+
 // ---- Publishing ----
 
 export const publishSchedule = defineRpc('publish_schedule', async (context, rawInput: unknown) => {
@@ -229,5 +239,5 @@ export const schedulingOperations = [
   assignEmployee, updateAssignmentStatus, removeAssignment, listAssignmentsForShift,
   publishSchedule,
   assignShiftToEmployeeOnDate, addShiftToEmployeeOnDate, updateAssignedShiftOnDate, removeAssignedShiftOnDate, listAssignmentsForSchedule,
-  getScheduleConflicts
+  getScheduleConflicts, findAdjacentSchedule
 ];

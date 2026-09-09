@@ -794,6 +794,16 @@ export class SchedulingService {
     return conflicts;
   }
 
+  /** Powers the grid's ‹ › week-navigator (spec §3.2) — never auto-creates a schedule for an empty adjacent week, just reports there isn't one. */
+  async findAdjacentSchedule(scheduleId: string, direction: 'prev' | 'next'): Promise<Schedule | null> {
+    assertUuid(scheduleId, 'scheduleId');
+    assertOneOf(direction, ['prev', 'next'], 'direction');
+    await this.context.requirePermission('schedules.read');
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+    return this.schedules.findAdjacent(this.context.organizationId, schedule.branch_id, schedule.start_date, direction);
+  }
+
   // ==================== Publishing ====================
 
   /**
