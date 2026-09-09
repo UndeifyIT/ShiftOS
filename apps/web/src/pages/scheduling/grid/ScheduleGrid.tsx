@@ -43,7 +43,7 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   const { data: conflicts, isLoading: conflictsLoading } = useRpcQuery<ScheduleConflict[]>('get_schedule_conflicts', { scheduleId });
 
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
-  const [activeCell, setActiveCell] = useState<{ employeeId: string; date: string } | null>(null);
+  const [activeCell, setActiveCell] = useState<{ employeeId: string; date: string; editingAssignmentId: string | null } | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
   const employeesById = useMemo(() => new Map((employees ?? []).map((e) => [e.id, e])), [employees]);
@@ -58,12 +58,15 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   }, [schedule.start_date]);
 
   const cellAssignments = useMemo(() => {
-    const map = new Map<string, { assignment: ShiftAssignment; shift: Shift }>();
+    const map = new Map<string, Array<{ assignment: ShiftAssignment; shift: Shift }>>();
     for (const assignment of assignments ?? []) {
       if (assignment.assignment_status === 'cancelled' || assignment.assignment_status === 'declined') continue;
       const shift = shiftsById.get(assignment.shift_id);
       if (!shift) continue;
-      map.set(activeCellKey(assignment.employee_id, shift.shift_date), { assignment, shift });
+      const key = activeCellKey(assignment.employee_id, shift.shift_date);
+      const list = map.get(key) ?? [];
+      list.push({ assignment, shift });
+      map.set(key, list);
     }
     return map;
   }, [assignments, shiftsById]);
@@ -138,16 +141,16 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
                     ) : null}
                   </div>
                   {days.map((day) => {
-                    const cell = cellAssignments.get(activeCellKey(employee.id, day));
+                    const cards = cellAssignments.get(activeCellKey(employee.id, day)) ?? [];
                     const cellConflicts = conflictsByCell.get(activeCellKey(employee.id, day)) ?? [];
                     return (
                       <ShiftCell
                         key={day}
-                        shift={cell?.shift ?? null}
-                        assignment={cell?.assignment ?? null}
+                        cards={cards}
                         hasConflict={cellConflicts.length > 0}
                         canEdit={canEdit}
-                        onClick={() => setActiveCell({ employeeId: employee.id, date: day })}
+                        onCardClick={(card) => setActiveCell({ employeeId: employee.id, date: day, editingAssignmentId: card.assignment.id })}
+                        onAddClick={() => setActiveCell({ employeeId: employee.id, date: day, editingAssignmentId: null })}
                       />
                     );
                   })}
@@ -171,7 +174,12 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
             conflicts={conflicts ?? []}
             employeesById={employeesById}
             onSelectConflict={
-              canEdit ? (conflict) => setActiveCell({ employeeId: conflict.employeeId, date: conflict.date }) : undefined
+              canEdit
+                ? (conflict) => {
+                    const cards = cellAssignments.get(activeCellKey(conflict.employeeId, conflict.date)) ?? [];
+                    setActiveCell({ employeeId: conflict.employeeId, date: conflict.date, editingAssignmentId: cards[0]?.assignment.id ?? null });
+                  }
+                : undefined
             }
           />
         </aside>
@@ -209,7 +217,13 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
           employeeId={activeCell.employeeId}
           employeeName={activeEmployee ? `${activeEmployee.first_name} ${activeEmployee.last_name}` : ''}
           date={activeCell.date}
-          existing={cellAssignments.get(activeCellKey(activeCell.employeeId, activeCell.date)) ?? null}
+          existing={
+            activeCell.editingAssignmentId
+              ? (cellAssignments.get(activeCellKey(activeCell.employeeId, activeCell.date)) ?? []).find(
+                  (c) => c.assignment.id === activeCell.editingAssignmentId
+                ) ?? null
+              : null
+          }
         />
       ) : null}
     </div>
