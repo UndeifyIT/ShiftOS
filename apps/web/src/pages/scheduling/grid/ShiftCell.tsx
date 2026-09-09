@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Shift, ShiftAssignment } from '../../../types/domain.js';
+import { ShiftCardMenu } from './ShiftCardMenu.js';
 
 export interface ShiftCellCard {
   shift: Shift;
@@ -8,14 +9,16 @@ export interface ShiftCellCard {
 
 export interface ShiftCellProps {
   cards: ShiftCellCard[];
+  scheduleId: string;
   hasConflict: boolean;
   canEdit: boolean;
   onCardClick: (card: ShiftCellCard) => void;
   onAddClick: () => void;
+  onMoveToDrafts: (card: ShiftCellCard) => void;
 }
 
 /** One employee/day cell in the weekly grid — holds zero or more shift cards (split shifts, spec §3.1). Empty renders "OFF"; canEdit shows a "+" affordance to add the first (or another) card. */
-export function ShiftCell({ cards, hasConflict, canEdit, onCardClick, onAddClick }: ShiftCellProps): React.ReactElement {
+export function ShiftCell({ cards, scheduleId, hasConflict, canEdit, onCardClick, onAddClick, onMoveToDrafts }: ShiftCellProps): React.ReactElement {
   const isEmpty = cards.length === 0;
 
   return (
@@ -29,21 +32,34 @@ export function ShiftCell({ cards, hasConflict, canEdit, onCardClick, onAddClick
         <span className="flex flex-1 items-center justify-center text-xs font-medium text-neutral-400">OFF</span>
       ) : (
         cards.map((card) => (
-          <button
+          <div
             key={card.assignment.id}
-            type="button"
-            onClick={canEdit ? () => onCardClick(card) : undefined}
-            disabled={!canEdit}
-            className={[
-              'flex flex-col items-start justify-center gap-0.5 rounded-lg border border-transparent bg-brand-50 p-1.5 text-left transition-colors',
-              canEdit ? 'cursor-pointer hover:border-brand-200' : 'cursor-default'
-            ].join(' ')}
+            className="relative flex items-start gap-1 rounded-lg border border-transparent bg-brand-50 p-1.5 hover:border-brand-200"
           >
-            <span className="text-xs font-semibold text-neutral-900">
-              {card.shift.start_time.slice(0, 5)} – {card.shift.end_time.slice(0, 5)}
-            </span>
-            {card.assignment.notes ? <span className="truncate text-[10.5px] text-neutral-500">{card.assignment.notes}</span> : null}
-          </button>
+            <button
+              type="button"
+              onClick={canEdit ? () => onCardClick(card) : undefined}
+              disabled={!canEdit}
+              className={['flex min-w-0 flex-1 flex-col items-start justify-center gap-0.5 text-left', canEdit ? 'cursor-pointer' : 'cursor-default'].join(
+                ' '
+              )}
+            >
+              <span className="text-xs font-semibold text-neutral-900">
+                {card.shift.start_time.slice(0, 5)} – {card.shift.end_time.slice(0, 5)}
+              </span>
+              {card.assignment.notes ? <span className="truncate text-[10.5px] text-neutral-500">{card.assignment.notes}</span> : null}
+            </button>
+            {canEdit ? (
+              <ShiftCardMenu
+                card={card}
+                scheduleId={scheduleId}
+                onEdit={() => onCardClick(card)}
+                onDuplicated={() => undefined}
+                onMoveToDrafts={onMoveToDrafts}
+                onDeleted={() => undefined}
+              />
+            ) : null}
+          </div>
         ))
       )}
       {canEdit ? (

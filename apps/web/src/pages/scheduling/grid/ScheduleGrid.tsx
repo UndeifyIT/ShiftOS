@@ -45,6 +45,7 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
   const [activeCell, setActiveCell] = useState<{ employeeId: string; date: string; editingAssignmentId: string | null } | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [tray, setTray] = useState<Array<{ shift: Shift; assignment: ShiftAssignment }>>([]);
 
   const employeesById = useMemo(() => new Map((employees ?? []).map((e) => [e.id, e])), [employees]);
   const shiftsById = useMemo(() => new Map((shifts ?? []).map((s) => [s.id, s])), [shifts]);
@@ -94,6 +95,14 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
     'remove_employee_from_schedule',
     { invalidates: ['list_schedule_roster'] }
   );
+  const removeAssignedShiftMutation = useRpcMutation<unknown, { assignmentId: string }>('remove_assigned_shift_on_date', {
+    invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule']
+  });
+
+  const handleMoveToDrafts = (card: { shift: Shift; assignment: ShiftAssignment }): void => {
+    setTray((prev) => [...prev, card]);
+    removeAssignedShiftMutation.mutate({ assignmentId: card.assignment.id });
+  };
 
   const isLoading = rosterLoading || shiftsLoading || employeesLoading || assignmentsLoading || conflictsLoading;
   const scheduledCount = rosterEmployees.filter((e) => days.some((d) => cellAssignments.has(activeCellKey(e.id, d)))).length;
@@ -147,10 +156,12 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
                       <ShiftCell
                         key={day}
                         cards={cards}
+                        scheduleId={scheduleId}
                         hasConflict={cellConflicts.length > 0}
                         canEdit={canEdit}
                         onCardClick={(card) => setActiveCell({ employeeId: employee.id, date: day, editingAssignmentId: card.assignment.id })}
                         onAddClick={() => setActiveCell({ employeeId: employee.id, date: day, editingAssignmentId: null })}
+                        onMoveToDrafts={handleMoveToDrafts}
                       />
                     );
                   })}
