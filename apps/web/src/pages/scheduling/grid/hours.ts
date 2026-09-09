@@ -42,3 +42,11 @@ export function computeHoursSummary(
     return { employeeId, hours, overtime: hours > OVERTIME_THRESHOLD_HOURS };
   });
 }
+
+/** "142h 30m" style, matching the handoff's stats-bar format (durText). 0 minutes renders as just "0h". */
+export function formatHoursDuration(totalHours: number): string {
+  const totalMinutes = Math.round(totalHours * 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
+}

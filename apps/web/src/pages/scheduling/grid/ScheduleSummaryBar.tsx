@@ -1,8 +1,8 @@
 import React from 'react';
 import { Button, StatCard } from '@shiftos/ui';
-import { Users, CalendarCheck, UserX, AlertTriangle, PieChart } from 'lucide-react';
+import { Users, CalendarCheck, UserX, AlertTriangle, PieChart, Clock } from 'lucide-react';
 import type { Employee, Shift, ShiftAssignment } from '../../../types/domain.js';
-import { computeHoursSummary } from './hours.js';
+import { computeHoursSummary, formatHoursDuration } from './hours.js';
 
 export interface ScheduleSummaryBarProps {
   totalEmployees: number;
@@ -40,6 +40,7 @@ export function ScheduleSummaryBar({
     ...row,
     employee: employeesById.get(row.employeeId)
   }));
+  const totalHours = summaryRows.reduce((sum, row) => sum + row.hours, 0);
 
   return (
     <div className="flex flex-col gap-3">
@@ -53,6 +54,7 @@ export function ScheduleSummaryBar({
           className="min-w-[130px] flex-1 border-0 p-0 shadow-none"
         />
         <StatCard label="Conflicts" value={conflictCount} icon={AlertTriangle} className="min-w-[130px] flex-1 border-0 p-0 shadow-none" />
+        <StatCard label="Total Hours" value={formatHoursDuration(totalHours)} icon={Clock} className="min-w-[130px] flex-1 border-0 p-0 shadow-none" />
         <StatCard label="Coverage" value={`${coverage}%`} icon={PieChart} tone="brand" className="min-w-[130px] flex-1 border-0 p-0 shadow-none" />
         <Button variant="ghost" size="sm" onClick={onToggle} className="ml-auto">
           Schedule Summary {open ? '▲' : '▼'}
