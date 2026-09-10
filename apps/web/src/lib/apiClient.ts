@@ -63,9 +63,9 @@ export async function callRpc<TOutput>(operation: string, organizationId: string
     throw new ApiClientError('We could not complete this action. Please try again.', 'HTTP_ERROR');
   }
 
-  if (!body.success || body.data === null) {
+  if (!body.success) {
     throw new ApiClientError(body.error?.message ?? 'Request failed', toApiErrorCode(body.error?.code), body.error?.details);
   }
 
-  return body.data;
+  return body.data as TOutput;
 }
