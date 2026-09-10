@@ -110,15 +110,22 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
     { invalidates: ['list_schedule_roster'] }
   );
   const removeAssignedShiftMutation = useRpcMutation<unknown, { assignmentId: string }>('remove_assigned_shift_on_date', {
-    invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule']
+    invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
+    onError: (err) => setCardMenuError(err.message)
   });
   const assignShiftMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
     'assign_shift_to_employee_on_date',
-    { invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'] }
+    {
+      invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
+      onError: (err) => setCardMenuError(err.message)
+    }
   );
   const addShiftMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
     'add_shift_to_employee_on_date',
-    { invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'] }
+    {
+      invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
+      onError: (err) => setCardMenuError(err.message)
+    }
   );
 
   const handleMoveToDrafts = (card: { shift: Shift; assignment: ShiftAssignment }): void => {
@@ -152,22 +159,26 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
         setDragging(null);
         return;
       }
-      mutate({
-        scheduleId,
-        employeeId,
-        date,
-        templateId: null,
-        startTime: draft.startTime,
-        endTime: draft.endTime,
-        breakMinutes: draft.breakMinutes,
-        notes: draft.note || null
-      });
-      setTray((prev) => prev.filter((d) => d.id !== draft.id));
+      mutate(
+        {
+          scheduleId,
+          employeeId,
+          date,
+          templateId: null,
+          startTime: draft.startTime,
+          endTime: draft.endTime,
+          breakMinutes: draft.breakMinutes,
+          notes: draft.note || null
+        },
+        { onSuccess: () => setTray((prev) => prev.filter((d) => d.id !== draft.id)) }
+      );
     } else {
-      // Moving an already-assigned card from one cell to another: remove
-      // the source assignment, then assign/add on the destination. Two RPC
-      // calls rather than one atomic "move" — matches the handoff's own
-      // mock treating this as remove+add (spec §4.1).
+      // Moving an already-assigned card from one cell to another: assign/add
+      // on the destination first, then remove the source assignment only
+      // once that succeeds. Two RPC calls rather than one atomic "move" —
+      // matches the handoff's own mock treating this as remove+add (spec
+      // §4.1) — but ordered add-then-remove so a failed destination write
+      // never causes a silent loss of the source assignment.
       if (dragging.employeeId === employeeId && dragging.date === date) {
         setDragging(null);
         return; // dropped on its own cell — no-op
@@ -178,18 +189,24 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
         setDragging(null);
         return;
       }
-      removeAssignedShiftMutation.mutate({ assignmentId: dragging.assignmentId });
-      mutate({
-        scheduleId,
-        employeeId,
-        date,
-        templateId: sourceCard.shift.template_id,
-        startTime: sourceCard.shift.start_time.slice(0, 5),
-        endTime: sourceCard.shift.end_time.slice(0, 5),
-        crossesMidnight: sourceCard.shift.crosses_midnight,
-        breakMinutes: sourceCard.shift.break_minutes,
-        notes: sourceCard.assignment.notes
-      });
+      mutate(
+        {
+          scheduleId,
+          employeeId,
+          date,
+          templateId: sourceCard.shift.template_id,
+          startTime: sourceCard.shift.start_time.slice(0, 5),
+          endTime: sourceCard.shift.end_time.slice(0, 5),
+          crossesMidnight: sourceCard.shift.crosses_midnight,
+          breakMinutes: sourceCard.shift.break_minutes,
+          notes: sourceCard.assignment.notes
+        },
+        {
+          onSuccess: () => {
+            removeAssignedShiftMutation.mutate({ assignmentId: dragging.assignmentId });
+          }
+        }
+      );
     }
     setDragging(null);
   };
