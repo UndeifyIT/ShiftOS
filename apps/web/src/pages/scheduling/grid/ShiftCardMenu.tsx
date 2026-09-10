@@ -28,6 +28,12 @@ export function ShiftCardMenu({ card, cellCards, scheduleId, onEdit, onDuplicate
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
+  useEffect(() => {
+    if (!error) return;
+    const timeout = setTimeout(() => setError(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [error]);
+
   const duplicateMutation = useRpcMutation<{ shift: unknown; assignment: ShiftAssignment }, Record<string, unknown>>(
     'add_shift_to_employee_on_date',
     {
@@ -87,18 +93,19 @@ export function ShiftCardMenu({ card, cellCards, scheduleId, onEdit, onDuplicate
         aria-label="Shift options"
         onClick={(e) => {
           e.stopPropagation();
-          setOpen((v) => {
-            if (!v) setError(null);
-            return !v;
-          });
+          setOpen((v) => !v);
         }}
         className="flex h-4 w-4 items-center justify-center rounded text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
       >
         ⋮
       </button>
+      {error ? (
+        <p className="absolute right-0 top-5 z-30 w-48 rounded-lg border border-error-200 bg-error-50 px-2.5 py-1.5 text-[10.5px] font-semibold text-error-600 shadow-lg">
+          {error}
+        </p>
+      ) : null}
       {open ? (
         <div className="absolute right-0 top-5 z-30 flex w-36 flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg">
-          {error ? <p className="px-2.5 py-1.5 text-[10.5px] text-error-600 font-semibold">{error}</p> : null}
           {item('Edit shift', () => {
             setOpen(false);
             onEdit();
@@ -111,7 +118,6 @@ export function ShiftCardMenu({ card, cellCards, scheduleId, onEdit, onDuplicate
           {item('Mark day off', handleMarkDayOff)}
           {item('Delete', () => {
             setOpen(false);
-            setError(null);
             removeMutation.mutate({ assignmentId: card.assignment.id });
           }, true)}
         </div>
