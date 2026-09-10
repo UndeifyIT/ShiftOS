@@ -100,7 +100,7 @@ export function ShiftCardMenu({ card, cellCards, scheduleId, onEdit, onDuplicate
         ⋮
       </button>
       {error ? (
-        <p className="absolute right-0 top-5 z-30 w-48 rounded-lg border border-error-200 bg-error-50 px-2.5 py-1.5 text-[10.5px] font-semibold text-error-600 shadow-lg">
+        <p className="absolute bottom-full right-0 z-30 mb-1 w-48 rounded-lg border border-error-200 bg-error-50 px-2.5 py-1.5 text-[10.5px] font-semibold text-error-600 shadow-lg">
           {error}
         </p>
       ) : null}
