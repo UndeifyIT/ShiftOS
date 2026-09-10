@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@shiftos/ui';
+import { useNavigate } from 'react-router-dom';
+import { callRpc } from '../../../lib/apiClient.js';
 import { useRpcMutation, useRpcQuery } from '../../../lib/useRpc.js';
 import type {
   Employee,
@@ -40,6 +42,8 @@ function addDaysToDateString(dateString: string, count: number): string {
 
 /** The weekly employee × day grid — WEB-012 replacement (design handoff "Manager/Schedules" / "Supervisor/Schedules"). */
 export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProps): React.ReactElement {
+  const navigate = useNavigate();
+
   const { data: roster, isLoading: rosterLoading } = useRpcQuery<ScheduleRosterEntry[]>('list_schedule_roster', { scheduleId });
   const { data: employees, isLoading: employeesLoading } = useRpcQuery<Employee[]>('list_employees', { branchId: schedule.branch_id });
   const { data: shifts, isLoading: shiftsLoading } = useRpcQuery<Shift[]>('list_shifts_for_schedule', { scheduleId });
@@ -60,6 +64,15 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
     const timeout = setTimeout(() => setCardMenuError(null), 4000);
     return () => clearTimeout(timeout);
   }, [cardMenuError]);
+
+  const goToAdjacentWeek = async (direction: 'prev' | 'next'): Promise<void> => {
+    const adjacent = await callRpc<Schedule | null>('find_adjacent_schedule', schedule.organization_id, { scheduleId, direction });
+    if (adjacent) {
+      navigate(`/schedules/${adjacent.id}`);
+    } else {
+      setCardMenuError(direction === 'next' ? 'No later schedule exists yet for this branch.' : 'No earlier schedule exists for this branch.');
+    }
+  };
 
   const employeesById = useMemo(() => new Map((employees ?? []).map((e) => [e.id, e])), [employees]);
   const shiftsById = useMemo(() => new Map((shifts ?? []).map((s) => [s.id, s])), [shifts]);
@@ -226,6 +239,29 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-2">
+        <button
+          type="button"
+          onClick={() => void goToAdjacentWeek('prev')}
+          aria-label="Previous week"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-neutral-300"
+        >
+          ‹
+        </button>
+        <span className="text-sm font-bold text-neutral-900">
+          {new Date(`${schedule.start_date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} –{' '}
+          {new Date(`${schedule.end_date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+        </span>
+        <button
+          type="button"
+          onClick={() => void goToAdjacentWeek('next')}
+          aria-label="Next week"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-neutral-300"
+        >
+          ›
+        </button>
+      </div>
+
       <div className="flex flex-wrap gap-4">
         <div className="min-w-0 flex-1 overflow-x-auto rounded-2xl border border-neutral-200 bg-white">
           <div className="grid" style={{ gridTemplateColumns: '200px repeat(7, minmax(120px, 1fr))' }}>
