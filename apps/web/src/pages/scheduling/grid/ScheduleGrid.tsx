@@ -12,9 +12,11 @@ import type {
 import { AddEmployeeModal } from './AddEmployeeModal.js';
 import { AiAssistantPanel } from './AiAssistantPanel.js';
 import { AssignShiftModal } from './AssignShiftModal.js';
+import { NewDraftModal } from './NewDraftModal.js';
 import { ScheduleConflictsPanel } from './ScheduleConflictsPanel.js';
 import { ScheduleSummaryBar } from './ScheduleSummaryBar.js';
 import { ShiftCell } from './ShiftCell.js';
+import { ShiftDraftsTray, type TrayDraft } from './ShiftDraftsTray.js';
 
 export interface ScheduleGridProps {
   scheduleId: string;
@@ -45,7 +47,8 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
   const [activeCell, setActiveCell] = useState<{ employeeId: string; date: string; editingAssignmentId: string | null } | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const [tray, setTray] = useState<Array<{ shift: Shift; assignment: ShiftAssignment }>>([]);
+  const [tray, setTray] = useState<TrayDraft[]>([]);
+  const [draftModal, setDraftModal] = useState<{ open: boolean; editing: TrayDraft | null }>({ open: false, editing: null });
 
   const employeesById = useMemo(() => new Map((employees ?? []).map((e) => [e.id, e])), [employees]);
   const shiftsById = useMemo(() => new Map((shifts ?? []).map((s) => [s.id, s])), [shifts]);
@@ -100,7 +103,16 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   });
 
   const handleMoveToDrafts = (card: { shift: Shift; assignment: ShiftAssignment }): void => {
-    setTray((prev) => [...prev, card]);
+    setTray((prev) => [
+      ...prev,
+      {
+        id: card.assignment.id,
+        startTime: card.shift.start_time.slice(0, 5),
+        endTime: card.shift.end_time.slice(0, 5),
+        breakMinutes: card.shift.break_minutes,
+        note: card.assignment.notes ?? ''
+      }
+    ]);
     removeAssignedShiftMutation.mutate({ assignmentId: card.assignment.id });
   };
 
@@ -177,6 +189,12 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
               </div>
             ) : null}
           </div>
+          <ShiftDraftsTray
+            drafts={tray}
+            canEdit={canEdit}
+            onNewDraft={() => setDraftModal({ open: true, editing: null })}
+            onEditDraft={(draft) => setDraftModal({ open: true, editing: draft })}
+          />
         </div>
 
         <aside className="flex w-[268px] flex-shrink-0 flex-col gap-3.5">
@@ -237,6 +255,19 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
           }
         />
       ) : null}
+
+      <NewDraftModal
+        open={draftModal.open}
+        onClose={() => setDraftModal({ open: false, editing: null })}
+        editingDraft={draftModal.editing}
+        onSave={(draft) => {
+          setTray((prev) => {
+            const exists = prev.some((d) => d.id === draft.id);
+            return exists ? prev.map((d) => (d.id === draft.id ? draft : d)) : [...prev, draft];
+          });
+          setDraftModal({ open: false, editing: null });
+        }}
+      />
     </div>
   );
 }
