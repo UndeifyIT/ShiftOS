@@ -28,6 +28,8 @@ function activeCellKey(employeeId: string, date: string): string {
   return `${employeeId}:${date}`;
 }
 
+type DragSource = { kind: 'tray'; draftId: string } | { kind: 'cell'; assignmentId: string; employeeId: string; date: string };
+
 /** Adds `count` days to a 'YYYY-MM-DD' date string using pure UTC arithmetic — never routes through local-timezone parsing, so this is correct in every timezone (unlike `new Date(dateStr + 'T00:00:00').toISOString()`, which shifts a day early in any positive-UTC-offset timezone). */
 function addDaysToDateString(dateString: string, count: number): string {
   const [year, month, day] = dateString.split('-').map(Number);
@@ -50,6 +52,8 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   const [tray, setTray] = useState<TrayDraft[]>([]);
   const [draftModal, setDraftModal] = useState<{ open: boolean; editing: TrayDraft | null }>({ open: false, editing: null });
   const [cardMenuError, setCardMenuError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState<DragSource | null>(null);
+  const [dragOverCellKey, setDragOverCellKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!cardMenuError) return;
@@ -108,6 +112,14 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   const removeAssignedShiftMutation = useRpcMutation<unknown, { assignmentId: string }>('remove_assigned_shift_on_date', {
     invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule']
   });
+  const assignShiftMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
+    'assign_shift_to_employee_on_date',
+    { invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'] }
+  );
+  const addShiftMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
+    'add_shift_to_employee_on_date',
+    { invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'] }
+  );
 
   const handleMoveToDrafts = (card: { shift: Shift; assignment: ShiftAssignment }): void => {
     setTray((prev) => [
@@ -127,6 +139,73 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   const scheduledCount = rosterEmployees.filter((e) => days.some((d) => cellAssignments.has(activeCellKey(e.id, d)))).length;
 
   const activeEmployee = activeCell ? employeesById.get(activeCell.employeeId) : undefined;
+
+  const handleDropOnCell = (employeeId: string, date: string): void => {
+    setDragOverCellKey(null);
+    if (!dragging) return;
+    const targetCards = cellAssignments.get(activeCellKey(employeeId, date)) ?? [];
+    const mutate = targetCards.length === 0 ? assignShiftMutation.mutate : addShiftMutation.mutate;
+
+    if (dragging.kind === 'tray') {
+      const draft = tray.find((d) => d.id === dragging.draftId);
+      if (!draft) {
+        setDragging(null);
+        return;
+      }
+      mutate({
+        scheduleId,
+        employeeId,
+        date,
+        templateId: null,
+        startTime: draft.startTime,
+        endTime: draft.endTime,
+        breakMinutes: draft.breakMinutes,
+        notes: draft.note || null
+      });
+      setTray((prev) => prev.filter((d) => d.id !== draft.id));
+    } else {
+      // Moving an already-assigned card from one cell to another: remove
+      // the source assignment, then assign/add on the destination. Two RPC
+      // calls rather than one atomic "move" — matches the handoff's own
+      // mock treating this as remove+add (spec §4.1).
+      if (dragging.employeeId === employeeId && dragging.date === date) {
+        setDragging(null);
+        return; // dropped on its own cell — no-op
+      }
+      const sourceCards = cellAssignments.get(activeCellKey(dragging.employeeId, dragging.date)) ?? [];
+      const sourceCard = sourceCards.find((c) => c.assignment.id === dragging.assignmentId);
+      if (!sourceCard) {
+        setDragging(null);
+        return;
+      }
+      removeAssignedShiftMutation.mutate({ assignmentId: dragging.assignmentId });
+      mutate({
+        scheduleId,
+        employeeId,
+        date,
+        templateId: sourceCard.shift.template_id,
+        startTime: sourceCard.shift.start_time.slice(0, 5),
+        endTime: sourceCard.shift.end_time.slice(0, 5),
+        crossesMidnight: sourceCard.shift.crosses_midnight,
+        breakMinutes: sourceCard.shift.break_minutes,
+        notes: sourceCard.assignment.notes
+      });
+    }
+    setDragging(null);
+  };
+
+  const handleDropOnTray = (): void => {
+    if (!dragging || dragging.kind !== 'cell') {
+      setDragging(null);
+      return;
+    }
+    const sourceCards = cellAssignments.get(activeCellKey(dragging.employeeId, dragging.date)) ?? [];
+    const sourceCard = sourceCards.find((c) => c.assignment.id === dragging.assignmentId);
+    if (sourceCard) {
+      handleMoveToDrafts(sourceCard);
+    }
+    setDragging(null);
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -178,10 +257,15 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
                         scheduleId={scheduleId}
                         hasConflict={cellConflicts.length > 0}
                         canEdit={canEdit}
+                        isDragOver={dragOverCellKey === activeCellKey(employee.id, day)}
                         onCardClick={(card) => setActiveCell({ employeeId: employee.id, date: day, editingAssignmentId: card.assignment.id })}
                         onAddClick={() => setActiveCell({ employeeId: employee.id, date: day, editingAssignmentId: null })}
                         onMoveToDrafts={handleMoveToDrafts}
                         onCardMenuError={setCardMenuError}
+                        onDragStartCard={(card) => setDragging({ kind: 'cell', assignmentId: card.assignment.id, employeeId: employee.id, date: day })}
+                        onDragOverCell={() => setDragOverCellKey(activeCellKey(employee.id, day))}
+                        onDragLeaveCell={() => setDragOverCellKey((prev) => (prev === activeCellKey(employee.id, day) ? null : prev))}
+                        onDropCell={() => handleDropOnCell(employee.id, day)}
                       />
                     );
                   })}
@@ -202,6 +286,8 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
             canEdit={canEdit}
             onNewDraft={() => setDraftModal({ open: true, editing: null })}
             onEditDraft={(draft) => setDraftModal({ open: true, editing: draft })}
+            onDragStartDraft={(draft) => setDragging({ kind: 'tray', draftId: draft.id })}
+            onDropTray={handleDropOnTray}
           />
         </div>
 

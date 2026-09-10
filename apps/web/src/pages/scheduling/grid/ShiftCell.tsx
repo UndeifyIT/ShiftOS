@@ -16,17 +16,46 @@ export interface ShiftCellProps {
   onAddClick: () => void;
   onMoveToDrafts: (card: ShiftCellCard) => void;
   onCardMenuError: (message: string) => void;
+  isDragOver: boolean;
+  onDragStartCard: (card: ShiftCellCard) => void;
+  onDragOverCell: () => void;
+  onDragLeaveCell: () => void;
+  onDropCell: () => void;
 }
 
 /** One employee/day cell in the weekly grid — holds zero or more shift cards (split shifts, spec §3.1). Empty renders "OFF"; canEdit shows a "+" affordance to add the first (or another) card. */
-export function ShiftCell({ cards, scheduleId, hasConflict, canEdit, onCardClick, onAddClick, onMoveToDrafts, onCardMenuError }: ShiftCellProps): React.ReactElement {
+export function ShiftCell({
+  cards,
+  scheduleId,
+  hasConflict,
+  canEdit,
+  onCardClick,
+  onAddClick,
+  onMoveToDrafts,
+  onCardMenuError,
+  isDragOver,
+  onDragStartCard,
+  onDragOverCell,
+  onDragLeaveCell,
+  onDropCell
+}: ShiftCellProps): React.ReactElement {
   const isEmpty = cards.length === 0;
 
   return (
     <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOverCell();
+      }}
+      onDragLeave={onDragLeaveCell}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDropCell();
+      }}
       className={[
         'relative flex min-h-[64px] flex-col gap-1 border-b border-r border-neutral-200 p-1.5',
-        isEmpty ? 'bg-neutral-50' : 'bg-white'
+        isEmpty ? 'bg-neutral-50' : 'bg-white',
+        isDragOver ? 'bg-brand-50 ring-2 ring-inset ring-brand-400' : ''
       ].join(' ')}
     >
       {isEmpty ? (
@@ -35,6 +64,8 @@ export function ShiftCell({ cards, scheduleId, hasConflict, canEdit, onCardClick
         cards.map((card) => (
           <div
             key={card.assignment.id}
+            draggable={canEdit}
+            onDragStart={() => onDragStartCard(card)}
             className="relative flex items-start gap-1 rounded-lg border border-transparent bg-brand-50 p-1.5 hover:border-brand-200"
           >
             <button
