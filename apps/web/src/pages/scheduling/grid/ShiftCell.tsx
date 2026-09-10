@@ -15,10 +15,11 @@ export interface ShiftCellProps {
   onCardClick: (card: ShiftCellCard) => void;
   onAddClick: () => void;
   onMoveToDrafts: (card: ShiftCellCard) => void;
+  onCardMenuError: (message: string) => void;
 }
 
 /** One employee/day cell in the weekly grid — holds zero or more shift cards (split shifts, spec §3.1). Empty renders "OFF"; canEdit shows a "+" affordance to add the first (or another) card. */
-export function ShiftCell({ cards, scheduleId, hasConflict, canEdit, onCardClick, onAddClick, onMoveToDrafts }: ShiftCellProps): React.ReactElement {
+export function ShiftCell({ cards, scheduleId, hasConflict, canEdit, onCardClick, onAddClick, onMoveToDrafts, onCardMenuError }: ShiftCellProps): React.ReactElement {
   const isEmpty = cards.length === 0;
 
   return (
@@ -58,6 +59,7 @@ export function ShiftCell({ cards, scheduleId, hasConflict, canEdit, onCardClick
                 onDuplicated={() => undefined}
                 onMoveToDrafts={onMoveToDrafts}
                 onDeleted={() => undefined}
+                onError={onCardMenuError}
               />
             ) : null}
           </div>

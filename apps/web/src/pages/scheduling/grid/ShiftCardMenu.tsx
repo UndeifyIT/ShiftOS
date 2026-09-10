@@ -11,12 +11,12 @@ export interface ShiftCardMenuProps {
   onDuplicated: () => void;
   onMoveToDrafts: (card: ShiftCellCard) => void;
   onDeleted: () => void;
+  onError: (message: string) => void;
 }
 
 /** The "⋮" per-card menu (design handoff cardView's menuItem list): Edit shift, Duplicate, Move to drafts, Mark day off, Delete. */
-export function ShiftCardMenu({ card, cellCards, scheduleId, onEdit, onDuplicated, onMoveToDrafts, onDeleted }: ShiftCardMenuProps): React.ReactElement {
+export function ShiftCardMenu({ card, cellCards, scheduleId, onEdit, onDuplicated, onMoveToDrafts, onDeleted, onError }: ShiftCardMenuProps): React.ReactElement {
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,12 +28,6 @@ export function ShiftCardMenu({ card, cellCards, scheduleId, onEdit, onDuplicate
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
-  useEffect(() => {
-    if (!error) return;
-    const timeout = setTimeout(() => setError(null), 4000);
-    return () => clearTimeout(timeout);
-  }, [error]);
-
   const duplicateMutation = useRpcMutation<{ shift: unknown; assignment: ShiftAssignment }, Record<string, unknown>>(
     'add_shift_to_employee_on_date',
     {
@@ -44,11 +38,11 @@ export function ShiftCardMenu({ card, cellCards, scheduleId, onEdit, onDuplicate
   const removeMutation = useRpcMutation<unknown, { assignmentId: string }>('remove_assigned_shift_on_date', {
     invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
     onSuccess: onDeleted,
-    onError: (err) => setError(err.message)
+    onError: (err) => onError(err.message)
   });
   const markOffMutation = useRpcMutation<unknown, { assignmentId: string }>('remove_assigned_shift_on_date', {
     invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
-    onError: (err) => setError(err.message)
+    onError: (err) => onError(err.message)
   });
 
   const handleDuplicate = (): void => {
@@ -67,7 +61,6 @@ export function ShiftCardMenu({ card, cellCards, scheduleId, onEdit, onDuplicate
 
   const handleMarkDayOff = (): void => {
     setOpen(false);
-    setError(null);
     cellCards.forEach((c) => markOffMutation.mutate({ assignmentId: c.assignment.id }));
   };
 
@@ -99,11 +92,6 @@ export function ShiftCardMenu({ card, cellCards, scheduleId, onEdit, onDuplicate
       >
         ⋮
       </button>
-      {error ? (
-        <p className="absolute bottom-full right-0 z-30 mb-1 w-48 rounded-lg border border-error-200 bg-error-50 px-2.5 py-1.5 text-[10.5px] font-semibold text-error-600 shadow-lg">
-          {error}
-        </p>
-      ) : null}
       {open ? (
         <div className="absolute right-0 top-5 z-30 flex w-36 flex-col gap-0.5 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg">
           {item('Edit shift', () => {

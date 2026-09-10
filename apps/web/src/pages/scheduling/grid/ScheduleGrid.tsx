@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@shiftos/ui';
 import { useRpcMutation, useRpcQuery } from '../../../lib/useRpc.js';
 import type {
@@ -49,6 +49,13 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [tray, setTray] = useState<TrayDraft[]>([]);
   const [draftModal, setDraftModal] = useState<{ open: boolean; editing: TrayDraft | null }>({ open: false, editing: null });
+  const [cardMenuError, setCardMenuError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!cardMenuError) return;
+    const timeout = setTimeout(() => setCardMenuError(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [cardMenuError]);
 
   const employeesById = useMemo(() => new Map((employees ?? []).map((e) => [e.id, e])), [employees]);
   const shiftsById = useMemo(() => new Map((shifts ?? []).map((s) => [s.id, s])), [shifts]);
@@ -174,6 +181,7 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
                         onCardClick={(card) => setActiveCell({ employeeId: employee.id, date: day, editingAssignmentId: card.assignment.id })}
                         onAddClick={() => setActiveCell({ employeeId: employee.id, date: day, editingAssignmentId: null })}
                         onMoveToDrafts={handleMoveToDrafts}
+                        onCardMenuError={setCardMenuError}
                       />
                     );
                   })}
@@ -269,6 +277,12 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
           setDraftModal({ open: false, editing: null });
         }}
       />
+
+      {cardMenuError ? (
+        <div className="fixed bottom-4 right-4 z-50 max-w-xs rounded-lg border border-error-200 bg-error-50 px-3 py-2 text-xs font-semibold text-error-600 shadow-lg">
+          {cardMenuError}
+        </div>
+      ) : null}
     </div>
   );
 }
