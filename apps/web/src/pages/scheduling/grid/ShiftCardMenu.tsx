@@ -32,7 +32,8 @@ export function ShiftCardMenu({ card, cellCards, scheduleId, onEdit, onDuplicate
     'add_shift_to_employee_on_date',
     {
       invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
-      onSuccess: onDuplicated
+      onSuccess: onDuplicated,
+      onError: (err) => onError(err.message)
     }
   );
   const removeMutation = useRpcMutation<unknown, { assignmentId: string }>('remove_assigned_shift_on_date', {

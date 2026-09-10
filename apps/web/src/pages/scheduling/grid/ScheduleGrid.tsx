@@ -66,11 +66,15 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   }, [cardMenuError]);
 
   const goToAdjacentWeek = async (direction: 'prev' | 'next'): Promise<void> => {
-    const adjacent = await callRpc<Schedule | null>('find_adjacent_schedule', schedule.organization_id, { scheduleId, direction });
-    if (adjacent) {
-      navigate(`/schedules/${adjacent.id}`);
-    } else {
-      setCardMenuError(direction === 'next' ? 'No later schedule exists yet for this branch.' : 'No earlier schedule exists for this branch.');
+    try {
+      const adjacent = await callRpc<Schedule | null>('find_adjacent_schedule', schedule.organization_id, { scheduleId, direction });
+      if (adjacent) {
+        navigate(`/schedules/${adjacent.id}`);
+      } else {
+        setCardMenuError(direction === 'next' ? 'No later schedule exists yet for this branch.' : 'No earlier schedule exists for this branch.');
+      }
+    } catch (err) {
+      setCardMenuError(err instanceof Error ? err.message : 'Failed to load the adjacent schedule.');
     }
   };
 
@@ -142,17 +146,23 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   );
 
   const handleMoveToDrafts = (card: { shift: Shift; assignment: ShiftAssignment }): void => {
-    setTray((prev) => [
-      ...prev,
+    removeAssignedShiftMutation.mutate(
+      { assignmentId: card.assignment.id },
       {
-        id: card.assignment.id,
-        startTime: card.shift.start_time.slice(0, 5),
-        endTime: card.shift.end_time.slice(0, 5),
-        breakMinutes: card.shift.break_minutes,
-        note: card.assignment.notes ?? ''
+        onSuccess: () => {
+          setTray((prev) => [
+            ...prev,
+            {
+              id: card.assignment.id,
+              startTime: card.shift.start_time.slice(0, 5),
+              endTime: card.shift.end_time.slice(0, 5),
+              breakMinutes: card.shift.break_minutes,
+              note: card.assignment.notes ?? ''
+            }
+          ]);
+        }
       }
-    ]);
-    removeAssignedShiftMutation.mutate({ assignmentId: card.assignment.id });
+    );
   };
 
   const isLoading = rosterLoading || shiftsLoading || employeesLoading || assignmentsLoading || conflictsLoading;
@@ -207,7 +217,8 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
           scheduleId,
           employeeId,
           date,
-          templateId: sourceCard.shift.template_id,
+          // preserve the card's own edited times/break rather than letting insertShiftAssignment re-derive them from the template
+          templateId: null,
           startTime: sourceCard.shift.start_time.slice(0, 5),
           endTime: sourceCard.shift.end_time.slice(0, 5),
           crossesMidnight: sourceCard.shift.crosses_midnight,

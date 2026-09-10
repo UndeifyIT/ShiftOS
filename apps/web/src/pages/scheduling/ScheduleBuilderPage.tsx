@@ -67,7 +67,7 @@ function CreateScheduleForm(): React.ReactElement {
       if (copyFromScheduleId) {
         duplicateMutation.mutate(
           { sourceScheduleId: copyFromScheduleId, targetScheduleId: created.id },
-          { onSettled: () => navigate(`/schedules/${created.id}`, { replace: true }) }
+          { onSuccess: () => navigate(`/schedules/${created.id}`, { replace: true }) }
         );
       } else {
         navigate(`/schedules/${created.id}`, { replace: true });
@@ -117,11 +117,13 @@ function CreateScheduleForm(): React.ReactElement {
                 {...fieldProps}
                 value={copyFromScheduleId}
                 onChange={(e) => setCopyFromScheduleId(e.target.value)}
-                placeholder="Start from scratch"
-                options={(candidateSchedules ?? []).map((s) => ({
-                  value: s.id,
-                  label: `${s.name} (${new Date(`${s.start_date}T00:00:00`).toLocaleDateString()})`
-                }))}
+                options={[
+                  { value: '', label: 'Start from scratch' },
+                  ...(candidateSchedules ?? []).map((s) => ({
+                    value: s.id,
+                    label: `${s.name} (${new Date(`${s.start_date}T00:00:00`).toLocaleDateString()})`
+                  }))
+                ]}
               />
             )}
           </FormField>

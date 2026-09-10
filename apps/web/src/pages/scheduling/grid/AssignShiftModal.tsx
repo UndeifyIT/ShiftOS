@@ -63,7 +63,29 @@ export function AssignShiftModal({
     'assign_shift_to_employee_on_date',
     {
       invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
-      onSuccess: onClose,
+      onSuccess: async () => {
+        if (extraBlocks.length === 0) {
+          onClose();
+          return;
+        }
+        try {
+          for (const block of extraBlocks) {
+            await addBlockMutation.mutateAsync({
+              scheduleId,
+              employeeId,
+              date,
+              templateId: null,
+              startTime: block.startTime,
+              endTime: block.endTime,
+              breakMinutes: block.breakMinutes,
+              notes: null
+            });
+          }
+          onClose();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to add an extra time block.');
+        }
+      },
       onError: (err) => setError(err.message)
     }
   );
@@ -133,22 +155,10 @@ export function AssignShiftModal({
         breakMinutes,
         notes: resolvedNotes
       });
-      extraBlocks.forEach((block) => {
-        addBlockMutation.mutate({
-          scheduleId,
-          employeeId,
-          date,
-          templateId: null,
-          startTime: block.startTime,
-          endTime: block.endTime,
-          breakMinutes: block.breakMinutes,
-          notes: null
-        });
-      });
     }
   };
 
-  const busy = assignMutation.isPending || updateMutation.isPending || removeMutation.isPending;
+  const busy = assignMutation.isPending || updateMutation.isPending || removeMutation.isPending || addBlockMutation.isPending;
   const formattedDate = new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'short',

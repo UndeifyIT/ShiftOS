@@ -143,5 +143,8 @@ describe('schedule grid cell assignment integration', () => {
       [TEST_FIXTURES.organizationId, morning.assignment.id]
     );
     expect(morningAssignment[0].deleted_at).toBeNull();
+
+    const conflicts = await ctx.call<Array<{ kind: string; date: string }>>('get_schedule_conflicts', { scheduleId });
+    expect(conflicts.some((c) => c.kind === 'double_booking' && c.date === '2027-10-22')).toBe(false);
   });
 });
