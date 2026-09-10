@@ -257,6 +257,7 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
       ) : null}
 
       <NewDraftModal
+        key={draftModal.editing?.id ?? 'new'}
         open={draftModal.open}
         onClose={() => setDraftModal({ open: false, editing: null })}
         editingDraft={draftModal.editing}
