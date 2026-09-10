@@ -46,11 +46,33 @@ function CreateScheduleForm(): React.ReactElement {
   const [name, setName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [copyFromScheduleId, setCopyFromScheduleId] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const resolvedBranchIdForCopy = singleBranchId ?? branchId;
+  const { data: candidateSchedules } = useRpcQuery<Schedule[]>(
+    'list_schedules',
+    resolvedBranchIdForCopy ? { branchId: resolvedBranchIdForCopy } : undefined,
+    { enabled: Boolean(resolvedBranchIdForCopy) }
+  );
+
+  const duplicateMutation = useRpcMutation<{ copiedCount: number }, { sourceScheduleId: string; targetScheduleId: string }>(
+    'duplicate_schedule_shifts',
+    { invalidates: ['list_shifts_for_schedule', 'list_assignments_for_schedule'], onError: (err) => setError(err.message) }
+  );
 
   const createMutation = useRpcMutation<Schedule, Record<string, unknown>>('create_schedule', {
     invalidates: ['list_schedules'],
-    onSuccess: (created) => navigate(`/schedules/${created.id}`, { replace: true }),
+    onSuccess: (created) => {
+      if (copyFromScheduleId) {
+        duplicateMutation.mutate(
+          { sourceScheduleId: copyFromScheduleId, targetScheduleId: created.id },
+          { onSettled: () => navigate(`/schedules/${created.id}`, { replace: true }) }
+        );
+      } else {
+        navigate(`/schedules/${created.id}`, { replace: true });
+      }
+    },
     onError: (err) => setError(err.message)
   });
 
@@ -89,8 +111,22 @@ function CreateScheduleForm(): React.ReactElement {
               {(fieldProps) => <Input {...fieldProps} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />}
             </FormField>
           </div>
+          <FormField label="Copy from (optional)" htmlFor="copyFromScheduleId">
+            {(fieldProps) => (
+              <Select
+                {...fieldProps}
+                value={copyFromScheduleId}
+                onChange={(e) => setCopyFromScheduleId(e.target.value)}
+                placeholder="Start from scratch"
+                options={(candidateSchedules ?? []).map((s) => ({
+                  value: s.id,
+                  label: `${s.name} (${new Date(`${s.start_date}T00:00:00`).toLocaleDateString()})`
+                }))}
+              />
+            )}
+          </FormField>
           {error ? <InlineError message={error} /> : null}
-          <Button type="submit" loading={createMutation.isPending} className="self-start">
+          <Button type="submit" loading={createMutation.isPending || duplicateMutation.isPending} className="self-start">
             Create schedule
           </Button>
         </form>
