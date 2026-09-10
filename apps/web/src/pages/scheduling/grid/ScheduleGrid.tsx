@@ -279,7 +279,7 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
       />
 
       {cardMenuError ? (
-        <div className="fixed bottom-4 right-4 z-50 max-w-xs rounded-lg border border-error-200 bg-error-50 px-3 py-2 text-xs font-semibold text-error-600 shadow-lg">
+        <div className="fixed bottom-4 right-4 z-[70] max-w-xs rounded-lg border border-error-200 bg-error-50 px-3 py-2 text-xs font-semibold text-error-600 shadow-lg">
           {cardMenuError}
         </div>
       ) : null}
