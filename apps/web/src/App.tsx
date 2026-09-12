@@ -45,8 +45,7 @@ const EmployeeDetailPage = lazy(() => import('./pages/employees/EmployeeDetailPa
 const EmployeeFormPage = lazy(() => import('./pages/employees/EmployeeFormPage.js'));
 const MembersPage = lazy(() => import('./pages/members/MembersPage.js'));
 const InvitationsPage = lazy(() => import('./pages/members/InvitationsPage.js'));
-const ScheduleListPage = lazy(() => import('./pages/scheduling/ScheduleListPage.js'));
-const ScheduleBuilderPage = lazy(() => import('./pages/scheduling/ScheduleBuilderPage.js'));
+const SchedulesPage = lazy(() => import('./pages/scheduling/SchedulesPage.js'));
 const ProfilePage = lazy(() => import('./pages/account/ProfilePage.js'));
 const SecurityPage = lazy(() => import('./pages/account/SecurityPage.js'));
 const TasksPage = lazy(() => import('./pages/tasks/TasksPage.js'));
@@ -244,9 +243,10 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/employees/:employeeId/edit" element={<EmployeeFormPage />} />
         <Route path="/members" element={<MembersPage />} />
         <Route path="/invitations" element={<InvitationsPage />} />
-        <Route path="/schedules" element={<ScheduleListPage />} />
-        <Route path="/schedules/new" element={<ScheduleBuilderPage />} />
-        <Route path="/schedules/:scheduleId" element={<ScheduleBuilderPage />} />
+        <Route path="/schedules" element={<SchedulesPage />} />
+        {/* Creating a week is now one click from the Schedules empty state (design handoff), so the old create form route lands there. */}
+        <Route path="/schedules/new" element={<Navigate to="/schedules" replace />} />
+        <Route path="/schedules/:scheduleId" element={<SchedulesPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/profile" element={<ProfilePage />} />

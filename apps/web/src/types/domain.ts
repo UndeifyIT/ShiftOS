@@ -58,6 +58,8 @@ export interface Employee {
   notes: string | null;
   /** Storage object path under the private `avatars` bucket, not a public URL — resolve with lib/avatars.ts's useSignedAvatarUrl. */
   avatar_url: string | null;
+  /** Optional (migration 041); the schedule grid shows the department's name under each person. */
+  department_id?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -360,6 +362,19 @@ export interface ScheduleRosterEntry {
   employee_id: string;
   added_by: string;
   added_at: string;
+  deleted_at: string | null;
+}
+
+/** An explicit "OFF" decision for one employee on one day of a schedule — distinct from a day nobody has filled in yet (design handoff's OFF card vs the "+" placeholder). */
+export interface ScheduleDayOff {
+  id: string;
+  organization_id: string;
+  schedule_id: string;
+  employee_id: string;
+  off_date: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
   deleted_at: string | null;
 }
 
