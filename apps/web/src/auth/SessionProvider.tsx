@@ -165,7 +165,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }): Re
         avatar_url: input.avatarUrl ?? null
       });
       if (error) {
-        return { error: error.message };
+        // Never surface the raw Postgres message here (UI-009 §8) -- this is
+        // a direct table insert, not a callRpc() call, so it bypasses
+        // friendlyErrorMessage() entirely and would otherwise show a real
+        // user something like `duplicate key value violates unique
+        // constraint "uq_users_email_active"`. Mirrors the same
+        // known-case-first, generic-fallback pattern OrganizationStep.tsx's
+        // handleSubmit already uses for create_organization_with_owner.
+        return {
+          error:
+            error.code === '23505'
+              ? 'An account with this email already exists. Try signing in instead.'
+              : 'We could not save your profile. Please try again.'
+        };
       }
       await bootstrap();
       return { error: null };
