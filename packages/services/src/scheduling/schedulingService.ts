@@ -504,6 +504,38 @@ export class SchedulingService {
     date: string,
     input: AssignShiftToEmployeeInput
   ): Promise<{ shift: Shift; assignment: ShiftAssignment }> {
+    return this.insertShiftAssignment(scheduleId, employeeId, date, input, { replaceExisting: true });
+  }
+
+  /**
+   * Adds another shift to a cell without touching whatever's already there —
+   * split shifts (spec §3.1). Shares every validation/insert step with
+   * assignShiftToEmployeeOnDate via insertShiftAssignment; the two methods
+   * differ only in replaceExisting.
+   */
+  async addShiftToEmployeeOnDate(
+    scheduleId: string,
+    employeeId: string,
+    date: string,
+    input: AssignShiftToEmployeeInput
+  ): Promise<{ shift: Shift; assignment: ShiftAssignment }> {
+    return this.insertShiftAssignment(scheduleId, employeeId, date, input, { replaceExisting: false });
+  }
+
+  /**
+   * Shared body for assignShiftToEmployeeOnDate (replaceExisting: true) and
+   * addShiftToEmployeeOnDate (replaceExisting: false, split shifts — spec
+   * §3.1). Wraps validation + the replace-then-insert or plain-insert in one
+   * transaction so the modal's single button can't leave a half-created
+   * shift with no assignment on a partial failure.
+   */
+  private async insertShiftAssignment(
+    scheduleId: string,
+    employeeId: string,
+    date: string,
+    input: AssignShiftToEmployeeInput,
+    options: { replaceExisting: boolean }
+  ): Promise<{ shift: Shift; assignment: ShiftAssignment }> {
     assertUuid(scheduleId, 'scheduleId');
     assertUuid(employeeId, 'employeeId');
     await this.context.requirePermission('shifts.create');
@@ -540,17 +572,13 @@ export class SchedulingService {
 
     const duration = computeDuration(startTime, endTime, crossesMidnight);
 
-    // The replace + both inserts must succeed or fail together (spec §3.3):
-    // otherwise a failure partway through can archive the employee's existing
-    // assignment (and cancel its shift) while creating nothing to replace it,
-    // or create an orphan shift with no assignment. Repositories are rebuilt
-    // against the transaction-scoped client so all writes share one
-    // BEGIN/COMMIT — same pattern as publishScheduleWithVersion().
     return this.context.client.transaction(async (trxClient) => {
       const shiftsRepo = new ShiftRepository(trxClient);
       const assignmentsRepo = new ShiftAssignmentRepository(trxClient);
 
-      await this.replaceActiveAssignmentOnDate(shiftsRepo, assignmentsRepo, schedule, employeeId, date);
+      if (options.replaceExisting) {
+        await this.replaceActiveAssignmentOnDate(shiftsRepo, assignmentsRepo, schedule, employeeId, date);
+      }
 
       const shift = await shiftsRepo.insert(this.context.organizationId, {
         branch_id: schedule.branch_id,
@@ -764,6 +792,99 @@ export class SchedulingService {
     }
 
     return conflicts;
+  }
+
+  /** Powers the grid's ‹ › week-navigator (spec §3.2) — never auto-creates a schedule for an empty adjacent week, just reports there isn't one. */
+  async findAdjacentSchedule(scheduleId: string, direction: 'prev' | 'next'): Promise<Schedule | null> {
+    assertUuid(scheduleId, 'scheduleId');
+    assertOneOf(direction, ['prev', 'next'], 'direction');
+    await this.context.requirePermission('schedules.read');
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+    return this.schedules.findAdjacent(this.context.organizationId, schedule.branch_id, schedule.start_date, direction);
+  }
+
+  /**
+   * "Copy last week" (spec §3.3): for every active assignment in the source
+   * schedule's date range, creates an equivalent shift+assignment in the
+   * target schedule at the same day-of-week offset. Notes are deliberately
+   * not copied — a fresh week shouldn't inherit last week's handover notes.
+   * One transaction: a partial failure must not leave a half-copied week.
+   */
+  async duplicateScheduleShifts(sourceScheduleId: string, targetScheduleId: string): Promise<{ copiedCount: number }> {
+    assertUuid(sourceScheduleId, 'sourceScheduleId');
+    assertUuid(targetScheduleId, 'targetScheduleId');
+    await this.context.requirePermission('shifts.create');
+    await this.context.requirePermission('assignments.create');
+
+    const source = await this.schedules.getByIdOrThrow(this.context.organizationId, sourceScheduleId);
+    const target = await this.schedules.getByIdOrThrow(this.context.organizationId, targetScheduleId);
+    this.context.requireBranchAccess(source.branch_id);
+    this.context.requireBranchAccess(target.branch_id);
+    if (target.status === 'archived') {
+      throw new ValidationError('Cannot edit an archived schedule');
+    }
+
+    const sourceShifts = await this.shifts.findByBranchAndDateRange(
+      this.context.organizationId,
+      source.branch_id,
+      source.start_date,
+      source.end_date
+    );
+    if (sourceShifts.length === 0) {
+      return { copiedCount: 0 };
+    }
+
+    const sourceAssignments = await this.assignments.listForShifts(this.context.organizationId, sourceShifts.map((s) => s.id));
+    const shiftsById = new Map(sourceShifts.map((s) => [s.id, s]));
+    const activeAssignments = sourceAssignments.filter(
+      (a) => a.assignment_status !== 'cancelled' && a.assignment_status !== 'declined'
+    );
+
+    const sourceStart = new Date(`${source.start_date}T00:00:00Z`);
+    const targetStart = new Date(`${target.start_date}T00:00:00Z`);
+
+    return this.context.client.transaction(async (trxClient) => {
+      const shiftsRepo = new ShiftRepository(trxClient);
+      const assignmentsRepo = new ShiftAssignmentRepository(trxClient);
+      let copiedCount = 0;
+
+      for (const assignment of activeAssignments) {
+        const sourceShift = shiftsById.get(assignment.shift_id);
+        if (!sourceShift) continue;
+
+        const sourceDate = new Date(`${sourceShift.shift_date}T00:00:00Z`);
+        const dayOffset = Math.round((sourceDate.getTime() - sourceStart.getTime()) / (24 * 60 * 60 * 1000));
+        const targetDate = new Date(targetStart.getTime() + dayOffset * 24 * 60 * 60 * 1000);
+        const targetDateString = targetDate.toISOString().slice(0, 10);
+
+        const newShift = await shiftsRepo.insert(this.context.organizationId, {
+          branch_id: target.branch_id,
+          template_id: sourceShift.template_id,
+          title: sourceShift.title,
+          description: null,
+          shift_date: targetDateString,
+          start_time: sourceShift.start_time,
+          end_time: sourceShift.end_time,
+          duration: sourceShift.duration,
+          crosses_midnight: sourceShift.crosses_midnight,
+          break_minutes: sourceShift.break_minutes,
+          status: 'draft'
+        } as Partial<Shift>);
+
+        await assignmentsRepo.insert(this.context.organizationId, {
+          shift_id: newShift.id,
+          employee_id: assignment.employee_id,
+          assignment_status: 'assigned',
+          assigned_by: this.context.userId,
+          notes: null
+        } as Partial<ShiftAssignment>);
+
+        copiedCount += 1;
+      }
+
+      return { copiedCount };
+    });
   }
 
   // ==================== Publishing ====================

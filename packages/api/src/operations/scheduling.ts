@@ -1,5 +1,6 @@
 import { SchedulingService } from '@shiftos/services';
 import type { AssignmentStatus } from '@shiftos/repositories';
+import { ValidationError } from '@shiftos/errors';
 import { defineRpc } from '../rpc.js';
 import { asRecord, requiredStringField, stringField, numberField, booleanField } from '../parse.js';
 
@@ -168,6 +169,23 @@ export const assignShiftToEmployeeOnDate = defineRpc('assign_shift_to_employee_o
   );
 });
 
+export const addShiftToEmployeeOnDate = defineRpc('add_shift_to_employee_on_date', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).addShiftToEmployeeOnDate(
+    requiredStringField(input, 'scheduleId'),
+    requiredStringField(input, 'employeeId'),
+    requiredStringField(input, 'date'),
+    {
+      templateId: stringField(input, 'templateId') ?? null,
+      startTime: stringField(input, 'startTime'),
+      endTime: stringField(input, 'endTime'),
+      crossesMidnight: booleanField(input, 'crossesMidnight'),
+      breakMinutes: numberField(input, 'breakMinutes'),
+      notes: stringField(input, 'notes') ?? null
+    }
+  );
+});
+
 export const updateAssignedShiftOnDate = defineRpc('update_assigned_shift_on_date', async (context, rawInput: unknown) => {
   const input = asRecord(rawInput);
   return new SchedulingService(context).updateAssignedShiftOnDate(requiredStringField(input, 'assignmentId'), {
@@ -194,6 +212,23 @@ export const getScheduleConflicts = defineRpc('get_schedule_conflicts', async (c
   return new SchedulingService(context).getScheduleConflicts(requiredStringField(input, 'scheduleId'));
 });
 
+export const findAdjacentSchedule = defineRpc('find_adjacent_schedule', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  const direction = requiredStringField(input, 'direction');
+  if (direction !== 'prev' && direction !== 'next') {
+    throw new ValidationError('direction must be "prev" or "next"');
+  }
+  return new SchedulingService(context).findAdjacentSchedule(requiredStringField(input, 'scheduleId'), direction);
+});
+
+export const duplicateScheduleShifts = defineRpc('duplicate_schedule_shifts', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).duplicateScheduleShifts(
+    requiredStringField(input, 'sourceScheduleId'),
+    requiredStringField(input, 'targetScheduleId')
+  );
+});
+
 // ---- Publishing ----
 
 export const publishSchedule = defineRpc('publish_schedule', async (context, rawInput: unknown) => {
@@ -211,6 +246,6 @@ export const schedulingOperations = [
   listMyShiftAssignmentsInSchedule,
   assignEmployee, updateAssignmentStatus, removeAssignment, listAssignmentsForShift,
   publishSchedule,
-  assignShiftToEmployeeOnDate, updateAssignedShiftOnDate, removeAssignedShiftOnDate, listAssignmentsForSchedule,
-  getScheduleConflicts
+  assignShiftToEmployeeOnDate, addShiftToEmployeeOnDate, updateAssignedShiftOnDate, removeAssignedShiftOnDate, listAssignmentsForSchedule,
+  getScheduleConflicts, findAdjacentSchedule, duplicateScheduleShifts
 ];

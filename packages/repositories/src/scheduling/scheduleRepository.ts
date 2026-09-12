@@ -37,6 +37,21 @@ export class ScheduleRepository extends BranchScopedRepository<Schedule> {
     return rows[0] ?? null;
   }
 
+  /** The schedule for the same branch whose start_date is the closest one before ('prev') or after ('next') currentStartDate, or null if none exists. Powers the grid's week-navigator arrows (spec §3.2). */
+  async findAdjacent(organizationId: string, branchId: string, currentStartDate: string, direction: 'prev' | 'next'): Promise<Schedule | null> {
+    const comparison = direction === 'next' ? '>' : '<';
+    const order = direction === 'next' ? 'ASC' : 'DESC';
+    const rows = await this.client.query<Schedule>(
+      `SELECT * FROM schedules
+        WHERE organization_id = $1 AND branch_id = $2 AND deleted_at IS NULL
+          AND start_date ${comparison} $3
+        ORDER BY start_date ${order}
+        LIMIT 1`,
+      [organizationId, branchId, currentStartDate]
+    );
+    return rows[0] ?? null;
+  }
+
   async publish(organizationId: string, id: string): Promise<Schedule> {
     return this.patch(organizationId, id, { status: 'published' } as Partial<Schedule>);
   }

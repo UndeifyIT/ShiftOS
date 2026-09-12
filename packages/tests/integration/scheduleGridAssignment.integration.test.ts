@@ -108,4 +108,43 @@ describe('schedule grid cell assignment integration', () => {
     const removed = await ctx.call<{ shiftCancelled: boolean }>('remove_assigned_shift_on_date', { assignmentId: created.assignment.id });
     expect(removed.shiftCancelled).toBe(true);
   });
+
+  it('adds a second shift to an already-filled cell without replacing the first (split shift)', async () => {
+    const morning = await ctx.call<{ shift: { id: string }; assignment: { id: string } }>('assign_shift_to_employee_on_date', {
+      scheduleId,
+      employeeId: TEST_FIXTURES.employeeId,
+      date: '2027-10-22',
+      startTime: '09:00',
+      endTime: '13:00'
+    });
+    shiftIds.push(morning.shift.id);
+    assignmentIds.push(morning.assignment.id);
+
+    const afternoon = await ctx.call<{ shift: { id: string }; assignment: { id: string } }>('add_shift_to_employee_on_date', {
+      scheduleId,
+      employeeId: TEST_FIXTURES.employeeId,
+      date: '2027-10-22',
+      startTime: '14:00',
+      endTime: '18:00'
+    });
+    shiftIds.push(afternoon.shift.id);
+    assignmentIds.push(afternoon.assignment.id);
+
+    expect(afternoon.shift.id).not.toBe(morning.shift.id);
+
+    const morningStatus = await ctx.client.query<{ status: string }>('SELECT status FROM shifts WHERE organization_id = $1 AND id = $2', [
+      TEST_FIXTURES.organizationId,
+      morning.shift.id
+    ]);
+    expect(morningStatus[0].status).not.toBe('cancelled');
+
+    const morningAssignment = await ctx.client.query<{ deleted_at: string | null }>(
+      'SELECT deleted_at FROM shift_assignments WHERE organization_id = $1 AND id = $2',
+      [TEST_FIXTURES.organizationId, morning.assignment.id]
+    );
+    expect(morningAssignment[0].deleted_at).toBeNull();
+
+    const conflicts = await ctx.call<Array<{ kind: string; date: string }>>('get_schedule_conflicts', { scheduleId });
+    expect(conflicts.some((c) => c.kind === 'double_booking' && c.date === '2027-10-22')).toBe(false);
+  });
 });

@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@shiftos/ui';
+import { useNavigate } from 'react-router-dom';
+import { callRpc } from '../../../lib/apiClient.js';
 import { useRpcMutation, useRpcQuery } from '../../../lib/useRpc.js';
 import type {
   Employee,
@@ -12,9 +14,11 @@ import type {
 import { AddEmployeeModal } from './AddEmployeeModal.js';
 import { AiAssistantPanel } from './AiAssistantPanel.js';
 import { AssignShiftModal } from './AssignShiftModal.js';
+import { NewDraftModal } from './NewDraftModal.js';
 import { ScheduleConflictsPanel } from './ScheduleConflictsPanel.js';
 import { ScheduleSummaryBar } from './ScheduleSummaryBar.js';
 import { ShiftCell } from './ShiftCell.js';
+import { ShiftDraftsTray, type TrayDraft } from './ShiftDraftsTray.js';
 
 export interface ScheduleGridProps {
   scheduleId: string;
@@ -26,6 +30,8 @@ function activeCellKey(employeeId: string, date: string): string {
   return `${employeeId}:${date}`;
 }
 
+type DragSource = { kind: 'tray'; draftId: string } | { kind: 'cell'; assignmentId: string; employeeId: string; date: string };
+
 /** Adds `count` days to a 'YYYY-MM-DD' date string using pure UTC arithmetic — never routes through local-timezone parsing, so this is correct in every timezone (unlike `new Date(dateStr + 'T00:00:00').toISOString()`, which shifts a day early in any positive-UTC-offset timezone). */
 function addDaysToDateString(dateString: string, count: number): string {
   const [year, month, day] = dateString.split('-').map(Number);
@@ -36,6 +42,8 @@ function addDaysToDateString(dateString: string, count: number): string {
 
 /** The weekly employee × day grid — WEB-012 replacement (design handoff "Manager/Schedules" / "Supervisor/Schedules"). */
 export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProps): React.ReactElement {
+  const navigate = useNavigate();
+
   const { data: roster, isLoading: rosterLoading } = useRpcQuery<ScheduleRosterEntry[]>('list_schedule_roster', { scheduleId });
   const { data: employees, isLoading: employeesLoading } = useRpcQuery<Employee[]>('list_employees', { branchId: schedule.branch_id });
   const { data: shifts, isLoading: shiftsLoading } = useRpcQuery<Shift[]>('list_shifts_for_schedule', { scheduleId });
@@ -43,8 +51,32 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   const { data: conflicts, isLoading: conflictsLoading } = useRpcQuery<ScheduleConflict[]>('get_schedule_conflicts', { scheduleId });
 
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
-  const [activeCell, setActiveCell] = useState<{ employeeId: string; date: string } | null>(null);
+  const [activeCell, setActiveCell] = useState<{ employeeId: string; date: string; editingAssignmentId: string | null } | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [tray, setTray] = useState<TrayDraft[]>([]);
+  const [draftModal, setDraftModal] = useState<{ open: boolean; editing: TrayDraft | null }>({ open: false, editing: null });
+  const [cardMenuError, setCardMenuError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState<DragSource | null>(null);
+  const [dragOverCellKey, setDragOverCellKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!cardMenuError) return;
+    const timeout = setTimeout(() => setCardMenuError(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [cardMenuError]);
+
+  const goToAdjacentWeek = async (direction: 'prev' | 'next'): Promise<void> => {
+    try {
+      const adjacent = await callRpc<Schedule | null>('find_adjacent_schedule', schedule.organization_id, { scheduleId, direction });
+      if (adjacent) {
+        navigate(`/schedules/${adjacent.id}`);
+      } else {
+        setCardMenuError(direction === 'next' ? 'No later schedule exists yet for this branch.' : 'No earlier schedule exists for this branch.');
+      }
+    } catch (err) {
+      setCardMenuError(err instanceof Error ? err.message : 'Failed to load the adjacent schedule.');
+    }
+  };
 
   const employeesById = useMemo(() => new Map((employees ?? []).map((e) => [e.id, e])), [employees]);
   const shiftsById = useMemo(() => new Map((shifts ?? []).map((s) => [s.id, s])), [shifts]);
@@ -58,12 +90,15 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
   }, [schedule.start_date]);
 
   const cellAssignments = useMemo(() => {
-    const map = new Map<string, { assignment: ShiftAssignment; shift: Shift }>();
+    const map = new Map<string, Array<{ assignment: ShiftAssignment; shift: Shift }>>();
     for (const assignment of assignments ?? []) {
       if (assignment.assignment_status === 'cancelled' || assignment.assignment_status === 'declined') continue;
       const shift = shiftsById.get(assignment.shift_id);
       if (!shift) continue;
-      map.set(activeCellKey(assignment.employee_id, shift.shift_date), { assignment, shift });
+      const key = activeCellKey(assignment.employee_id, shift.shift_date);
+      const list = map.get(key) ?? [];
+      list.push({ assignment, shift });
+      map.set(key, list);
     }
     return map;
   }, [assignments, shiftsById]);
@@ -91,14 +126,153 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
     'remove_employee_from_schedule',
     { invalidates: ['list_schedule_roster'] }
   );
+  const removeAssignedShiftMutation = useRpcMutation<unknown, { assignmentId: string }>('remove_assigned_shift_on_date', {
+    invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
+    onError: (err) => setCardMenuError(err.message)
+  });
+  const assignShiftMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
+    'assign_shift_to_employee_on_date',
+    {
+      invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
+      onError: (err) => setCardMenuError(err.message)
+    }
+  );
+  const addShiftMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
+    'add_shift_to_employee_on_date',
+    {
+      invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
+      onError: (err) => setCardMenuError(err.message)
+    }
+  );
+
+  const handleMoveToDrafts = (card: { shift: Shift; assignment: ShiftAssignment }): void => {
+    removeAssignedShiftMutation.mutate(
+      { assignmentId: card.assignment.id },
+      {
+        onSuccess: () => {
+          setTray((prev) => [
+            ...prev,
+            {
+              id: card.assignment.id,
+              startTime: card.shift.start_time.slice(0, 5),
+              endTime: card.shift.end_time.slice(0, 5),
+              breakMinutes: card.shift.break_minutes,
+              note: card.assignment.notes ?? ''
+            }
+          ]);
+        }
+      }
+    );
+  };
 
   const isLoading = rosterLoading || shiftsLoading || employeesLoading || assignmentsLoading || conflictsLoading;
   const scheduledCount = rosterEmployees.filter((e) => days.some((d) => cellAssignments.has(activeCellKey(e.id, d)))).length;
 
   const activeEmployee = activeCell ? employeesById.get(activeCell.employeeId) : undefined;
 
+  const handleDropOnCell = (employeeId: string, date: string): void => {
+    setDragOverCellKey(null);
+    if (!dragging) return;
+    const targetCards = cellAssignments.get(activeCellKey(employeeId, date)) ?? [];
+    const mutate = targetCards.length === 0 ? assignShiftMutation.mutate : addShiftMutation.mutate;
+
+    if (dragging.kind === 'tray') {
+      const draft = tray.find((d) => d.id === dragging.draftId);
+      if (!draft) {
+        setDragging(null);
+        return;
+      }
+      mutate(
+        {
+          scheduleId,
+          employeeId,
+          date,
+          templateId: null,
+          startTime: draft.startTime,
+          endTime: draft.endTime,
+          breakMinutes: draft.breakMinutes,
+          notes: draft.note || null
+        },
+        { onSuccess: () => setTray((prev) => prev.filter((d) => d.id !== draft.id)) }
+      );
+    } else {
+      // Moving an already-assigned card from one cell to another: assign/add
+      // on the destination first, then remove the source assignment only
+      // once that succeeds. Two RPC calls rather than one atomic "move" —
+      // matches the handoff's own mock treating this as remove+add (spec
+      // §4.1) — but ordered add-then-remove so a failed destination write
+      // never causes a silent loss of the source assignment.
+      if (dragging.employeeId === employeeId && dragging.date === date) {
+        setDragging(null);
+        return; // dropped on its own cell — no-op
+      }
+      const sourceCards = cellAssignments.get(activeCellKey(dragging.employeeId, dragging.date)) ?? [];
+      const sourceCard = sourceCards.find((c) => c.assignment.id === dragging.assignmentId);
+      if (!sourceCard) {
+        setDragging(null);
+        return;
+      }
+      mutate(
+        {
+          scheduleId,
+          employeeId,
+          date,
+          // preserve the card's own edited times/break rather than letting insertShiftAssignment re-derive them from the template
+          templateId: null,
+          startTime: sourceCard.shift.start_time.slice(0, 5),
+          endTime: sourceCard.shift.end_time.slice(0, 5),
+          crossesMidnight: sourceCard.shift.crosses_midnight,
+          breakMinutes: sourceCard.shift.break_minutes,
+          notes: sourceCard.assignment.notes
+        },
+        {
+          onSuccess: () => {
+            removeAssignedShiftMutation.mutate({ assignmentId: dragging.assignmentId });
+          }
+        }
+      );
+    }
+    setDragging(null);
+  };
+
+  const handleDropOnTray = (): void => {
+    if (!dragging || dragging.kind !== 'cell') {
+      setDragging(null);
+      return;
+    }
+    const sourceCards = cellAssignments.get(activeCellKey(dragging.employeeId, dragging.date)) ?? [];
+    const sourceCard = sourceCards.find((c) => c.assignment.id === dragging.assignmentId);
+    if (sourceCard) {
+      handleMoveToDrafts(sourceCard);
+    }
+    setDragging(null);
+  };
+
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-2">
+        <button
+          type="button"
+          onClick={() => void goToAdjacentWeek('prev')}
+          aria-label="Previous week"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-neutral-300"
+        >
+          ‹
+        </button>
+        <span className="text-sm font-bold text-neutral-900">
+          {new Date(`${schedule.start_date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} –{' '}
+          {new Date(`${schedule.end_date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+        </span>
+        <button
+          type="button"
+          onClick={() => void goToAdjacentWeek('next')}
+          aria-label="Next week"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-neutral-300"
+        >
+          ›
+        </button>
+      </div>
+
       <div className="flex flex-wrap gap-4">
         <div className="min-w-0 flex-1 overflow-x-auto rounded-2xl border border-neutral-200 bg-white">
           <div className="grid" style={{ gridTemplateColumns: '200px repeat(7, minmax(120px, 1fr))' }}>
@@ -138,16 +312,24 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
                     ) : null}
                   </div>
                   {days.map((day) => {
-                    const cell = cellAssignments.get(activeCellKey(employee.id, day));
+                    const cards = cellAssignments.get(activeCellKey(employee.id, day)) ?? [];
                     const cellConflicts = conflictsByCell.get(activeCellKey(employee.id, day)) ?? [];
                     return (
                       <ShiftCell
                         key={day}
-                        shift={cell?.shift ?? null}
-                        assignment={cell?.assignment ?? null}
+                        cards={cards}
+                        scheduleId={scheduleId}
                         hasConflict={cellConflicts.length > 0}
                         canEdit={canEdit}
-                        onClick={() => setActiveCell({ employeeId: employee.id, date: day })}
+                        isDragOver={dragOverCellKey === activeCellKey(employee.id, day)}
+                        onCardClick={(card) => setActiveCell({ employeeId: employee.id, date: day, editingAssignmentId: card.assignment.id })}
+                        onAddClick={() => setActiveCell({ employeeId: employee.id, date: day, editingAssignmentId: null })}
+                        onMoveToDrafts={handleMoveToDrafts}
+                        onCardMenuError={setCardMenuError}
+                        onDragStartCard={(card) => setDragging({ kind: 'cell', assignmentId: card.assignment.id, employeeId: employee.id, date: day })}
+                        onDragOverCell={() => setDragOverCellKey(activeCellKey(employee.id, day))}
+                        onDragLeaveCell={() => setDragOverCellKey((prev) => (prev === activeCellKey(employee.id, day) ? null : prev))}
+                        onDropCell={() => handleDropOnCell(employee.id, day)}
                       />
                     );
                   })}
@@ -163,6 +345,14 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
               </div>
             ) : null}
           </div>
+          <ShiftDraftsTray
+            drafts={tray}
+            canEdit={canEdit}
+            onNewDraft={() => setDraftModal({ open: true, editing: null })}
+            onEditDraft={(draft) => setDraftModal({ open: true, editing: draft })}
+            onDragStartDraft={(draft) => setDragging({ kind: 'tray', draftId: draft.id })}
+            onDropTray={handleDropOnTray}
+          />
         </div>
 
         <aside className="flex w-[268px] flex-shrink-0 flex-col gap-3.5">
@@ -171,7 +361,12 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
             conflicts={conflicts ?? []}
             employeesById={employeesById}
             onSelectConflict={
-              canEdit ? (conflict) => setActiveCell({ employeeId: conflict.employeeId, date: conflict.date }) : undefined
+              canEdit
+                ? (conflict) => {
+                    const cards = cellAssignments.get(activeCellKey(conflict.employeeId, conflict.date)) ?? [];
+                    setActiveCell({ employeeId: conflict.employeeId, date: conflict.date, editingAssignmentId: cards[0]?.assignment.id ?? null });
+                  }
+                : undefined
             }
           />
         </aside>
@@ -209,8 +404,34 @@ export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProp
           employeeId={activeCell.employeeId}
           employeeName={activeEmployee ? `${activeEmployee.first_name} ${activeEmployee.last_name}` : ''}
           date={activeCell.date}
-          existing={cellAssignments.get(activeCellKey(activeCell.employeeId, activeCell.date)) ?? null}
+          existing={
+            activeCell.editingAssignmentId
+              ? (cellAssignments.get(activeCellKey(activeCell.employeeId, activeCell.date)) ?? []).find(
+                  (c) => c.assignment.id === activeCell.editingAssignmentId
+                ) ?? null
+              : null
+          }
         />
+      ) : null}
+
+      <NewDraftModal
+        key={draftModal.editing?.id ?? 'new'}
+        open={draftModal.open}
+        onClose={() => setDraftModal({ open: false, editing: null })}
+        editingDraft={draftModal.editing}
+        onSave={(draft) => {
+          setTray((prev) => {
+            const exists = prev.some((d) => d.id === draft.id);
+            return exists ? prev.map((d) => (d.id === draft.id ? draft : d)) : [...prev, draft];
+          });
+          setDraftModal({ open: false, editing: null });
+        }}
+      />
+
+      {cardMenuError ? (
+        <div className="fixed bottom-4 right-4 z-[70] max-w-xs rounded-lg border border-error-200 bg-error-50 px-3 py-2 text-xs font-semibold text-error-600 shadow-lg">
+          {cardMenuError}
+        </div>
       ) : null}
     </div>
   );

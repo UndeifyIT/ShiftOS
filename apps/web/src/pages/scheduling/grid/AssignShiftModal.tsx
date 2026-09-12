@@ -34,6 +34,7 @@ export function AssignShiftModal({
   const [endTime, setEndTime] = useState(existing?.shift.end_time.slice(0, 5) ?? '17:00');
   const [breakMinutes, setBreakMinutes] = useState(existing?.shift.break_minutes ?? 0);
   const [notes, setNotes] = useState(existing?.assignment.notes ?? '');
+  const [extraBlocks, setExtraBlocks] = useState<Array<{ startTime: string; endTime: string; breakMinutes: number }>>([]);
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export function AssignShiftModal({
       setBreakMinutes(0);
       setNotes('');
     }
+    setExtraBlocks([]);
     setSaveAsTemplate(false);
     setTemplateName('');
     setError(null);
@@ -61,9 +63,35 @@ export function AssignShiftModal({
     'assign_shift_to_employee_on_date',
     {
       invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
-      onSuccess: onClose,
+      onSuccess: async () => {
+        if (extraBlocks.length === 0) {
+          onClose();
+          return;
+        }
+        try {
+          for (const block of extraBlocks) {
+            await addBlockMutation.mutateAsync({
+              scheduleId,
+              employeeId,
+              date,
+              templateId: null,
+              startTime: block.startTime,
+              endTime: block.endTime,
+              breakMinutes: block.breakMinutes,
+              notes: null
+            });
+          }
+          onClose();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to add an extra time block.');
+        }
+      },
       onError: (err) => setError(err.message)
     }
+  );
+  const addBlockMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
+    'add_shift_to_employee_on_date',
+    { invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'] }
   );
   const updateMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
     'update_assigned_shift_on_date',
@@ -130,7 +158,7 @@ export function AssignShiftModal({
     }
   };
 
-  const busy = assignMutation.isPending || updateMutation.isPending || removeMutation.isPending;
+  const busy = assignMutation.isPending || updateMutation.isPending || removeMutation.isPending || addBlockMutation.isPending;
   const formattedDate = new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'short',
@@ -171,6 +199,54 @@ export function AssignShiftModal({
               {(fieldProps) => <Input {...fieldProps} type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />}
             </FormField>
           </div>
+        ) : null}
+
+        {!existing && templateId === CUSTOM_VALUE ? (
+          <>
+            {extraBlocks.map((block, index) => (
+              <div key={index} className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
+                <FormField label={`Block ${index + 2} start`} htmlFor={`extraStart${index}`}>
+                  {(fieldProps) => (
+                    <Input
+                      {...fieldProps}
+                      type="time"
+                      value={block.startTime}
+                      onChange={(e) =>
+                        setExtraBlocks((prev) => prev.map((b, i) => (i === index ? { ...b, startTime: e.target.value } : b)))
+                      }
+                    />
+                  )}
+                </FormField>
+                <FormField label={`Block ${index + 2} end`} htmlFor={`extraEnd${index}`}>
+                  {(fieldProps) => (
+                    <Input
+                      {...fieldProps}
+                      type="time"
+                      value={block.endTime}
+                      onChange={(e) => setExtraBlocks((prev) => prev.map((b, i) => (i === index ? { ...b, endTime: e.target.value } : b)))}
+                    />
+                  )}
+                </FormField>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExtraBlocks((prev) => prev.filter((_, i) => i !== index))}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setExtraBlocks((prev) => [...prev, { startTime: '18:00', endTime: '22:00', breakMinutes: 0 }])}
+              className="self-start"
+            >
+              + Add another time block (split / double shift)
+            </Button>
+          </>
         ) : null}
 
         <FormField label="Break (minutes)" htmlFor="breakMinutes">

@@ -1,39 +1,111 @@
 import React from 'react';
 import type { Shift, ShiftAssignment } from '../../../types/domain.js';
+import { ShiftCardMenu } from './ShiftCardMenu.js';
 
-export interface ShiftCellProps {
-  shift: Shift | null;
-  assignment: ShiftAssignment | null;
-  hasConflict: boolean;
-  canEdit: boolean;
-  onClick: () => void;
+export interface ShiftCellCard {
+  shift: Shift;
+  assignment: ShiftAssignment;
 }
 
-/** One employee/day cell in the weekly grid: shows the assigned shift's time block, or "OFF" when empty. */
-export function ShiftCell({ shift, assignment, hasConflict, canEdit, onClick }: ShiftCellProps): React.ReactElement {
-  const isOff = !shift || !assignment;
+export interface ShiftCellProps {
+  cards: ShiftCellCard[];
+  scheduleId: string;
+  hasConflict: boolean;
+  canEdit: boolean;
+  onCardClick: (card: ShiftCellCard) => void;
+  onAddClick: () => void;
+  onMoveToDrafts: (card: ShiftCellCard) => void;
+  onCardMenuError: (message: string) => void;
+  isDragOver: boolean;
+  onDragStartCard: (card: ShiftCellCard) => void;
+  onDragOverCell: () => void;
+  onDragLeaveCell: () => void;
+  onDropCell: () => void;
+}
+
+/** One employee/day cell in the weekly grid — holds zero or more shift cards (split shifts, spec §3.1). Empty renders "OFF"; canEdit shows a "+" affordance to add the first (or another) card. */
+export function ShiftCell({
+  cards,
+  scheduleId,
+  hasConflict,
+  canEdit,
+  onCardClick,
+  onAddClick,
+  onMoveToDrafts,
+  onCardMenuError,
+  isDragOver,
+  onDragStartCard,
+  onDragOverCell,
+  onDragLeaveCell,
+  onDropCell
+}: ShiftCellProps): React.ReactElement {
+  const isEmpty = cards.length === 0;
 
   return (
-    <button
-      type="button"
-      onClick={canEdit ? onClick : undefined}
-      disabled={!canEdit}
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOverCell();
+      }}
+      onDragLeave={onDragLeaveCell}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDropCell();
+      }}
       className={[
-        'relative flex min-h-[64px] flex-col items-start justify-center gap-0.5 border-b border-r border-neutral-200 p-2 text-left transition-colors',
-        canEdit ? 'cursor-pointer hover:bg-brand-50/40' : 'cursor-default',
-        isOff ? 'bg-neutral-50' : 'bg-white'
+        'relative flex min-h-[64px] flex-col gap-1 border-b border-r border-neutral-200 p-1.5',
+        isEmpty ? 'bg-neutral-50' : 'bg-white',
+        isDragOver ? 'bg-brand-50 ring-2 ring-inset ring-brand-400' : ''
       ].join(' ')}
     >
-      {isOff ? (
-        <span className="text-xs font-medium text-neutral-400">OFF</span>
+      {isEmpty ? (
+        <span className="flex flex-1 items-center justify-center text-xs font-medium text-neutral-400">OFF</span>
       ) : (
-        <>
-          <span className="text-xs font-semibold text-neutral-900">
-            {shift.start_time.slice(0, 5)} – {shift.end_time.slice(0, 5)}
-          </span>
-          {assignment.notes ? <span className="truncate text-[10.5px] text-neutral-500">{assignment.notes}</span> : null}
-        </>
+        cards.map((card) => (
+          <div
+            key={card.assignment.id}
+            draggable={canEdit}
+            onDragStart={() => onDragStartCard(card)}
+            className="relative flex items-start gap-1 rounded-lg border border-transparent bg-brand-50 p-1.5 hover:border-brand-200"
+          >
+            <button
+              type="button"
+              onClick={canEdit ? () => onCardClick(card) : undefined}
+              disabled={!canEdit}
+              className={['flex min-w-0 flex-1 flex-col items-start justify-center gap-0.5 text-left', canEdit ? 'cursor-pointer' : 'cursor-default'].join(
+                ' '
+              )}
+            >
+              <span className="text-xs font-semibold text-neutral-900">
+                {card.shift.start_time.slice(0, 5)} – {card.shift.end_time.slice(0, 5)}
+              </span>
+              {card.assignment.notes ? <span className="truncate text-[10.5px] text-neutral-500">{card.assignment.notes}</span> : null}
+            </button>
+            {canEdit ? (
+              <ShiftCardMenu
+                card={card}
+                cellCards={cards}
+                scheduleId={scheduleId}
+                onEdit={() => onCardClick(card)}
+                onDuplicated={() => undefined}
+                onMoveToDrafts={onMoveToDrafts}
+                onDeleted={() => undefined}
+                onError={onCardMenuError}
+              />
+            ) : null}
+          </div>
+        ))
       )}
+      {canEdit ? (
+        <button
+          type="button"
+          onClick={onAddClick}
+          aria-label={isEmpty ? 'Assign shift' : 'Add another shift'}
+          className="flex h-6 w-full items-center justify-center rounded-md border border-dashed border-neutral-300 text-xs font-bold text-neutral-400 hover:border-brand-400 hover:text-brand-600"
+        >
+          +
+        </button>
+      ) : null}
       {hasConflict ? (
         <span
           title="Scheduling conflict"
@@ -42,6 +114,6 @@ export function ShiftCell({ shift, assignment, hasConflict, canEdit, onClick }: 
           !
         </span>
       ) : null}
-    </button>
+    </div>
   );
 }
