@@ -239,6 +239,36 @@ export const publishSchedule = defineRpc('publish_schedule', async (context, raw
   );
 });
 
+export const unpublishSchedule = defineRpc('unpublish_schedule', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).unpublishSchedule(requiredStringField(input, 'scheduleId'));
+});
+
+// ---- Days off (explicit OFF cards) ----
+
+export const listScheduleDayOffs = defineRpc('list_schedule_day_offs', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).listScheduleDayOffs(requiredStringField(input, 'scheduleId'));
+});
+
+export const markDayOff = defineRpc('mark_day_off', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).markDayOff(
+    requiredStringField(input, 'scheduleId'),
+    requiredStringField(input, 'employeeId'),
+    requiredStringField(input, 'date')
+  );
+});
+
+export const clearDayOff = defineRpc('clear_day_off', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new SchedulingService(context).clearDayOff(
+    requiredStringField(input, 'scheduleId'),
+    requiredStringField(input, 'employeeId'),
+    requiredStringField(input, 'date')
+  );
+});
+
 export const schedulingOperations = [
   createSchedule, getSchedule, updateSchedule, archiveSchedule, listSchedules,
   listScheduleVersions, getLatestScheduleVersion,
@@ -247,5 +277,6 @@ export const schedulingOperations = [
   assignEmployee, updateAssignmentStatus, removeAssignment, listAssignmentsForShift,
   publishSchedule,
   assignShiftToEmployeeOnDate, addShiftToEmployeeOnDate, updateAssignedShiftOnDate, removeAssignedShiftOnDate, listAssignmentsForSchedule,
-  getScheduleConflicts, findAdjacentSchedule, duplicateScheduleShifts
+  getScheduleConflicts, findAdjacentSchedule, duplicateScheduleShifts,
+  unpublishSchedule, listScheduleDayOffs, markDayOff, clearDayOff
 ];

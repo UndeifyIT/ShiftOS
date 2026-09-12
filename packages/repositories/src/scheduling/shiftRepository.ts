@@ -64,6 +64,11 @@ export class ShiftRepository extends BranchScopedRepository<Shift> {
     return this.patch(organizationId, id, { status: 'published', published_at: new Date().toISOString() } as Partial<Shift>);
   }
 
+  /** Back to 'draft' with published_at cleared — chk_shifts_published_at_lifecycle (migration 032) forbids a draft shift keeping a publish timestamp. */
+  async unpublish(organizationId: string, id: string): Promise<Shift> {
+    return this.patch(organizationId, id, { status: 'draft', published_at: null } as Partial<Shift>);
+  }
+
   async cancel(organizationId: string, id: string): Promise<Shift> {
     return this.patch(organizationId, id, { status: 'cancelled' } as Partial<Shift>);
   }

@@ -55,4 +55,8 @@ export class ScheduleRepository extends BranchScopedRepository<Schedule> {
   async publish(organizationId: string, id: string): Promise<Schedule> {
     return this.patch(organizationId, id, { status: 'published' } as Partial<Schedule>);
   }
+
+  async unpublish(organizationId: string, id: string): Promise<Schedule> {
+    return this.patch(organizationId, id, { status: 'draft' } as Partial<Schedule>);
+  }
 }
