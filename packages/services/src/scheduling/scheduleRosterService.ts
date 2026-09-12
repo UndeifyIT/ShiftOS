@@ -1,10 +1,11 @@
 import {
-  ScheduleRosterRepository, ScheduleRepository, EmployeeRepository,
+  ScheduleRosterRepository, ScheduleRepository, EmployeeRepository, ScheduleDayOffRepository,
   type ScheduleRosterEntry
 } from '@shiftos/repositories';
 import { NotFoundError, ValidationError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
 import { assertUuid } from '../validation.js';
+import { clearEmployeeShifts } from './clearEmployeeShifts.js';
 
 /**
  * Schedule roster: which employees are "on" a given week's schedule,
@@ -67,7 +68,18 @@ export class ScheduleRosterService {
     if (!existing) {
       throw new NotFoundError('Employee is not on this schedule');
     }
-    return this.roster.archive(this.context.organizationId, existing.id);
+
+    // The handoff's row "✕" takes the person off this week entirely: their
+    // shifts and days off for the week go with them (the earlier
+    // roster-only rule in the 2026-09-06 spec §6 is superseded by the handoff).
+    return this.context.client.transaction(async (trxClient) => {
+      await clearEmployeeShifts(trxClient, this.context.organizationId, schedule.branch_id, employeeId, schedule.start_date, schedule.end_date);
+      const dayOffsRepo = new ScheduleDayOffRepository(trxClient);
+      for (const dayOff of await dayOffsRepo.listForSchedule(this.context.organizationId, scheduleId)) {
+        if (dayOff.employee_id === employeeId) await dayOffsRepo.archive(this.context.organizationId, dayOff.id);
+      }
+      return new ScheduleRosterRepository(trxClient).archive(this.context.organizationId, existing.id);
+    });
   }
 
   async listScheduleRoster(scheduleId: string): Promise<ScheduleRosterEntry[]> {

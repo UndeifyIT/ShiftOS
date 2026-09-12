@@ -33,6 +33,7 @@ export * from './scheduling/scheduleVersionRepository.js';
 export * from './scheduling/shiftRepository.js';
 export * from './scheduling/shiftAssignmentRepository.js';
 export * from './scheduling/scheduleRosterRepository.js';
+export * from './scheduling/scheduleDayOffRepository.js';
 export * from './scheduling/publishScheduleWithVersion.js';
 export * from './scheduling/shiftNoteRepository.js';
 export * from './workforce/departmentRepository.js';

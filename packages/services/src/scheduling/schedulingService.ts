@@ -1,6 +1,8 @@
 import {
   ScheduleRepository,
   ScheduleVersionRepository,
+  ScheduleRosterRepository,
+  ScheduleDayOffRepository,
   ShiftRepository,
   ShiftAssignmentRepository,
   ShiftTemplateRepository,
@@ -8,6 +10,7 @@ import {
   UserRepository,
   publishScheduleWithVersion,
   type Schedule,
+  type ScheduleDayOff,
   type ScheduleVersion,
   type Shift,
   type ShiftAssignment,
@@ -17,6 +20,8 @@ import {
 import { ValidationError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
 import { assertNonEmptyString, assertUuid, assertValidDateRange, assertOneOf } from '../validation.js';
+import { clearEmployeeShifts } from './clearEmployeeShifts.js';
+import { detectScheduleConflicts } from './scheduleConflictRules.js';
 import { computeDuration, isDateWithinRange } from './time.js';
 
 const ASSIGNMENT_STATUSES: readonly AssignmentStatus[] = ['assigned', 'confirmed', 'declined', 'completed', 'cancelled'];
@@ -78,28 +83,15 @@ export interface ScheduleConflict {
   detail: string;
 }
 
-const LONG_SHIFT_HOURS_THRESHOLD = 10;
-
-/**
- * A shift's occupied window as minutes from midnight of its shift_date,
- * extending past 1440 when it crosses midnight — the same normalization
- * computeDuration() (./time.ts) applies when measuring a crossing shift's
- * length.
- */
-function shiftTimeRangeMinutes(shift: Shift): { start: number; end: number } {
-  const [startHours, startMinutes] = shift.start_time.split(':').map(Number);
-  const [endHours, endMinutes] = shift.end_time.split(':').map(Number);
-  const start = startHours * 60 + startMinutes;
-  let end = endHours * 60 + endMinutes;
-  if (shift.crosses_midnight) end += 24 * 60;
-  return { start, end };
+function isActiveAssignment(assignment: ShiftAssignment): boolean {
+  return assignment.assignment_status !== 'cancelled' && assignment.assignment_status !== 'declined';
 }
 
-/** True when two shifts on the same date actually overlap in time (touching endpoints don't count). */
-function shiftsOverlap(a: Shift, b: Shift): boolean {
-  const rangeA = shiftTimeRangeMinutes(a);
-  const rangeB = shiftTimeRangeMinutes(b);
-  return rangeA.start < rangeB.end && rangeB.start < rangeA.end;
+/** 'YYYY-MM-DD' + whole days, in UTC so it's timezone-proof. */
+function addDaysToDate(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
 }
 
 /**
@@ -130,6 +122,7 @@ export class SchedulingService {
   private readonly employees: EmployeeRepository;
   private readonly users: UserRepository;
   private readonly templates: ShiftTemplateRepository;
+  private readonly dayOffs: ScheduleDayOffRepository;
 
   constructor(private readonly context: ApplicationContext) {
     this.schedules = new ScheduleRepository(context.client);
@@ -139,6 +132,7 @@ export class SchedulingService {
     this.employees = new EmployeeRepository(context.client);
     this.users = new UserRepository(context.client);
     this.templates = new ShiftTemplateRepository(context.client);
+    this.dayOffs = new ScheduleDayOffRepository(context.client);
   }
 
   /** Resolves "me" the same way attendance/announcements self-service does — email match to an employee record, never a client-supplied employeeId. */
@@ -602,6 +596,13 @@ export class SchedulingService {
         notes: input.notes ?? null
       } as Partial<ShiftAssignment>);
 
+      // Working that day and being marked OFF are mutually exclusive cell states (migration 062).
+      const dayOffsRepo = new ScheduleDayOffRepository(trxClient);
+      const dayOff = await dayOffsRepo.findForDate(this.context.organizationId, schedule.id, employeeId, date);
+      if (dayOff) {
+        await dayOffsRepo.archive(this.context.organizationId, dayOff.id);
+      }
+
       return { shift, assignment };
     });
   }
@@ -720,11 +721,10 @@ export class SchedulingService {
 
   /**
    * Computed on read, nothing stored — SCH-012 §2.3 "validation does not
-   * modify data". Detects two conditions: an employee double-booked across
-   * overlapping active assignments on the same date, and any single shift
-   * exceeding the 10-hour rule. Not wired into publishSchedule's validation
-   * (spec §3.4) — conflicts are advisory in Phase 1, matching publish's
-   * existing "at least one shift" - only check.
+   * modify data". Uses the design handoff's rules (scheduleConflictRules.ts):
+   * per employee per day, overlapping blocks are a double-booking, otherwise
+   * more than 10 hours of paid time (breaks removed) breaks the 10-hour rule.
+   * Publishing with conflicts is blocked in the UI, as in the handoff.
    */
   async getScheduleConflicts(scheduleId: string): Promise<ScheduleConflict[]> {
     assertUuid(scheduleId, 'scheduleId');
@@ -743,55 +743,80 @@ export class SchedulingService {
     const shiftsById = new Map(shifts.map((shift) => [shift.id, shift]));
     const assignments = await this.assignments.listForShifts(this.context.organizationId, shifts.map((shift) => shift.id));
 
-    const conflicts: ScheduleConflict[] = [];
-    const shiftsByEmployeeDate = new Map<string, Shift[]>();
+    return detectScheduleConflicts(
+      assignments.filter(isActiveAssignment).flatMap((assignment) => {
+        const shift = shiftsById.get(assignment.shift_id);
+        return shift
+          ? [{ employeeId: assignment.employee_id, date: shift.shift_date, startTime: shift.start_time, endTime: shift.end_time, breakMinutes: shift.break_minutes }]
+          : [];
+      })
+    );
+  }
 
-    for (const assignment of assignments) {
-      if (assignment.assignment_status === 'cancelled' || assignment.assignment_status === 'declined') continue;
-      const shift = shiftsById.get(assignment.shift_id);
-      if (!shift) continue;
+  // ==================== Days off ====================
 
-      const key = `${assignment.employee_id}:${shift.shift_date}`;
-      const list = shiftsByEmployeeDate.get(key) ?? [];
-      list.push(shift);
-      shiftsByEmployeeDate.set(key, list);
+  async listScheduleDayOffs(scheduleId: string): Promise<ScheduleDayOff[]> {
+    assertUuid(scheduleId, 'scheduleId');
+    await this.context.requirePermission('schedules.read');
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+    return this.dayOffs.listForSchedule(this.context.organizationId, scheduleId);
+  }
 
-      const [hoursPart, minutesPart] = shift.duration.split(':').map(Number);
-      const totalHours = hoursPart + minutesPart / 60;
-      if (totalHours > LONG_SHIFT_HOURS_THRESHOLD) {
-        conflicts.push({
-          employeeId: assignment.employee_id,
-          date: shift.shift_date,
-          kind: 'long_shift',
-          detail: `${shift.title} is ${hoursPart}h${minutesPart > 0 ? ` ${minutesPart}m` : ''} — over the 10-hour rule`
-        });
-      }
+  /**
+   * The handoff's "Day off" / "Mark day off": the cell becomes an explicit OFF
+   * card. Any shifts that employee had that date are removed first (orphaned
+   * shifts cancelled), all in one transaction. Idempotent — marking an
+   * already-OFF day returns the existing row.
+   */
+  async markDayOff(scheduleId: string, employeeId: string, date: string): Promise<ScheduleDayOff> {
+    assertUuid(scheduleId, 'scheduleId');
+    assertUuid(employeeId, 'employeeId');
+    await this.context.requirePermission('assignments.create');
+    await this.context.requirePermission('assignments.delete');
+    const schedule = await this.loadEditableScheduleCell(scheduleId, employeeId, date);
+
+    return this.context.client.transaction(async (trxClient) => {
+      await clearEmployeeShifts(trxClient, this.context.organizationId, schedule.branch_id, employeeId, date, date);
+      const dayOffsRepo = new ScheduleDayOffRepository(trxClient);
+      const existing = await dayOffsRepo.findForDate(this.context.organizationId, schedule.id, employeeId, date);
+      if (existing) return existing;
+      return dayOffsRepo.insert(this.context.organizationId, {
+        schedule_id: schedule.id,
+        employee_id: employeeId,
+        off_date: date,
+        created_by: this.context.userId
+      } as Partial<ScheduleDayOff>);
+    });
+  }
+
+  /** Clears an OFF card back to an undecided day. Clearing a day that isn't OFF is a no-op. */
+  async clearDayOff(scheduleId: string, employeeId: string, date: string): Promise<null> {
+    assertUuid(scheduleId, 'scheduleId');
+    assertUuid(employeeId, 'employeeId');
+    await this.context.requirePermission('assignments.delete');
+    const schedule = await this.loadEditableScheduleCell(scheduleId, employeeId, date);
+    const existing = await this.dayOffs.findForDate(this.context.organizationId, schedule.id, employeeId, date);
+    if (existing) {
+      await this.dayOffs.archive(this.context.organizationId, existing.id);
     }
+    return null;
+  }
 
-    for (const [key, dayShifts] of shiftsByEmployeeDate) {
-      if (dayShifts.length < 2) continue;
-      // Two shifts on one date is only a double-booking if they actually
-      // overlap — a split shift (09:00-13:00 + 14:00-18:00) is legal.
-      let hasOverlap = false;
-      for (let i = 0; i < dayShifts.length && !hasOverlap; i += 1) {
-        for (let j = i + 1; j < dayShifts.length; j += 1) {
-          if (shiftsOverlap(dayShifts[i], dayShifts[j])) {
-            hasOverlap = true;
-            break;
-          }
-        }
-      }
-      if (!hasOverlap) continue;
-      const [employeeId, date] = key.split(':');
-      conflicts.push({
-        employeeId,
-        date,
-        kind: 'double_booking',
-        detail: `Double-booked across ${dayShifts.length} shifts on ${date}`
-      });
+  private async loadEditableScheduleCell(scheduleId: string, employeeId: string, date: string): Promise<Schedule> {
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+    if (schedule.status === 'archived') {
+      throw new ValidationError('Cannot edit an archived schedule');
     }
-
-    return conflicts;
+    if (!isDateWithinRange(date, schedule.start_date, schedule.end_date)) {
+      throw new ValidationError('date must fall within the schedule period', [`date must be between ${schedule.start_date} and ${schedule.end_date}`]);
+    }
+    const employee = await this.employees.getByIdOrThrow(this.context.organizationId, employeeId);
+    if (employee.branch_id !== schedule.branch_id) {
+      throw new ValidationError("Employee does not belong to this schedule's branch");
+    }
+    return schedule;
   }
 
   /** Powers the grid's ‹ › week-navigator (spec §3.2) — never auto-creates a schedule for an empty adjacent week, just reports there isn't one. */
@@ -805,11 +830,13 @@ export class SchedulingService {
   }
 
   /**
-   * "Copy last week" (spec §3.3): for every active assignment in the source
-   * schedule's date range, creates an equivalent shift+assignment in the
-   * target schedule at the same day-of-week offset. Notes are deliberately
-   * not copied — a fresh week shouldn't inherit last week's handover notes.
-   * One transaction: a partial failure must not leave a half-copied week.
+   * "Copy last week" / "Create next week": copies the source week's roster,
+   * every active shift assignment and every day off into the target schedule
+   * at the same day-of-week offset — the handoff copies the whole week, people
+   * included. Notes are deliberately not copied — a fresh week shouldn't
+   * inherit last week's handover notes. People already on the target roster
+   * aren't added twice. One transaction: a partial failure must not leave a
+   * half-copied week. copiedCount counts shifts.
    */
   async duplicateScheduleShifts(sourceScheduleId: string, targetScheduleId: string): Promise<{ copiedCount: number }> {
     assertUuid(sourceScheduleId, 'sourceScheduleId');
@@ -831,32 +858,42 @@ export class SchedulingService {
       source.start_date,
       source.end_date
     );
-    if (sourceShifts.length === 0) {
-      return { copiedCount: 0 };
-    }
-
-    const sourceAssignments = await this.assignments.listForShifts(this.context.organizationId, sourceShifts.map((s) => s.id));
+    const sourceAssignments = sourceShifts.length
+      ? await this.assignments.listForShifts(this.context.organizationId, sourceShifts.map((s) => s.id))
+      : [];
     const shiftsById = new Map(sourceShifts.map((s) => [s.id, s]));
-    const activeAssignments = sourceAssignments.filter(
-      (a) => a.assignment_status !== 'cancelled' && a.assignment_status !== 'declined'
-    );
+    const activeAssignments = sourceAssignments.filter(isActiveAssignment);
 
     const sourceStart = new Date(`${source.start_date}T00:00:00Z`);
     const targetStart = new Date(`${target.start_date}T00:00:00Z`);
+    const offsetDays = Math.round((targetStart.getTime() - sourceStart.getTime()) / (24 * 60 * 60 * 1000));
 
     return this.context.client.transaction(async (trxClient) => {
       const shiftsRepo = new ShiftRepository(trxClient);
       const assignmentsRepo = new ShiftAssignmentRepository(trxClient);
+      const rosterRepo = new ScheduleRosterRepository(trxClient);
+      const dayOffsRepo = new ScheduleDayOffRepository(trxClient);
       let copiedCount = 0;
+
+      const alreadyOnTarget = new Set((await rosterRepo.listForSchedule(this.context.organizationId, target.id)).map((row) => row.employee_id));
+      for (const row of await rosterRepo.listForSchedule(this.context.organizationId, source.id)) {
+        if (alreadyOnTarget.has(row.employee_id)) continue;
+        await rosterRepo.insert(this.context.organizationId, { schedule_id: target.id, employee_id: row.employee_id, added_by: this.context.userId });
+        alreadyOnTarget.add(row.employee_id);
+      }
+
+      for (const dayOff of await dayOffsRepo.listForSchedule(this.context.organizationId, source.id)) {
+        const offDate = addDaysToDate(dayOff.off_date, offsetDays);
+        if (!isDateWithinRange(offDate, target.start_date, target.end_date)) continue;
+        if (await dayOffsRepo.findForDate(this.context.organizationId, target.id, dayOff.employee_id, offDate)) continue;
+        await dayOffsRepo.insert(this.context.organizationId, { schedule_id: target.id, employee_id: dayOff.employee_id, off_date: offDate, created_by: this.context.userId });
+      }
 
       for (const assignment of activeAssignments) {
         const sourceShift = shiftsById.get(assignment.shift_id);
         if (!sourceShift) continue;
 
-        const sourceDate = new Date(`${sourceShift.shift_date}T00:00:00Z`);
-        const dayOffset = Math.round((sourceDate.getTime() - sourceStart.getTime()) / (24 * 60 * 60 * 1000));
-        const targetDate = new Date(targetStart.getTime() + dayOffset * 24 * 60 * 60 * 1000);
-        const targetDateString = targetDate.toISOString().slice(0, 10);
+        const targetDateString = addDaysToDate(sourceShift.shift_date, offsetDays);
 
         const newShift = await shiftsRepo.insert(this.context.organizationId, {
           branch_id: target.branch_id,
@@ -928,5 +965,36 @@ export class SchedulingService {
       this.context.userId,
       changesSummary ?? null
     );
+  }
+
+  /**
+   * The handoff's "Unpublish to edit": takes a published week back to draft so
+   * staff stop seeing it until it's republished. Its published shifts go back
+   * to draft too (published_at cleared, per chk_shifts_published_at_lifecycle)
+   * — they're what staff views read. Version history is kept; the next publish
+   * records the next version. Supersedes SCH-003 §12's "Published → Active
+   * only" (the handoff wins where the two disagree).
+   */
+  async unpublishSchedule(scheduleId: string): Promise<Schedule> {
+    assertUuid(scheduleId, 'scheduleId');
+    await this.context.requirePermission('schedules.publish');
+
+    const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
+    this.context.requireBranchAccess(schedule.branch_id);
+    if (schedule.status !== 'published') {
+      throw new ValidationError('Only a published schedule can be unpublished');
+    }
+
+    return this.context.client.transaction(async (trxClient) => {
+      const schedulesRepo = new ScheduleRepository(trxClient);
+      const shiftsRepo = new ShiftRepository(trxClient);
+      const shiftsInRange = await shiftsRepo.findByBranchAndDateRange(this.context.organizationId, schedule.branch_id, schedule.start_date, schedule.end_date);
+      for (const shift of shiftsInRange) {
+        if (shift.status === 'published') {
+          await shiftsRepo.unpublish(this.context.organizationId, shift.id);
+        }
+      }
+      return schedulesRepo.unpublish(this.context.organizationId, scheduleId);
+    });
   }
 }

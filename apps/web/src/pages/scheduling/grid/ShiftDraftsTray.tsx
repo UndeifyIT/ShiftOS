@@ -1,56 +1,48 @@
 import React from 'react';
-import { Button } from '@shiftos/ui';
-
-export interface TrayDraft {
-  id: string;
-  startTime: string;
-  endTime: string;
-  breakMinutes: number;
-  note: string;
-}
 
 export interface ShiftDraftsTrayProps {
-  drafts: TrayDraft[];
-  canEdit: boolean;
+  hasDrafts: boolean;
+  isDragOver: boolean;
+  /** The draft cards, already rendered. */
+  children?: React.ReactNode;
   onNewDraft: () => void;
-  onEditDraft: (draft: TrayDraft) => void;
-  onDragStartDraft: (draft: TrayDraft) => void;
-  onDropTray: () => void;
+  onDragOver: () => void;
+  onDragLeave: () => void;
+  onDrop: () => void;
 }
 
-/** The bottom "Shift drafts" tray (design handoff line ~586-624) — drafts here aren't real shifts/assignments until dragged onto a grid cell (spec §4.4). */
-export function ShiftDraftsTray({ drafts, canEdit, onNewDraft, onEditDraft, onDragStartDraft, onDropTray }: ShiftDraftsTrayProps): React.ReactElement | null {
-  if (!canEdit) return null;
-
+/** The "Shift drafts" tray beside "＋ Add Employee" (design handoff trayStyle/trayCards) — drafts aren't real shifts until dropped onto someone. */
+export function ShiftDraftsTray({ hasDrafts, isDragOver, children, onNewDraft, onDragOver, onDragLeave, onDrop }: ShiftDraftsTrayProps): React.ReactElement {
   return (
     <div
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => {
-        e.preventDefault();
-        onDropTray();
+      onDragOver={(event) => {
+        event.preventDefault();
+        onDragOver();
       }}
-      className="flex flex-wrap items-center gap-2 border-t border-neutral-200 p-3"
+      onDragLeave={onDragLeave}
+      onDrop={(event) => {
+        event.preventDefault();
+        onDrop();
+      }}
+      className={['min-h-[108px] px-4 py-[13px]', isDragOver ? 'bg-[#FDF0E9] shadow-[inset_0_0_0_2px_#F04E17]' : 'bg-white'].join(' ')}
     >
-      <span className="text-[10px] font-extrabold uppercase tracking-wide text-neutral-400">Shift drafts</span>
-      {drafts.length === 0 ? <span className="text-xs text-neutral-400">Drag a draft onto any cell to assign it.</span> : null}
-      <div className="flex flex-wrap items-stretch gap-2">
-        {drafts.map((draft) => (
-          <button
-            key={draft.id}
-            type="button"
-            draggable
-            onDragStart={() => onDragStartDraft(draft)}
-            onClick={() => onEditDraft(draft)}
-            className="flex min-w-[86px] flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-neutral-300 bg-white px-2.5 py-1.5 text-center hover:border-brand-400"
-          >
-            <span className="text-[10px] font-bold text-neutral-900">
-              {draft.startTime} – {draft.endTime}
-            </span>
-          </button>
-        ))}
-        <Button type="button" variant="secondary" size="sm" onClick={onNewDraft}>
-          + New shift
-        </Button>
+      <span className="flex flex-wrap items-center gap-2">
+        <span className="text-[10px] font-extrabold uppercase tracking-[.1em] text-[#A79C93]">Shift drafts</span>
+        <span className="text-[11px] text-[#A79C93]">
+          {hasDrafts ? 'Drag a draft onto anyone, or press ⋮ to edit or duplicate it' : 'Build a shift once here, then drag it onto anyone'}
+        </span>
+      </span>
+      <div className="mt-[9px] flex flex-wrap items-stretch gap-[9px]">
+        {children}
+        <button
+          type="button"
+          onClick={onNewDraft}
+          aria-label="Create a shift draft"
+          className="flex min-h-[52px] min-w-[86px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[11px] border border-dashed border-[#DDD6D0] bg-white text-[#C6420E] hover:border-[#F04E17] hover:bg-[#FDF0E9]"
+        >
+          <span className="text-[15px] font-extrabold leading-none">＋</span>
+          <span className="text-[10px] font-bold">New shift</span>
+        </button>
       </div>
     </div>
   );

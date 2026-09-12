@@ -80,7 +80,7 @@ export function Sidebar(): React.ReactElement {
   const items = useNavItems();
 
   return (
-    <nav aria-label="Primary" className="flex h-full w-60 shrink-0 flex-col border-r border-neutral-200 bg-white">
+    <nav aria-label="Primary" className="flex h-full w-[221px] shrink-0 flex-col border-r border-neutral-200 bg-white">
       <div className="px-5 pb-[18px] pt-[22px]">
         <Logo size="sm" />
       </div>

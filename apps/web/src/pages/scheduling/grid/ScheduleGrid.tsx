@@ -1,438 +1,877 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Button } from '@shiftos/ui';
-import { useNavigate } from 'react-router-dom';
-import { callRpc } from '../../../lib/apiClient.js';
+import React, { useMemo, useRef, useState } from 'react';
 import { useRpcMutation, useRpcQuery } from '../../../lib/useRpc.js';
-import type {
-  Employee,
-  Schedule,
-  ScheduleConflict,
-  ScheduleRosterEntry,
-  Shift,
-  ShiftAssignment
-} from '../../../types/domain.js';
+import type { Member, Schedule, ScheduleConflict, ScheduleVersion } from '../../../types/domain.js';
 import { AddEmployeeModal } from './AddEmployeeModal.js';
-import { AiAssistantPanel } from './AiAssistantPanel.js';
-import { AssignShiftModal } from './AssignShiftModal.js';
-import { NewDraftModal } from './NewDraftModal.js';
+import { AiAssistantPanel, type AiActionKey } from './AiAssistantPanel.js';
 import { ScheduleConflictsPanel } from './ScheduleConflictsPanel.js';
-import { ScheduleSummaryBar } from './ScheduleSummaryBar.js';
+import { ScheduleIcon } from './ScheduleIcon.js';
+import { OVER_HOURS_MINUTES, ScheduleSummaryBar } from './ScheduleSummaryBar.js';
+import type { ToastTone } from './ScheduleToast.js';
+import { ShiftCard, type ShiftCardMenuItem } from './ShiftCard.js';
 import { ShiftCell } from './ShiftCell.js';
-import { ShiftDraftsTray, type TrayDraft } from './ShiftDraftsTray.js';
+import { ShiftDraftsTray } from './ShiftDraftsTray.js';
+import { ShiftFormModal, type ShiftFormValues } from './ShiftFormModal.js';
+import { VersionHistoryModal } from './VersionHistoryModal.js';
+import {
+  TONES,
+  avatarTone,
+  clockMinutes,
+  durationText,
+  initialsOf,
+  isoWeekNumber,
+  shiftTone,
+  shortDate,
+  timeLabel,
+  weekRangeLabel
+} from './scheduleFormat.js';
+import { SCHEDULE_DATA_QUERIES, cellKey, useScheduleWeek, type GridCard, type ShiftBlock, type TrayDraft } from './useScheduleWeek.js';
 
 export interface ScheduleGridProps {
-  scheduleId: string;
   schedule: Schedule;
+  /** Org-wide Manager — sees the published/unpublished status bar and must unpublish before editing a published week. */
+  isManager: boolean;
   canEdit: boolean;
+  canPublish: boolean;
+  onNavigateWeek: (direction: -1 | 1) => void;
+  onCreateNextWeek: () => void;
+  showToast: (text: string, tone?: ToastTone) => void;
 }
 
-function activeCellKey(employeeId: string, date: string): string {
-  return `${employeeId}:${date}`;
+type ShiftCardData = Extract<GridCard, { kind: 'shift' }>;
+type DragSource = { from: 'tray'; draftId: string } | { from: 'cell'; card: GridCard; employeeId: string; date: string };
+type FormState = { mode: 'cell'; employeeId: string; date: string; card: GridCard | null } | { mode: 'tray'; draft: TrayDraft | null };
+
+const DEFAULT_FILL: ShiftBlock = { startTime: '07:30', endTime: '17:00', breakMinutes: 60 };
+
+function crossesMidnight(block: ShiftBlock): boolean {
+  return clockMinutes(block.endTime) <= clockMinutes(block.startTime);
 }
 
-type DragSource = { kind: 'tray'; draftId: string } | { kind: 'cell'; assignmentId: string; employeeId: string; date: string };
-
-/** Adds `count` days to a 'YYYY-MM-DD' date string using pure UTC arithmetic — never routes through local-timezone parsing, so this is correct in every timezone (unlike `new Date(dateStr + 'T00:00:00').toISOString()`, which shifts a day early in any positive-UTC-offset timezone). */
-function addDaysToDateString(dateString: string, count: number): string {
-  const [year, month, day] = dateString.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  date.setUTCDate(date.getUTCDate() + count);
-  return date.toISOString().slice(0, 10);
+function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong — please try again.';
 }
 
-/** The weekly employee × day grid — WEB-012 replacement (design handoff "Manager/Schedules" / "Supervisor/Schedules"). */
-export function ScheduleGrid({ scheduleId, schedule, canEdit }: ScheduleGridProps): React.ReactElement {
-  const navigate = useNavigate();
+function publishedStamp(iso: string): string {
+  const value = new Date(iso);
+  const hours = value.getHours();
+  const hours12 = hours % 12 === 0 ? 12 : hours % 12;
+  const month = value.toLocaleString('en-US', { month: 'short' });
+  return `${month} ${value.getDate()}, ${String(hours12).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')} ${hours < 12 ? 'AM' : 'PM'}`;
+}
 
-  const { data: roster, isLoading: rosterLoading } = useRpcQuery<ScheduleRosterEntry[]>('list_schedule_roster', { scheduleId });
-  const { data: employees, isLoading: employeesLoading } = useRpcQuery<Employee[]>('list_employees', { branchId: schedule.branch_id });
-  const { data: shifts, isLoading: shiftsLoading } = useRpcQuery<Shift[]>('list_shifts_for_schedule', { scheduleId });
-  const { data: assignments, isLoading: assignmentsLoading } = useRpcQuery<ShiftAssignment[]>('list_assignments_for_schedule', { scheduleId });
-  const { data: conflicts, isLoading: conflictsLoading } = useRpcQuery<ScheduleConflict[]>('get_schedule_conflicts', { scheduleId });
+function downloadCsv(filename: string, rows: string[][]): void {
+  const csv = rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
-  const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
-  const [activeCell, setActiveCell] = useState<{ employeeId: string; date: string; editingAssignmentId: string | null } | null>(null);
-  const [summaryOpen, setSummaryOpen] = useState(false);
+/** The weekly employee × day schedule — design handoff "Manager/Schedules" / "Supervisor/Schedules" (ShiftOS Dashboards.dc.html lines 465-737). */
+export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavigateWeek, onCreateNextWeek, showToast }: ScheduleGridProps): React.ReactElement {
+  const scheduleId = schedule.id;
+  const week = useScheduleWeek(schedule);
+  const { days, rosterRows, cells, conflictsByCell, orderedConflicts, hours } = week;
+  const published = schedule.status === 'published';
+
   const [tray, setTray] = useState<TrayDraft[]>([]);
-  const [draftModal, setDraftModal] = useState<{ open: boolean; editing: TrayDraft | null }>({ open: false, editing: null });
-  const [cardMenuError, setCardMenuError] = useState<string | null>(null);
+  const [menu, setMenu] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [publishMenuOpen, setPublishMenuOpen] = useState(false);
   const [dragging, setDragging] = useState<DragSource | null>(null);
-  const [dragOverCellKey, setDragOverCellKey] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const draftCounter = useRef(0);
+  const assistantRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!cardMenuError) return;
-    const timeout = setTimeout(() => setCardMenuError(null), 4000);
-    return () => clearTimeout(timeout);
-  }, [cardMenuError]);
+  const invalidates = SCHEDULE_DATA_QUERIES;
+  const addShift = useRpcMutation<unknown, Record<string, unknown>>('add_shift_to_employee_on_date', { invalidates });
+  const updateShift = useRpcMutation<unknown, Record<string, unknown>>('update_assigned_shift_on_date', { invalidates });
+  const removeShift = useRpcMutation<unknown, { assignmentId: string }>('remove_assigned_shift_on_date', { invalidates });
+  const markDayOff = useRpcMutation<unknown, { scheduleId: string; employeeId: string; date: string }>('mark_day_off', { invalidates });
+  const clearDayOff = useRpcMutation<unknown, { scheduleId: string; employeeId: string; date: string }>('clear_day_off', { invalidates });
+  const addToRoster = useRpcMutation<unknown, { scheduleId: string; employeeId: string }>('add_employee_to_schedule', { invalidates: ['list_schedule_roster'] });
+  const removeFromRoster = useRpcMutation<unknown, { scheduleId: string; employeeId: string }>('remove_employee_from_schedule', {
+    invalidates: ['list_schedule_roster', ...invalidates]
+  });
+  const createTemplate = useRpcMutation<unknown, Record<string, unknown>>('create_shift_template', { invalidates: ['list_shift_templates'] });
+  const publish = useRpcMutation<Schedule, { scheduleId: string }>('publish_schedule', { invalidates: ['get_schedule', 'list_schedules', 'list_schedule_versions'] });
+  const unpublish = useRpcMutation<Schedule, { scheduleId: string }>('unpublish_schedule', { invalidates: ['get_schedule', 'list_schedules'] });
+  const ask = useRpcMutation<{ answer: string }, { question: string }>('ask_assistant');
 
-  const goToAdjacentWeek = async (direction: 'prev' | 'next'): Promise<void> => {
+  const { data: versions } = useRpcQuery<ScheduleVersion[]>('list_schedule_versions', { scheduleId }, { enabled: isManager });
+  const { data: members } = useRpcQuery<Member[]>('list_members', undefined, { enabled: isManager && published });
+
+  const nameOf = (employeeId: string): string => rosterRows.find((row) => row.employee.id === employeeId)?.name ?? 'Unknown employee';
+  const dayOf = (date: string) => days.find((day) => day.date === date);
+
+  /** Runs a sequence of writes with one busy flag; failures surface as an error toast and return false. */
+  const run = async (work: () => Promise<void>, onError?: (message: string) => void): Promise<boolean> => {
+    setBusy(true);
     try {
-      const adjacent = await callRpc<Schedule | null>('find_adjacent_schedule', schedule.organization_id, { scheduleId, direction });
-      if (adjacent) {
-        navigate(`/schedules/${adjacent.id}`);
-      } else {
-        setCardMenuError(direction === 'next' ? 'No later schedule exists yet for this branch.' : 'No earlier schedule exists for this branch.');
-      }
+      await work();
+      return true;
     } catch (err) {
-      setCardMenuError(err instanceof Error ? err.message : 'Failed to load the adjacent schedule.');
+      if (onError) onError(errorText(err));
+      else showToast(errorText(err), 'error');
+      return false;
+    } finally {
+      setBusy(false);
     }
   };
 
-  const employeesById = useMemo(() => new Map((employees ?? []).map((e) => [e.id, e])), [employees]);
-  const shiftsById = useMemo(() => new Map((shifts ?? []).map((s) => [s.id, s])), [shifts]);
-
-  const days = useMemo(() => {
-    const result: string[] = [];
-    for (let i = 0; i < 7; i += 1) {
-      result.push(addDaysToDateString(schedule.start_date, i));
+  const addBlocks = async (employeeId: string, date: string, blocks: ShiftBlock[], note: string): Promise<void> => {
+    for (const [index, block] of blocks.entries()) {
+      await addShift.mutateAsync({
+        scheduleId,
+        employeeId,
+        date,
+        templateId: null,
+        startTime: block.startTime,
+        endTime: block.endTime,
+        crossesMidnight: crossesMidnight(block),
+        breakMinutes: block.breakMinutes,
+        notes: index === 0 && note ? note : null
+      });
     }
-    return result;
-  }, [schedule.start_date]);
+  };
 
-  const cellAssignments = useMemo(() => {
-    const map = new Map<string, Array<{ assignment: ShiftAssignment; shift: Shift }>>();
-    for (const assignment of assignments ?? []) {
-      if (assignment.assignment_status === 'cancelled' || assignment.assignment_status === 'declined') continue;
-      const shift = shiftsById.get(assignment.shift_id);
-      if (!shift) continue;
-      const key = activeCellKey(assignment.employee_id, shift.shift_date);
-      const list = map.get(key) ?? [];
-      list.push({ assignment, shift });
-      map.set(key, list);
+  const removeCard = async (card: GridCard, employeeId: string, date: string): Promise<void> => {
+    if (card.kind === 'shift') await removeShift.mutateAsync({ assignmentId: card.id });
+    else await clearDayOff.mutateAsync({ scheduleId, employeeId, date });
+  };
+
+  const newDraft = (source: { off: boolean; blocks: ShiftBlock[]; note: string }): TrayDraft => {
+    draftCounter.current += 1;
+    return { id: `draft-${draftCounter.current}`, ...source };
+  };
+
+  const draftFromCard = (card: GridCard): TrayDraft =>
+    card.kind === 'shift' ? newDraft({ off: false, blocks: [card.block], note: card.note }) : newDraft({ off: true, blocks: [], note: '' });
+
+  const readOnlyHint = isManager && published ? 'Published shifts are read-only — unpublish to edit them' : 'You can only view this schedule';
+
+  // ---- form ----
+  const formInitial =
+    form?.mode === 'cell'
+      ? form.card?.kind === 'shift'
+        ? { off: false, blocks: [form.card.block], note: form.card.note }
+        : { off: form.card?.kind === 'off', blocks: [], note: '' }
+      : form?.mode === 'tray' && form.draft
+        ? { off: form.draft.off, blocks: form.draft.blocks, note: form.draft.note }
+        : { off: false, blocks: [], note: '' };
+
+  const openCell = (employeeId: string, date: string, card: GridCard | null): void => {
+    setMenu(null);
+    setFormError(null);
+    setForm({ mode: 'cell', employeeId, date, card });
+  };
+
+  const saveForm = async (values: ShiftFormValues): Promise<void> => {
+    if (!form) return;
+    if (form.mode === 'tray') {
+      const draft = { off: values.off, blocks: values.off ? [] : values.blocks, note: values.note };
+      if (form.draft) {
+        const id = form.draft.id;
+        setTray((prev) => prev.map((d) => (d.id === id ? { id, ...draft } : d)));
+      } else {
+        setTray((prev) => [...prev, newDraft(draft)]);
+      }
+      setForm(null);
+      showToast(form.draft ? 'Shift draft updated' : 'Shift draft ready — drag it onto anyone');
+      return;
     }
-    return map;
-  }, [assignments, shiftsById]);
-
-  const conflictsByCell = useMemo(() => {
-    const map = new Map<string, ScheduleConflict[]>();
-    for (const conflict of conflicts ?? []) {
-      const key = activeCellKey(conflict.employeeId, conflict.date);
-      const list = map.get(key) ?? [];
-      list.push(conflict);
-      map.set(key, list);
-    }
-    return map;
-  }, [conflicts]);
-
-  const rosterEmployees = (roster ?? [])
-    .map((entry) => employeesById.get(entry.employee_id))
-    .filter((e): e is Employee => Boolean(e));
-
-  const addEmployeeMutation = useRpcMutation<ScheduleRosterEntry, { scheduleId: string; employeeId: string }>(
-    'add_employee_to_schedule',
-    { invalidates: ['list_schedule_roster'] }
-  );
-  const removeEmployeeMutation = useRpcMutation<ScheduleRosterEntry, { scheduleId: string; employeeId: string }>(
-    'remove_employee_from_schedule',
-    { invalidates: ['list_schedule_roster'] }
-  );
-  const removeAssignedShiftMutation = useRpcMutation<unknown, { assignmentId: string }>('remove_assigned_shift_on_date', {
-    invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
-    onError: (err) => setCardMenuError(err.message)
-  });
-  const assignShiftMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
-    'assign_shift_to_employee_on_date',
-    {
-      invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
-      onError: (err) => setCardMenuError(err.message)
-    }
-  );
-  const addShiftMutation = useRpcMutation<{ shift: Shift; assignment: ShiftAssignment }, Record<string, unknown>>(
-    'add_shift_to_employee_on_date',
-    {
-      invalidates: ['list_assignments_for_schedule', 'get_schedule_conflicts', 'list_shifts_for_schedule'],
-      onError: (err) => setCardMenuError(err.message)
-    }
-  );
-
-  const handleMoveToDrafts = (card: { shift: Shift; assignment: ShiftAssignment }): void => {
-    removeAssignedShiftMutation.mutate(
-      { assignmentId: card.assignment.id },
-      {
-        onSuccess: () => {
-          setTray((prev) => [
-            ...prev,
-            {
-              id: card.assignment.id,
-              startTime: card.shift.start_time.slice(0, 5),
-              endTime: card.shift.end_time.slice(0, 5),
-              breakMinutes: card.shift.break_minutes,
-              note: card.assignment.notes ?? ''
-            }
-          ]);
+    const { employeeId, date, card } = form;
+    const ok = await run(async () => {
+      const apply = async (targetDate: string, primary: boolean): Promise<void> => {
+        if (values.off) {
+          await markDayOff.mutateAsync({ scheduleId, employeeId, date: targetDate });
+          return;
         }
+        if (primary && card?.kind === 'shift') {
+          const [first, ...rest] = values.blocks;
+          await updateShift.mutateAsync({
+            assignmentId: card.id,
+            startTime: first.startTime,
+            endTime: first.endTime,
+            crossesMidnight: crossesMidnight(first),
+            breakMinutes: first.breakMinutes,
+            notes: values.note || null
+          });
+          await addBlocks(employeeId, targetDate, rest, '');
+          return;
+        }
+        await addBlocks(employeeId, targetDate, values.blocks, values.note);
+      };
+      await apply(date, true);
+      for (const extraDate of values.alsoDates) await apply(extraDate, false);
+      if (values.saveAsTemplate && values.templateName && !values.off) {
+        const first = values.blocks[0];
+        await createTemplate.mutateAsync({
+          branchId: schedule.branch_id,
+          name: values.templateName,
+          startTime: first.startTime,
+          endTime: first.endTime,
+          crossesMidnight: crossesMidnight(first)
+        });
+      }
+    }, setFormError);
+    if (!ok) return;
+    setForm(null);
+    const day = dayOf(date);
+    const extra = values.alsoDates.length;
+    showToast(`${values.off ? 'Day off saved' : 'Shift assigned'} for ${nameOf(employeeId)}${extra ? ` on ${extra + 1} days` : ` · ${day?.weekday}, ${day?.label}`}`);
+  };
+
+  const deleteFromForm = async (): Promise<void> => {
+    if (!form) return;
+    if (form.mode === 'tray') {
+      const id = form.draft?.id;
+      setTray((prev) => prev.filter((d) => d.id !== id));
+      setForm(null);
+      showToast('Shift removed');
+      return;
+    }
+    const { card, employeeId, date } = form;
+    if (!card) return;
+    if (await run(() => removeCard(card, employeeId, date), setFormError)) {
+      setForm(null);
+      showToast('Shift removed');
+    }
+  };
+
+  // ---- drag & drop ----
+  const dropOnCell = async (employeeId: string, date: string): Promise<void> => {
+    const source = dragging;
+    setDragging(null);
+    setDragOver(null);
+    if (!source) return;
+    const day = dayOf(date);
+    const movedToast = `Shift moved to ${nameOf(employeeId)} · ${day?.weekday}`;
+    if (source.from === 'tray') {
+      const draft = tray.find((d) => d.id === source.draftId);
+      if (!draft) return;
+      const ok = await run(async () => {
+        if (draft.off) await markDayOff.mutateAsync({ scheduleId, employeeId, date });
+        else await addBlocks(employeeId, date, draft.blocks, draft.note);
+      });
+      if (ok) {
+        setTray((prev) => prev.filter((d) => d.id !== draft.id));
+        showToast(movedToast);
+      }
+      return;
+    }
+    if (source.employeeId === employeeId && source.date === date) return;
+    const { card } = source;
+    // Write the destination first, then clear the source, so a failed drop never loses the original shift.
+    const ok = await run(async () => {
+      if (card.kind === 'off') await markDayOff.mutateAsync({ scheduleId, employeeId, date });
+      else await addBlocks(employeeId, date, [card.block], card.note);
+      await removeCard(card, source.employeeId, source.date);
+    });
+    if (ok) showToast(movedToast);
+  };
+
+  const dropOnTray = async (): Promise<void> => {
+    const source = dragging;
+    setDragging(null);
+    setDragOver(null);
+    if (!source || source.from !== 'cell') return;
+    if (await run(() => removeCard(source.card, source.employeeId, source.date))) {
+      setTray((prev) => [...prev, draftFromCard(source.card)]);
+      showToast('Moved to shift drafts');
+    }
+  };
+
+  // ---- card menus ----
+  const cellMenu = (card: GridCard, employeeId: string, date: string): ShiftCardMenuItem[] => {
+    const items: ShiftCardMenuItem[] = [
+      { label: 'Edit shift', onSelect: () => openCell(employeeId, date, card) },
+      {
+        label: 'Duplicate',
+        onSelect: () => {
+          if (card.kind === 'off') {
+            setTray((prev) => [...prev, draftFromCard(card)]);
+            showToast('Day off copied to shift drafts — drag it onto anyone');
+            return;
+          }
+          void run(() => addBlocks(employeeId, date, [card.block], card.note)).then((ok) => ok && showToast('Shift duplicated'));
+        }
+      },
+      {
+        label: 'Move to drafts',
+        onSelect: () =>
+          void run(() => removeCard(card, employeeId, date)).then((ok) => {
+            if (!ok) return;
+            setTray((prev) => [...prev, draftFromCard(card)]);
+            showToast('Moved to shift drafts');
+          })
+      }
+    ];
+    if (card.kind === 'shift') {
+      items.push({
+        label: 'Mark day off',
+        onSelect: () => void run(() => markDayOff.mutateAsync({ scheduleId, employeeId, date }).then(() => undefined)).then((ok) => ok && showToast('Marked as day off'))
+      });
+    }
+    items.push({ label: 'Delete', danger: true, onSelect: () => void run(() => removeCard(card, employeeId, date)).then((ok) => ok && showToast('Shift removed')) });
+    return items;
+  };
+
+  const trayMenu = (draft: TrayDraft): ShiftCardMenuItem[] => [
+    { label: 'Edit shift', onSelect: () => setForm({ mode: 'tray', draft }) },
+    {
+      label: 'Duplicate',
+      onSelect: () => {
+        setTray((prev) => [...prev, newDraft({ off: draft.off, blocks: draft.blocks, note: draft.note })]);
+        showToast('Shift duplicated');
+      }
+    },
+    {
+      label: 'Delete',
+      danger: true,
+      onSelect: () => {
+        setTray((prev) => prev.filter((d) => d.id !== draft.id));
+        showToast('Shift removed');
+      }
+    }
+  ];
+
+  // ---- assistant ----
+  const onAiAction = async (action: AiActionKey): Promise<void> => {
+    if (action === 'createNextWeek') {
+      onCreateNextWeek();
+      return;
+    }
+    const hoursList = rosterRows.map((row) => ({ row, minutes: hours.get(row.employee.id)?.paidMinutes ?? 0 }));
+    if (action === 'balance') {
+      if (hoursList.length < 2) {
+        showToast('Add at least two people to balance hours');
+        return;
+      }
+      const sorted = [...hoursList].sort((a, b) => b.minutes - a.minutes);
+      const most = sorted[0];
+      const least = sorted[sorted.length - 1];
+      const moveHours = Math.round((most.minutes - least.minutes) / 120);
+      showToast(moveHours >= 1 ? `Suggested: move ${moveHours}h from ${most.row.employee.first_name} to ${least.row.employee.first_name}` : 'Hours are already evenly balanced');
+      return;
+    }
+    if (action === 'overtime') {
+      const over = hoursList.filter((entry) => entry.minutes > 40 * 60);
+      if (!over.length) {
+        showToast('Nobody is over 40h this week');
+        return;
+      }
+      const busiest = days
+        .map((day) => ({ day, minutes: over.reduce((sum, entry) => sum + (hours.get(entry.row.employee.id)?.minutesByDate.get(day.date) ?? 0), 0) }))
+        .sort((a, b) => b.minutes - a.minutes)
+        .slice(0, 2)
+        .map((entry) => entry.day.weekday);
+      showToast(`${over.length} ${over.length === 1 ? 'person is' : 'people are'} over 40h — review ${busiest.join(' and ')}`);
+      return;
+    }
+    if (!canEdit) {
+      showToast(readOnlyHint);
+      return;
+    }
+    if (action === 'fillEmpty') {
+      const empty = rosterRows.flatMap((row) => days.filter((day) => !(cells.get(cellKey(row.employee.id, day.date)) ?? []).length).map((day) => [row.employee.id, day.date] as const));
+      if (!empty.length) {
+        showToast('No empty days to fill');
+        return;
+      }
+      if (await run(async () => {
+        for (const [employeeId, date] of empty) await addBlocks(employeeId, date, [DEFAULT_FILL], '');
+      })) {
+        showToast(`${empty.length} empty ${empty.length === 1 ? 'day' : 'days'} filled with 7:30 AM – 5:00 PM`);
+      }
+      return;
+    }
+    if (action === 'resolveConflicts') {
+      const doubleBooked = orderedConflicts.filter((conflict) => conflict.kind === 'double_booking');
+      if (!doubleBooked.length) {
+        showToast(orderedConflicts.length ? 'Remaining conflicts are long shifts — shorten them to clear' : 'No conflicts to resolve');
+        return;
+      }
+      if (await run(async () => {
+        for (const conflict of doubleBooked) {
+          const extras = (cells.get(cellKey(conflict.employeeId, conflict.date)) ?? []).filter((card): card is ShiftCardData => card.kind === 'shift').slice(1);
+          for (const card of extras) await removeShift.mutateAsync({ assignmentId: card.id });
+        }
+      })) {
+        showToast(`${doubleBooked.length} double-booking${doubleBooked.length === 1 ? '' : 's'} cleared`);
+      }
+    }
+  };
+
+  const onAsk = (question: string): void => {
+    showToast('Assistant is looking at this week…');
+    ask.mutate(
+      { question: `About the ${weekRangeLabel(schedule.start_date)} schedule: ${question}` },
+      { onSuccess: (result) => showToast(result.answer), onError: (err) => showToast(err.message, 'error') }
+    );
+  };
+
+  // ---- publish ----
+  const onPublish = (): void => {
+    setPublishMenuOpen(false);
+    if (orderedConflicts.length) {
+      showToast(`Resolve ${orderedConflicts.length} conflict${orderedConflicts.length === 1 ? '' : 's'} before publishing`, 'error');
+      return;
+    }
+    const wasPublished = Boolean(versions?.length);
+    publish.mutate(
+      { scheduleId },
+      {
+        onSuccess: () => showToast(`Schedule ${wasPublished ? 're' : ''}published · staff can see this week`),
+        onError: (err) => showToast(err.message, 'error')
       }
     );
   };
 
-  const isLoading = rosterLoading || shiftsLoading || employeesLoading || assignmentsLoading || conflictsLoading;
-  const scheduledCount = rosterEmployees.filter((e) => days.some((d) => cellAssignments.has(activeCellKey(e.id, d)))).length;
-
-  const activeEmployee = activeCell ? employeesById.get(activeCell.employeeId) : undefined;
-
-  const handleDropOnCell = (employeeId: string, date: string): void => {
-    setDragOverCellKey(null);
-    if (!dragging) return;
-    const targetCards = cellAssignments.get(activeCellKey(employeeId, date)) ?? [];
-    const mutate = targetCards.length === 0 ? assignShiftMutation.mutate : addShiftMutation.mutate;
-
-    if (dragging.kind === 'tray') {
-      const draft = tray.find((d) => d.id === dragging.draftId);
-      if (!draft) {
-        setDragging(null);
-        return;
+  const legend = useMemo(() => {
+    const counts = new Map<string, { block: ShiftBlock; count: number }>();
+    for (const list of cells.values()) {
+      for (const card of list) {
+        if (card.kind !== 'shift') continue;
+        const key = `${card.block.startTime}-${card.block.endTime}`;
+        counts.set(key, { block: card.block, count: (counts.get(key)?.count ?? 0) + 1 });
       }
-      mutate(
-        {
-          scheduleId,
-          employeeId,
-          date,
-          templateId: null,
-          startTime: draft.startTime,
-          endTime: draft.endTime,
-          breakMinutes: draft.breakMinutes,
-          notes: draft.note || null
-        },
-        { onSuccess: () => setTray((prev) => prev.filter((d) => d.id !== draft.id)) }
-      );
-    } else {
-      // Moving an already-assigned card from one cell to another: assign/add
-      // on the destination first, then remove the source assignment only
-      // once that succeeds. Two RPC calls rather than one atomic "move" —
-      // matches the handoff's own mock treating this as remove+add (spec
-      // §4.1) — but ordered add-then-remove so a failed destination write
-      // never causes a silent loss of the source assignment.
-      if (dragging.employeeId === employeeId && dragging.date === date) {
-        setDragging(null);
-        return; // dropped on its own cell — no-op
-      }
-      const sourceCards = cellAssignments.get(activeCellKey(dragging.employeeId, dragging.date)) ?? [];
-      const sourceCard = sourceCards.find((c) => c.assignment.id === dragging.assignmentId);
-      if (!sourceCard) {
-        setDragging(null);
-        return;
-      }
-      mutate(
-        {
-          scheduleId,
-          employeeId,
-          date,
-          // preserve the card's own edited times/break rather than letting insertShiftAssignment re-derive them from the template
-          templateId: null,
-          startTime: sourceCard.shift.start_time.slice(0, 5),
-          endTime: sourceCard.shift.end_time.slice(0, 5),
-          crossesMidnight: sourceCard.shift.crosses_midnight,
-          breakMinutes: sourceCard.shift.break_minutes,
-          notes: sourceCard.assignment.notes
-        },
-        {
-          onSuccess: () => {
-            removeAssignedShiftMutation.mutate({ assignmentId: dragging.assignmentId });
-          }
-        }
-      );
     }
-    setDragging(null);
-  };
+    return [...counts.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .sort((a, b) => clockMinutes(a.block.startTime) - clockMinutes(b.block.startTime))
+      .map(({ block }) => ({ label: `${timeLabel(block.startTime)} - ${timeLabel(block.endTime)}`, color: TONES[shiftTone(block.startTime)][0] }));
+  }, [cells]);
 
-  const handleDropOnTray = (): void => {
-    if (!dragging || dragging.kind !== 'cell') {
+  const publisher = useMemo(() => {
+    const latest = [...(versions ?? [])].sort((a, b) => b.version - a.version)[0];
+    if (!latest) return null;
+    const member = (members ?? []).find((m) => m.user_id === latest.published_by);
+    const role = member ? (member.role_name === 'Owner' ? 'Manager' : member.role_name) : null;
+    return { at: publishedStamp(latest.published_at), who: member ? `${member.user_first_name} ${member.user_last_name} · ${role}` : null };
+  }, [versions, members]);
+
+  const hintOne = canEdit ? 'Click a cell to assign a shift' : isManager ? 'Published shifts are read-only — unpublish to edit them' : 'These shifts are published — they cannot be changed here';
+  const hintTwo = canEdit ? 'Drag a shift to another cell to move it' : isManager ? 'Unpublishing hides the week from staff until you republish' : 'Ask your supervisor for a swap if a shift does not work';
+
+  const publishLabel = isManager ? 'Republish Schedule' : 'Publish Schedule';
+  const cardProps = (menuKey: string) => ({
+    menuOpen: menu === menuKey,
+    onToggleMenu: (open: boolean) => setMenu(open ? menuKey : null),
+    onDragEnd: () => {
       setDragging(null);
-      return;
+      setDragOver(null);
     }
-    const sourceCards = cellAssignments.get(activeCellKey(dragging.employeeId, dragging.date)) ?? [];
-    const sourceCard = sourceCards.find((c) => c.assignment.id === dragging.assignmentId);
-    if (sourceCard) {
-      handleMoveToDrafts(sourceCard);
-    }
-    setDragging(null);
-  };
+  });
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-2">
-        <button
-          type="button"
-          onClick={() => void goToAdjacentWeek('prev')}
-          aria-label="Previous week"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-neutral-300"
-        >
-          ‹
-        </button>
-        <span className="text-sm font-bold text-neutral-900">
-          {new Date(`${schedule.start_date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} –{' '}
-          {new Date(`${schedule.end_date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-        </span>
-        <button
-          type="button"
-          onClick={() => void goToAdjacentWeek('next')}
-          aria-label="Next week"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-neutral-300"
-        >
-          ›
-        </button>
-      </div>
-
-      <div className="flex flex-wrap gap-4">
-        <div className="min-w-0 flex-1 overflow-x-auto rounded-2xl border border-neutral-200 bg-white">
-          <div className="grid" style={{ gridTemplateColumns: '200px repeat(7, minmax(120px, 1fr))' }}>
-            <div className="border-b border-r border-neutral-200 p-3 text-xs font-semibold uppercase text-neutral-400">Employee</div>
-            {days.map((day) => (
-              <div key={day} className="border-b border-neutral-200 p-3 text-center text-xs font-semibold text-neutral-500">
-                <div>{new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}</div>
-                <div className="text-neutral-400">{new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
-              </div>
-            ))}
-
-            {isLoading ? (
-              <div className="col-span-8 p-8 text-center text-sm text-neutral-500">Loading schedule…</div>
-            ) : rosterEmployees.length === 0 ? (
-              <div className="col-span-8 p-10 text-center">
-                <p className="text-sm font-semibold text-neutral-700">Nobody on this schedule yet</p>
-                <p className="mt-1.5 text-xs text-neutral-500">
-                  Use Add Employee below to pick who is working this week — every person gets seven empty days you can fill.
-                </p>
-              </div>
-            ) : (
-              rosterEmployees.map((employee) => (
-                <React.Fragment key={employee.id}>
-                  <div className="flex items-center justify-between gap-2 border-b border-r border-neutral-200 p-3">
-                    <span className="truncate text-sm font-semibold text-neutral-900">
-                      {employee.first_name} {employee.last_name}
-                    </span>
-                    {canEdit ? (
-                      <button
-                        type="button"
-                        title="Remove from schedule"
-                        onClick={() => removeEmployeeMutation.mutate({ scheduleId, employeeId: employee.id })}
-                        className="flex-shrink-0 text-xs text-neutral-400 hover:text-error-500"
-                      >
-                        ✕
-                      </button>
-                    ) : null}
-                  </div>
-                  {days.map((day) => {
-                    const cards = cellAssignments.get(activeCellKey(employee.id, day)) ?? [];
-                    const cellConflicts = conflictsByCell.get(activeCellKey(employee.id, day)) ?? [];
-                    return (
-                      <ShiftCell
-                        key={day}
-                        cards={cards}
-                        scheduleId={scheduleId}
-                        hasConflict={cellConflicts.length > 0}
-                        canEdit={canEdit}
-                        isDragOver={dragOverCellKey === activeCellKey(employee.id, day)}
-                        onCardClick={(card) => setActiveCell({ employeeId: employee.id, date: day, editingAssignmentId: card.assignment.id })}
-                        onAddClick={() => setActiveCell({ employeeId: employee.id, date: day, editingAssignmentId: null })}
-                        onMoveToDrafts={handleMoveToDrafts}
-                        onCardMenuError={setCardMenuError}
-                        onDragStartCard={(card) => setDragging({ kind: 'cell', assignmentId: card.assignment.id, employeeId: employee.id, date: day })}
-                        onDragOverCell={() => setDragOverCellKey(activeCellKey(employee.id, day))}
-                        onDragLeaveCell={() => setDragOverCellKey((prev) => (prev === activeCellKey(employee.id, day) ? null : prev))}
-                        onDropCell={() => handleDropOnCell(employee.id, day)}
-                      />
-                    );
-                  })}
-                </React.Fragment>
-              ))
-            )}
-
-            {canEdit ? (
-              <div className="col-span-8 border-t border-neutral-200 p-3">
-                <Button variant="secondary" size="sm" onClick={() => setAddEmployeeOpen(true)}>
-                  + Add Employee
-                </Button>
-              </div>
+    <>
+      {isManager ? (
+        published ? (
+          <div className="flex flex-wrap items-center gap-2.5 rounded-[14px] border border-[#CDE9D8] bg-[#F1FAF4] px-[15px] py-3 text-[#206B45]">
+            <span className="flex size-[26px] flex-none items-center justify-center rounded-full bg-[#2E9E62] text-white">
+              <ScheduleIcon name="checkCircle" size={15} />
+            </span>
+            <p className="m-0 flex-[1_1_260px] text-[12.5px] text-inherit">
+              <strong>Published schedule.</strong> Published {publisher?.who ? `by ${publisher.who} ` : ''}
+              {publisher ? `on ${publisher.at}. ` : ''}Staff can see these shifts. Unpublish to make changes.
+            </p>
+            {canPublish ? (
+              <span className="flex flex-wrap gap-[9px]">
+                <button
+                  type="button"
+                  disabled={unpublish.isPending}
+                  onClick={() =>
+                    unpublish.mutate(
+                      { scheduleId },
+                      { onSuccess: () => showToast('Schedule unpublished — staff can no longer see this week'), onError: (err) => showToast(err.message, 'error') }
+                    )
+                  }
+                  className="h-9 cursor-pointer rounded-[10px] border border-[rgba(56,49,43,.16)] bg-white px-[15px] text-[12.5px] font-bold text-[#38312B] disabled:cursor-default disabled:opacity-60"
+                >
+                  Unpublish to edit
+                </button>
+              </span>
             ) : null}
           </div>
-          <ShiftDraftsTray
-            drafts={tray}
-            canEdit={canEdit}
-            onNewDraft={() => setDraftModal({ open: true, editing: null })}
-            onEditDraft={(draft) => setDraftModal({ open: true, editing: draft })}
-            onDragStartDraft={(draft) => setDragging({ kind: 'tray', draftId: draft.id })}
-            onDropTray={handleDropOnTray}
-          />
-        </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2.5 rounded-[14px] border border-[#F3DFB8] bg-[#FDF8EC] px-[15px] py-3 text-[#7A5410]">
+            <span className="flex size-[26px] flex-none items-center justify-center rounded-full bg-[#B77714] text-white">
+              <ScheduleIcon name="alert" size={15} />
+            </span>
+            <p className="m-0 flex-[1_1_260px] text-[12.5px] text-inherit">
+              {versions?.length ? (
+                <>
+                  <strong>Unpublished — you are editing.</strong> Staff no longer see this week. Make your changes, then republish so they can see it again.
+                </>
+              ) : (
+                <>
+                  <strong>Draft — not published yet.</strong> Staff can't see this week until it's published.
+                </>
+              )}
+            </p>
+            {canPublish ? (
+              <span className="flex flex-wrap gap-[9px]">
+                <button
+                  type="button"
+                  disabled={publish.isPending}
+                  onClick={onPublish}
+                  className="h-9 cursor-pointer rounded-[10px] border-0 bg-[#F04E17] px-[15px] text-[12.5px] font-bold text-white disabled:opacity-60"
+                >
+                  {versions?.length ? 'Republish Schedule' : 'Publish Schedule'}
+                </button>
+              </span>
+            ) : null}
+          </div>
+        )
+      ) : null}
 
-        <aside className="flex w-[268px] flex-shrink-0 flex-col gap-3.5">
-          <AiAssistantPanel />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1 rounded-[14px] border border-[#EBE7E3] bg-white p-[5px]">
+          <button
+            type="button"
+            onClick={() => onNavigateWeek(-1)}
+            aria-label="Previous week"
+            className="size-8 cursor-pointer rounded-[10px] border border-[#EBE7E3] bg-white text-[14px] text-[#57504A] hover:border-[#DDD6D0]"
+          >
+            ‹
+          </button>
+          <span className="flex items-center gap-[9px] px-3">
+            <span className="text-[#A79C93]">
+              <ScheduleIcon name="calendar" size={16} />
+            </span>
+            <span className="leading-[1.25]">
+              <span className="block text-[13.5px] font-extrabold">{weekRangeLabel(schedule.start_date)}</span>
+              <span className="block text-[11px] text-[#A79C93]">Week {isoWeekNumber(schedule.start_date)}</span>
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => onNavigateWeek(1)}
+            aria-label="Next week"
+            className="size-8 cursor-pointer rounded-[10px] border border-[#EBE7E3] bg-white text-[14px] text-[#57504A] hover:border-[#DDD6D0]"
+          >
+            ›
+          </button>
+        </div>
+        {canEdit ? (
+          <div className="ml-auto flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => showToast("Importing a schedule from a spreadsheet isn't available yet")}
+              className="flex h-[42px] cursor-pointer items-center gap-2 rounded-[12px] border border-[#EBE7E3] bg-white px-4 text-[12.5px] font-bold text-[#38312B] hover:border-[#DDD6D0]"
+            >
+              <ScheduleIcon name="upload" size={15} />
+              Import Schedule
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                assistantRef.current?.querySelector('input')?.focus();
+                showToast('Ask the AI Schedule Assistant on the right, or pick one of its quick actions');
+              }}
+              className="flex h-[42px] cursor-pointer items-center gap-2 rounded-[12px] border border-[#E3D6FA] bg-[#F8F5FF] px-4 text-[12.5px] font-bold text-[#6D28D9] hover:border-[#C9B4F7]"
+            >
+              <ScheduleIcon name="bulb" size={15} />
+              AI Assist
+            </button>
+            {canPublish ? (
+              <span className="relative">
+                <span className="flex items-stretch overflow-hidden rounded-[12px] shadow-[0_12px_24px_-14px_rgba(240,78,23,.8)]">
+                  <button
+                    type="button"
+                    onClick={onPublish}
+                    disabled={publish.isPending}
+                    className="flex h-[42px] cursor-pointer items-center gap-2 border-0 bg-[#F04E17] px-[18px] text-[12.5px] font-bold text-white disabled:opacity-70"
+                  >
+                    <ScheduleIcon name="megaphone" size={15} />
+                    {publishLabel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPublishMenuOpen((open) => !open)}
+                    aria-label="More publish options"
+                    aria-expanded={publishMenuOpen}
+                    className="w-[34px] cursor-pointer border-0 border-l border-l-[rgba(255,255,255,.28)] bg-[#F04E17] text-[10px] text-white"
+                  >
+                    ▾
+                  </button>
+                </span>
+                {publishMenuOpen ? (
+                  <div role="menu" className="absolute right-0 top-[48px] z-30 flex w-[178px] flex-col rounded-[12px] border border-[#EBE7E3] bg-white p-[5px] shadow-[0_18px_38px_-18px_rgba(56,49,43,.42)]">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setPublishMenuOpen(false);
+                        setHistoryOpen(true);
+                      }}
+                      className="block w-full cursor-pointer rounded-[8px] border-0 bg-transparent px-[9px] py-2 text-left text-[11.5px] font-bold text-[#38312B]"
+                    >
+                      Version history
+                    </button>
+                  </div>
+                ) : null}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4 rounded-[14px] border border-[#EBE7E3] bg-white px-4 py-[11px]">
+        <span className="flex flex-col gap-1">
+          <span className="text-[11px] text-[#857A72]">↦ &nbsp;{hintOne}</span>
+          <span className="text-[11px] text-[#857A72]">⇅ &nbsp;{hintTwo}</span>
+        </span>
+        <span className="ml-auto flex flex-wrap gap-x-[18px] gap-y-2">
+          {legend.map((item) => (
+            <span key={item.label} className="flex items-center gap-[7px] text-[11.5px] font-bold text-[#57504A]">
+              <span className="size-[9px] flex-none rounded-[3px]" style={{ backgroundColor: item.color }} />
+              {item.label}
+            </span>
+          ))}
+          <span className="flex items-center gap-[7px] text-[11.5px] font-bold text-[#57504A]">
+            <span className="size-[11px] flex-none rounded-[3px] border border-[#E4DED9] bg-[#F0ECE8]" />
+            OFF
+          </span>
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-start gap-4">
+        <section className="min-w-0 flex-[1_1_640px] rounded-2xl border border-[#EBE7E3] bg-white">
+          <div className="overflow-x-auto">
+            <div className="min-w-[860px]">
+              <div className="grid grid-cols-[184px_repeat(7,minmax(94px,1fr))] border-b border-[#F2EEEA]">
+                <span className="px-4 py-[13px] text-[11px] font-extrabold tracking-[.02em] text-[#38312B]">Employee</span>
+                {days.map((day) => (
+                  <span key={day.date} className="px-2 py-[11px] text-center leading-[1.3]">
+                    <span className="block text-[11.5px] font-extrabold text-[#38312B]">{day.weekday}</span>
+                    <span className="block text-[11px] text-[#A79C93]">{day.label}</span>
+                  </span>
+                ))}
+              </div>
+
+              {week.isLoading ? (
+                <div className="px-5 py-[34px] text-center text-[12px] text-[#A79C93]">Loading this week…</div>
+              ) : week.error ? (
+                <div className="px-5 py-[34px] text-center">
+                  <p className="m-0 text-[13px] font-bold text-[#57504A]">Schedule information unavailable.</p>
+                  <button type="button" onClick={() => void week.refetch()} className="mt-2 cursor-pointer border-0 bg-transparent text-[12px] font-bold text-[#C6420E]">
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                rosterRows.map((row) => (
+                  <div key={row.employee.id} className="grid grid-cols-[184px_repeat(7,minmax(94px,1fr))] border-b border-[#F7F4F1]">
+                    <span className="flex min-w-0 items-center gap-2.5 py-2.5 pl-4 pr-3.5">
+                      <span className="flex size-8 flex-none items-center justify-center rounded-full text-[10.5px] font-extrabold" style={avatarTone(row.name)}>
+                        {initialsOf(row.name)}
+                      </span>
+                      <span className="min-w-0 flex-auto">
+                        <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] font-bold">{row.name}</span>
+                        <span className="block text-[11px] text-[#A79C93]">{row.meta}</span>
+                      </span>
+                      {canEdit ? (
+                        <button
+                          type="button"
+                          aria-label="Remove from this schedule"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void run(() => removeFromRoster.mutateAsync({ scheduleId, employeeId: row.employee.id }).then(() => undefined)).then(
+                              (ok) => ok && showToast(`${row.name} removed from this schedule`)
+                            );
+                          }}
+                          className="size-5 flex-none cursor-pointer rounded-full border-0 bg-transparent text-[11px] font-extrabold text-[#C4BBB3] hover:bg-[#FCEDEA] hover:text-[#C93A22]"
+                        >
+                          ✕
+                        </button>
+                      ) : null}
+                    </span>
+                    {days.map((day) => {
+                      const key = cellKey(row.employee.id, day.date);
+                      const cards = cells.get(key) ?? [];
+                      return (
+                        <ShiftCell
+                          key={day.date}
+                          isEmpty={cards.length === 0}
+                          canEdit={canEdit}
+                          isDragOver={dragOver === key}
+                          raised={Boolean(menu?.startsWith(`${key}|`))}
+                          onClick={() => {
+                            if (!busy) openCell(row.employee.id, day.date, null);
+                          }}
+                          onDragOver={() => setDragOver(key)}
+                          onDragLeave={() => setDragOver((current) => (current === key ? null : current))}
+                          onDrop={() => void dropOnCell(row.employee.id, day.date)}
+                        >
+                          {cards.map((card) => (
+                            <ShiftCard
+                              key={card.id}
+                              off={card.kind === 'off'}
+                              blocks={card.kind === 'shift' ? [card.block] : []}
+                              note={card.kind === 'shift' ? card.note : ''}
+                              conflict={Boolean(conflictsByCell.get(key))}
+                              canEdit={canEdit}
+                              menuItems={cellMenu(card, row.employee.id, day.date)}
+                              onOpen={() => openCell(row.employee.id, day.date, card)}
+                              onDragStart={() => setDragging({ from: 'cell', card, employeeId: row.employee.id, date: day.date })}
+                              {...cardProps(`${key}|${card.id}`)}
+                            />
+                          ))}
+                        </ShiftCell>
+                      );
+                    })}
+                  </div>
+                ))
+              )}
+
+              {!week.isLoading && !week.error && rosterRows.length === 0 ? (
+                <div className="border-b border-[#F7F4F1] px-5 py-[34px] text-center">
+                  <p className="m-0 text-[13px] font-bold text-[#57504A]">Nobody on this schedule yet</p>
+                  <p className="mb-0 mt-1.5 text-[12px] text-[#A79C93]">
+                    Use <strong>Add Employee</strong> below to pick who is working this week — every person gets seven empty days you can fill.
+                  </p>
+                </div>
+              ) : null}
+
+              {canEdit ? (
+                <div className="grid grid-cols-[184px_minmax(0,1fr)]">
+                  <div className="border-r border-[#F7F4F1] px-4 py-3.5">
+                    <button
+                      type="button"
+                      onClick={() => setPickerOpen(true)}
+                      className="flex h-[38px] cursor-pointer items-center gap-[7px] whitespace-nowrap rounded-[11px] border border-dashed border-[#DDD6D0] bg-white px-[13px] text-[12.5px] font-bold text-[#C6420E] hover:border-[#F04E17] hover:bg-[#FDF0E9]"
+                    >
+                      ＋ Add Employee
+                    </button>
+                  </div>
+                  <ShiftDraftsTray
+                    hasDrafts={tray.length > 0}
+                    isDragOver={dragOver === 'tray'}
+                    onNewDraft={() => setForm({ mode: 'tray', draft: null })}
+                    onDragOver={() => setDragOver('tray')}
+                    onDragLeave={() => setDragOver((current) => (current === 'tray' ? null : current))}
+                    onDrop={() => void dropOnTray()}
+                  >
+                    {tray.map((draft) => (
+                      <ShiftCard
+                        key={draft.id}
+                        off={draft.off}
+                        blocks={draft.blocks}
+                        note={draft.note}
+                        conflict={false}
+                        canEdit={canEdit}
+                        menuItems={trayMenu(draft)}
+                        onOpen={() => setForm({ mode: 'tray', draft })}
+                        onDragStart={() => setDragging({ from: 'tray', draftId: draft.id })}
+                        {...cardProps(`tray|${draft.id}`)}
+                      />
+                    ))}
+                  </ShiftDraftsTray>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        <aside ref={assistantRef} className="flex min-w-[240px] flex-[0_0_268px] flex-col gap-3.5">
+          <AiAssistantPanel onAction={(action) => void onAiAction(action)} onAsk={onAsk} asking={ask.isPending} />
           <ScheduleConflictsPanel
-            conflicts={conflicts ?? []}
-            employeesById={employeesById}
-            onSelectConflict={
-              canEdit
-                ? (conflict) => {
-                    const cards = cellAssignments.get(activeCellKey(conflict.employeeId, conflict.date)) ?? [];
-                    setActiveCell({ employeeId: conflict.employeeId, date: conflict.date, editingAssignmentId: cards[0]?.assignment.id ?? null });
-                  }
-                : undefined
+            conflicts={orderedConflicts}
+            nameOf={nameOf}
+            onSelect={(conflict: ScheduleConflict) => {
+              if (!canEdit) {
+                showToast(readOnlyHint);
+                return;
+              }
+              openCell(conflict.employeeId, conflict.date, (cells.get(cellKey(conflict.employeeId, conflict.date)) ?? [])[0] ?? null);
+            }}
+            onViewAll={() =>
+              showToast(
+                `${orderedConflicts.length} conflict${orderedConflicts.length === 1 ? '' : 's'}: ${orderedConflicts
+                  .map((conflict) => `${nameOf(conflict.employeeId)} (${shortDate(conflict.date)})`)
+                  .join(', ')}`
+              )
             }
           />
         </aside>
       </div>
 
       <ScheduleSummaryBar
-        totalEmployees={(employees ?? []).length}
-        rosterCount={rosterEmployees.length}
-        scheduledCount={scheduledCount}
-        conflictCount={(conflicts ?? []).length}
+        rosterRows={rosterRows}
+        branchEmployeeCount={week.branchEmployeeCount}
+        scheduledPeople={week.scheduledPeople}
+        conflictCount={orderedConflicts.length}
+        totalPaidMinutes={week.totalPaidMinutes}
+        coverage={week.coverage}
+        hours={hours}
         open={summaryOpen}
-        onToggle={() => setSummaryOpen((v) => !v)}
-        shifts={shifts ?? []}
-        assignments={assignments ?? []}
-        employeesById={employeesById}
-        rosterEmployeeIds={rosterEmployees.map((e) => e.id)}
+        onToggle={() => setSummaryOpen((open) => !open)}
+        onExport={() => {
+          downloadCsv(`hours-week-${isoWeekNumber(schedule.start_date)}.csv`, [
+            ['Employee', 'Department', 'Paid hours', 'Shift days', 'Days off', 'Flag'],
+            ...rosterRows.map((row) => {
+              const summary = hours.get(row.employee.id);
+              const minutes = summary?.paidMinutes ?? 0;
+              return [row.name, row.meta, durationText(minutes), String(summary?.shiftDays ?? 0), String(summary?.offDays ?? 0), minutes > OVER_HOURS_MINUTES ? 'Over 45h' : ''];
+            })
+          ]);
+          showToast('Hours per employee exported as CSV');
+        }}
       />
 
-      {addEmployeeOpen ? (
-        <AddEmployeeModal
-          open={addEmployeeOpen}
-          onClose={() => setAddEmployeeOpen(false)}
-          branchEmployees={(employees ?? []).filter((e) => !rosterEmployees.some((r) => r.id === e.id))}
-          onAdd={(employeeId) => addEmployeeMutation.mutate({ scheduleId, employeeId })}
-          adding={addEmployeeMutation.isPending}
+      {form ? (
+        <ShiftFormModal
+          key={form.mode === 'cell' ? `${form.employeeId}:${form.date}:${form.card?.id ?? 'new'}` : `tray:${form.draft?.id ?? 'new'}`}
+          mode={form.mode}
+          editing={form.mode === 'cell' ? Boolean(form.card) : Boolean(form.draft)}
+          initial={formInitial}
+          employeeName={form.mode === 'cell' ? nameOf(form.employeeId) : undefined}
+          date={form.mode === 'cell' ? form.date : undefined}
+          days={days}
+          saving={busy}
+          error={formError}
+          onSave={(values) => void saveForm(values)}
+          onDelete={() => void deleteFromForm()}
+          onClose={() => setForm(null)}
         />
       ) : null}
 
-      {activeCell ? (
-        <AssignShiftModal
-          open={Boolean(activeCell)}
-          onClose={() => setActiveCell(null)}
-          scheduleId={scheduleId}
-          branchId={schedule.branch_id}
-          employeeId={activeCell.employeeId}
-          employeeName={activeEmployee ? `${activeEmployee.first_name} ${activeEmployee.last_name}` : ''}
-          date={activeCell.date}
-          existing={
-            activeCell.editingAssignmentId
-              ? (cellAssignments.get(activeCellKey(activeCell.employeeId, activeCell.date)) ?? []).find(
-                  (c) => c.assignment.id === activeCell.editingAssignmentId
-                ) ?? null
-              : null
+      {pickerOpen ? (
+        <AddEmployeeModal
+          people={week.employees.map((employee) => {
+            const name = `${employee.first_name} ${employee.last_name}`.trim();
+            const department = employee.department_id ? week.departmentsById.get(employee.department_id)?.name : undefined;
+            return {
+              id: employee.id,
+              name,
+              meta: department ? `${department} · ${employee.employee_number}` : employee.employee_number,
+              added: rosterRows.some((row) => row.employee.id === employee.id)
+            };
+          })}
+          saving={busy}
+          onClose={() => setPickerOpen(false)}
+          onConfirm={(employeeIds) =>
+            void run(async () => {
+              for (const employeeId of employeeIds) await addToRoster.mutateAsync({ scheduleId, employeeId });
+            }).then((ok) => {
+              if (!ok) return;
+              setPickerOpen(false);
+              showToast(`${employeeIds.length} ${employeeIds.length === 1 ? 'employee' : 'employees'} added — click any day to build their shifts`);
+            })
           }
         />
       ) : null}
 
-      <NewDraftModal
-        key={draftModal.editing?.id ?? 'new'}
-        open={draftModal.open}
-        onClose={() => setDraftModal({ open: false, editing: null })}
-        editingDraft={draftModal.editing}
-        onSave={(draft) => {
-          setTray((prev) => {
-            const exists = prev.some((d) => d.id === draft.id);
-            return exists ? prev.map((d) => (d.id === draft.id ? draft : d)) : [...prev, draft];
-          });
-          setDraftModal({ open: false, editing: null });
-        }}
-      />
-
-      {cardMenuError ? (
-        <div className="fixed bottom-4 right-4 z-[70] max-w-xs rounded-lg border border-error-200 bg-error-50 px-3 py-2 text-xs font-semibold text-error-600 shadow-lg">
-          {cardMenuError}
-        </div>
-      ) : null}
-    </div>
+      {historyOpen ? <VersionHistoryModal scheduleId={scheduleId} onClose={() => setHistoryOpen(false)} /> : null}
+    </>
   );
 }
