@@ -7,6 +7,7 @@ import {
   ShiftAssignmentRepository,
   ShiftTemplateRepository,
   EmployeeRepository,
+  DepartmentRepository,
   UserRepository,
   publishScheduleWithVersion,
   type Schedule,
@@ -57,6 +58,8 @@ export interface UpdateShiftInput {
   endTime?: string;
   crossesMidnight?: boolean;
   breakMinutes?: number;
+  /** Optional department the shift covers; null clears it. Must belong to the shift's branch. */
+  departmentId?: string | null;
 }
 
 export interface AssignShiftToEmployeeInput {
@@ -66,6 +69,7 @@ export interface AssignShiftToEmployeeInput {
   crossesMidnight?: boolean;
   breakMinutes?: number;
   notes?: string | null;
+  departmentId?: string | null;
 }
 
 export interface UpdateAssignedShiftInput {
@@ -74,6 +78,7 @@ export interface UpdateAssignedShiftInput {
   crossesMidnight?: boolean;
   breakMinutes?: number;
   notes?: string | null;
+  departmentId?: string | null;
 }
 
 export interface ScheduleConflict {
@@ -123,6 +128,7 @@ export class SchedulingService {
   private readonly users: UserRepository;
   private readonly templates: ShiftTemplateRepository;
   private readonly dayOffs: ScheduleDayOffRepository;
+  private readonly departments: DepartmentRepository;
 
   constructor(private readonly context: ApplicationContext) {
     this.schedules = new ScheduleRepository(context.client);
@@ -133,6 +139,18 @@ export class SchedulingService {
     this.users = new UserRepository(context.client);
     this.templates = new ShiftTemplateRepository(context.client);
     this.dayOffs = new ScheduleDayOffRepository(context.client);
+    this.departments = new DepartmentRepository(context.client);
+  }
+
+  /** A shift's optional department must exist in this organization and belong to the shift's own branch (migration 063). */
+  private async resolveShiftDepartment(departmentId: string | null | undefined, branchId: string): Promise<string | null> {
+    if (!departmentId) return null;
+    assertUuid(departmentId, 'departmentId');
+    const department = await this.departments.getByIdOrThrow(this.context.organizationId, departmentId);
+    if (department.branch_id !== branchId) {
+      throw new ValidationError("Department does not belong to this shift's branch");
+    }
+    return department.id;
   }
 
   /** Resolves "me" the same way attendance/announcements self-service does — email match to an employee record, never a client-supplied employeeId. */
@@ -304,6 +322,7 @@ export class SchedulingService {
     if (input.title !== undefined) changes.title = input.title;
     if (input.description !== undefined) changes.description = input.description;
     if (input.breakMinutes !== undefined) changes.break_minutes = input.breakMinutes;
+    if (input.departmentId !== undefined) changes.department_id = await this.resolveShiftDepartment(input.departmentId, shift.branch_id);
 
     if (input.startTime !== undefined || input.endTime !== undefined || input.crossesMidnight !== undefined) {
       const startTime = input.startTime ?? shift.start_time;
@@ -565,6 +584,7 @@ export class SchedulingService {
     assertNonEmptyString(endTime, 'endTime');
 
     const duration = computeDuration(startTime, endTime, crossesMidnight);
+    const departmentId = await this.resolveShiftDepartment(input.departmentId, schedule.branch_id);
 
     return this.context.client.transaction(async (trxClient) => {
       const shiftsRepo = new ShiftRepository(trxClient);
@@ -577,6 +597,7 @@ export class SchedulingService {
       const shift = await shiftsRepo.insert(this.context.organizationId, {
         branch_id: schedule.branch_id,
         template_id: templateId,
+        department_id: departmentId,
         title,
         description: null,
         shift_date: date,
@@ -657,12 +678,19 @@ export class SchedulingService {
     }
 
     let updatedShift = shift;
-    if (input.startTime !== undefined || input.endTime !== undefined || input.crossesMidnight !== undefined || input.breakMinutes !== undefined) {
+    if (
+      input.startTime !== undefined ||
+      input.endTime !== undefined ||
+      input.crossesMidnight !== undefined ||
+      input.breakMinutes !== undefined ||
+      input.departmentId !== undefined
+    ) {
       updatedShift = await this.updateShift(shift.id, {
         startTime: input.startTime,
         endTime: input.endTime,
         crossesMidnight: input.crossesMidnight,
-        breakMinutes: input.breakMinutes
+        breakMinutes: input.breakMinutes,
+        departmentId: input.departmentId
       });
     }
 
@@ -898,6 +926,7 @@ export class SchedulingService {
         const newShift = await shiftsRepo.insert(this.context.organizationId, {
           branch_id: target.branch_id,
           template_id: sourceShift.template_id,
+          department_id: sourceShift.department_id,
           title: sourceShift.title,
           description: null,
           shift_date: targetDateString,

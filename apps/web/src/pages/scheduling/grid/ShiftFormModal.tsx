@@ -17,6 +17,10 @@ export interface ShiftFormValues {
   off: boolean;
   blocks: ShiftBlock[];
   note: string;
+  /** Existing department picked for the shift, or null. */
+  departmentId: string | null;
+  /** Set when "New department…" was chosen: the name to create in this branch. */
+  newDepartmentName: string;
   /** Other dates in the week to apply the same decision to (cell mode only). */
   alsoDates: string[];
   saveAsTemplate: boolean;
@@ -26,7 +30,10 @@ export interface ShiftFormValues {
 export interface ShiftFormModalProps {
   mode: 'cell' | 'tray';
   editing: boolean;
-  initial: { off: boolean; blocks: ShiftBlock[]; note: string };
+  initial: { off: boolean; blocks: ShiftBlock[]; note: string; departmentId: string | null };
+  /** The branch's departments for the optional Department picker. */
+  departments: Array<{ id: string; name: string }>;
+  canCreateDepartment: boolean;
   employeeName?: string;
   /** The cell's date and the week's days, for the subtitle and "Also apply to" chips (cell mode). */
   date?: string;
@@ -39,6 +46,7 @@ export interface ShiftFormModalProps {
 }
 
 const DEFAULT_BLOCK: ShiftBlock = { startTime: '09:00', endTime: '18:00', breakMinutes: 60 };
+const NEW_DEPARTMENT = '__new__';
 
 function withCurrent(options: string[], value: string): string[] {
   return options.includes(value) ? options : [...options, value].sort((a, b) => clockMinutes(a) - clockMinutes(b));
@@ -61,10 +69,26 @@ function selectShell(icon: 'clock' | 'coffee', label: string, select: React.Reac
 const SELECT_CLASS = 'min-w-0 flex-auto cursor-pointer border-0 bg-transparent text-[11.5px] font-bold text-[#38312B] outline-none';
 
 /** Assign / edit a shift, or build a draft — design handoff "shift form" (lines 739-853, schedVals form*). */
-export function ShiftFormModal({ mode, editing, initial, employeeName, date, days, saving, error, onSave, onDelete, onClose }: ShiftFormModalProps): React.ReactElement {
+export function ShiftFormModal({
+  mode,
+  editing,
+  initial,
+  departments,
+  canCreateDepartment,
+  employeeName,
+  date,
+  days,
+  saving,
+  error,
+  onSave,
+  onDelete,
+  onClose
+}: ShiftFormModalProps): React.ReactElement {
   const [off, setOff] = useState(initial.off);
   const [blocks, setBlocks] = useState<ShiftBlock[]>(initial.blocks.length ? initial.blocks : [DEFAULT_BLOCK]);
   const [note, setNote] = useState(initial.note);
+  const [departmentChoice, setDepartmentChoice] = useState<string>(initial.departmentId ?? '');
+  const [newDepartmentName, setNewDepartmentName] = useState('');
   const [alsoDates, setAlsoDates] = useState<string[]>([]);
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
@@ -219,6 +243,38 @@ export function ShiftFormModal({ mode, editing, initial, employeeName, date, day
               <span className="text-[11.5px] font-bold text-[#57504A]">{blocks.length > 1 ? `${blocks.length} time blocks this day` : 'Paid time this day'}</span>
               <span className="ml-auto text-[11.5px] font-extrabold text-[#38312B]">{durationText(total)}</span>
             </div>
+
+            <div className="mt-3.5">
+              <label className="block min-w-0">
+                <span className="block text-[11px] font-bold text-[#57504A]">Department (optional)</span>
+                <span className="mt-[5px] flex h-10 items-center rounded-[11px] border border-[#EBE7E3] bg-white px-[9px]">
+                  <select
+                    value={departmentChoice}
+                    onChange={(event) => setDepartmentChoice(event.target.value)}
+                    aria-label="Department"
+                    className={SELECT_CLASS}
+                  >
+                    <option value="">No department</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.id}>
+                        {department.name}
+                      </option>
+                    ))}
+                    {canCreateDepartment ? <option value={NEW_DEPARTMENT}>＋ New department…</option> : null}
+                  </select>
+                </span>
+              </label>
+              {departmentChoice === NEW_DEPARTMENT ? (
+                <input
+                  value={newDepartmentName}
+                  onChange={(event) => setNewDepartmentName(event.target.value)}
+                  placeholder="New department name (e.g. Bakery)"
+                  aria-label="New department name"
+                  autoFocus
+                  className="mt-2 box-border h-[38px] w-full rounded-[11px] border border-[#EBE7E3] bg-white px-[11px] text-[12px] text-[#38312B] outline-none placeholder:text-[#757575]"
+                />
+              ) : null}
+            </div>
           </>
         ) : null}
 
@@ -310,7 +366,18 @@ export function ShiftFormModal({ mode, editing, initial, employeeName, date, day
           <button
             type="button"
             disabled={saving}
-            onClick={() => onSave({ off, blocks, note: note.trim(), alsoDates, saveAsTemplate, templateName: templateName.trim() })}
+            onClick={() =>
+              onSave({
+                off,
+                blocks,
+                note: note.trim(),
+                departmentId: departmentChoice && departmentChoice !== NEW_DEPARTMENT ? departmentChoice : null,
+                newDepartmentName: departmentChoice === NEW_DEPARTMENT ? newDepartmentName.trim() : '',
+                alsoDates,
+                saveAsTemplate,
+                templateName: templateName.trim()
+              })
+            }
             className="h-[42px] cursor-pointer rounded-[12px] border-0 bg-[#F04E17] px-[19px] text-[12.5px] font-bold text-white shadow-[0_12px_24px_-14px_rgba(240,78,23,.8)] disabled:opacity-60"
           >
             {primary}

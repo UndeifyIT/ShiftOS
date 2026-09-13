@@ -164,7 +164,8 @@ export const assignShiftToEmployeeOnDate = defineRpc('assign_shift_to_employee_o
       endTime: stringField(input, 'endTime'),
       crossesMidnight: booleanField(input, 'crossesMidnight'),
       breakMinutes: numberField(input, 'breakMinutes'),
-      notes: stringField(input, 'notes') ?? null
+      notes: stringField(input, 'notes') ?? null,
+      departmentId: stringField(input, 'departmentId') ?? null
     }
   );
 });
@@ -181,7 +182,8 @@ export const addShiftToEmployeeOnDate = defineRpc('add_shift_to_employee_on_date
       endTime: stringField(input, 'endTime'),
       crossesMidnight: booleanField(input, 'crossesMidnight'),
       breakMinutes: numberField(input, 'breakMinutes'),
-      notes: stringField(input, 'notes') ?? null
+      notes: stringField(input, 'notes') ?? null,
+      departmentId: stringField(input, 'departmentId') ?? null
     }
   );
 });
@@ -193,7 +195,8 @@ export const updateAssignedShiftOnDate = defineRpc('update_assigned_shift_on_dat
     endTime: stringField(input, 'endTime'),
     crossesMidnight: booleanField(input, 'crossesMidnight'),
     breakMinutes: numberField(input, 'breakMinutes'),
-    notes: stringField(input, 'notes') ?? (input.notes === null ? null : undefined)
+    notes: stringField(input, 'notes') ?? (input.notes === null ? null : undefined),
+    departmentId: stringField(input, 'departmentId') ?? (input.departmentId === null ? null : undefined)
   });
 });
 

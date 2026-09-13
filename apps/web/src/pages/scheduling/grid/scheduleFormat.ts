@@ -127,7 +127,8 @@ export function shiftTone(startTime: string): Tone {
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+/** Indexed by Date#getUTCDay(), so a label always matches its real date. */
+const WEEKDAYS_BY_UTC_DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function parseDate(date: string): Date {
   const [year, month, day] = date.split('-').map(Number);
@@ -179,10 +180,10 @@ export function weekRangeLabel(weekStart: string): string {
     : `${shortDate(weekStart)}, ${start.getUTCFullYear()} – ${shortDate(formatDate(end))}, ${end.getUTCFullYear()}`;
 }
 
-/** The seven [weekday, 'May 12'] column labels plus each column's date. */
+/** The seven day columns from `weekStart`: each date with its own weekday name and 'May 12' label. */
 export function weekDays(weekStart: string): Array<{ date: string; weekday: string; label: string }> {
-  return WEEKDAYS.map((weekday, index) => {
+  return Array.from({ length: 7 }, (_, index) => {
     const date = addDays(weekStart, index);
-    return { date, weekday, label: shortDate(date) };
+    return { date, weekday: WEEKDAYS_BY_UTC_DAY[parseDate(date).getUTCDay()], label: shortDate(date) };
   });
 }

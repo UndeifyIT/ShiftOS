@@ -136,7 +136,8 @@ function seed(options: PreviewOptions): Store {
           store.dayOffs.push(stamp({ id: nextId('off'), schedule_id: scheduleId, employee_id: employeeId, off_date: date, created_by: 'user-sarah' }));
           return;
         }
-        addShift(store, employeeId, date, { templateId: `tpl-${code}`, startTime: PRESETS[code].start, endTime: PRESETS[code].end, breakMinutes: 60, notes: null });
+        const departmentId = PEOPLE.find(([id]) => id === employeeId)?.[3] ?? null;
+        addShift(store, employeeId, date, { templateId: `tpl-${code}`, startTime: PRESETS[code].start, endTime: PRESETS[code].end, breakMinutes: 60, notes: null, departmentId });
       });
     }
   }
@@ -155,6 +156,7 @@ interface ShiftInput {
   endTime: string;
   breakMinutes: number;
   notes: string | null;
+  departmentId?: string | null;
 }
 
 function addShift(store: Store, employeeId: string, date: string, input: ShiftInput): { shift: Shift; assignment: ShiftAssignment } {
@@ -164,6 +166,7 @@ function addShift(store: Store, employeeId: string, date: string, input: ShiftIn
     id: nextId('shf'),
     branch_id: BRANCH,
     template_id: input.templateId,
+    department_id: input.departmentId ?? null,
     title: 'Shift',
     description: null,
     shift_date: date,
@@ -250,6 +253,11 @@ export function createMockBackend(options: PreviewOptions) {
   const handlers: Record<string, (input: Input) => unknown> = {
     list_branches: () => branches,
     list_departments: () => departments,
+    create_department: (input) => {
+      const row = stamp({ id: nextId('dep'), branch_id: String(input.branchId), name: String(input.name), description: null, is_active: true });
+      departments.push(row);
+      return row;
+    },
     list_employees: () => employees,
     list_notifications: () => [],
     list_members: () => [
@@ -363,6 +371,7 @@ export function createMockBackend(options: PreviewOptions) {
       if (input.endTime) shift.end_time = `${String(input.endTime).slice(0, 5)}:00`;
       shift.crosses_midnight = shift.end_time <= shift.start_time;
       if (typeof input.breakMinutes === 'number') shift.break_minutes = input.breakMinutes;
+      if (input.departmentId !== undefined) shift.department_id = (input.departmentId as string | null) ?? null;
       if (input.notes !== undefined) assignment.notes = (input.notes as string | null) ?? null;
       return { shift, assignment };
     },
@@ -383,6 +392,7 @@ export function createMockBackend(options: PreviewOptions) {
         const shift = shiftsById.get(a.shift_id)!;
         addShift(store, a.employee_id, addDays(shift.shift_date, offset), {
           templateId: shift.template_id,
+          departmentId: shift.department_id ?? null,
           startTime: shift.start_time,
           endTime: shift.end_time,
           breakMinutes: shift.break_minutes,
@@ -414,7 +424,8 @@ function toShiftInput(input: Input): ShiftInput {
     startTime: String(input.startTime),
     endTime: String(input.endTime),
     breakMinutes: typeof input.breakMinutes === 'number' ? input.breakMinutes : 0,
-    notes: (input.notes as string | null | undefined) ?? null
+    notes: (input.notes as string | null | undefined) ?? null,
+    departmentId: (input.departmentId as string | null | undefined) ?? null
   };
 }
 
