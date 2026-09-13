@@ -5,6 +5,7 @@ import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import { useRpcQuery } from '../../lib/useRpc.js';
 import type { Branch, Schedule } from '../../types/domain.js';
+import { AllSchedulesMenu } from './grid/AllSchedulesMenu.js';
 import { ScheduleGrid } from './grid/ScheduleGrid.js';
 import { ScheduleIcon } from './grid/ScheduleIcon.js';
 import { ScheduleToast, useScheduleToast } from './grid/ScheduleToast.js';
@@ -128,16 +129,19 @@ export default function SchedulesPage(): React.ReactElement {
           <h1 className="m-0 text-[25px] font-extrabold leading-[1.15] tracking-[-0.025em]">Schedules</h1>
           <p className="mb-0 mt-[5px] text-[13px] text-[#857A72]">Create, edit and manage employee schedules.</p>
         </div>
-        {singleBranchId === null && (branches ?? []).length > 1 ? (
-          <div className="ml-auto w-56">
-            <Select
-              aria-label="Branch"
-              value={branchId}
-              onChange={(event) => navigate(`/schedules?week=${weekStart}&branch=${event.target.value}`)}
-              options={(branches ?? []).map((b) => ({ value: b.id, label: b.name }))}
-            />
-          </div>
-        ) : null}
+        <div className="flex min-w-0 flex-[1_1_100%] flex-wrap items-center justify-end gap-2.5">
+          {singleBranchId === null && (branches ?? []).length > 1 ? (
+            <div className="w-56">
+              <Select
+                aria-label="Branch"
+                value={branchId}
+                onChange={(event) => navigate(`/schedules?week=${weekStart}&branch=${event.target.value}`)}
+                options={(branches ?? []).map((b) => ({ value: b.id, label: b.name }))}
+              />
+            </div>
+          ) : null}
+          {branchId ? <AllSchedulesMenu schedules={schedules ?? []} weekStart={weekStart} onSelectWeek={goToWeek} /> : null}
+        </div>
       </header>
 
       <div className="flex flex-auto flex-col gap-[18px] bg-[#FDFCFB] px-7 pb-10 pt-[22px] max-[859px]:gap-3.5 max-[859px]:px-3.5 max-[859px]:pb-[84px] max-[859px]:pt-4">
@@ -175,6 +179,8 @@ export default function SchedulesPage(): React.ReactElement {
             isManager={isManager}
             canEdit={canEdit}
             canPublish={hasPermission('schedules.publish')}
+            canCreateDepartment={hasPermission('departments.create')}
+            weekStart={weekStart}
             onNavigateWeek={(direction) => goToWeek(addDays(weekStart, 7 * direction))}
             onCreateNextWeek={() => void createNextWeek()}
             showToast={showToast}

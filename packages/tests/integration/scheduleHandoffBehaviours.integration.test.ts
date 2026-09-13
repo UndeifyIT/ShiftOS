@@ -128,6 +128,41 @@ describe('schedule handoff behaviours integration', () => {
     expect(versions.length).toBe(1);
   });
 
+  it('tags a shift with a department from its own branch, and clears it', async () => {
+    const scheduleId = scheduleIds[2];
+    const department = await ctx.call<{ id: string }>('create_department', { branchId: TEST_FIXTURES.branchId, name: `Handoff test dept ${Date.now()}` });
+    try {
+      const added = await ctx.call<{ shift: { department_id: string | null }; assignment: { id: string } }>('add_shift_to_employee_on_date', {
+        scheduleId,
+        employeeId: TEST_FIXTURES.employeeId,
+        date: '2028-03-24',
+        startTime: '09:00',
+        endTime: '13:00',
+        departmentId: department.id
+      });
+      expect(added.shift.department_id).toBe(department.id);
+
+      const cleared = await ctx.call<{ shift: { department_id: string | null } }>('update_assigned_shift_on_date', {
+        assignmentId: added.assignment.id,
+        departmentId: null
+      });
+      expect(cleared.shift.department_id).toBeNull();
+
+      const unknown = await ctx.callRaw('add_shift_to_employee_on_date', {
+        scheduleId,
+        employeeId: TEST_FIXTURES.employeeId,
+        date: '2028-03-25',
+        startTime: '09:00',
+        endTime: '13:00',
+        departmentId: '00000000-0000-4000-8000-000000000000'
+      });
+      expect(unknown.success).toBe(false);
+    } finally {
+      await ctx.client.query('UPDATE shifts SET department_id = NULL WHERE organization_id = $1 AND department_id = $2', [TEST_FIXTURES.organizationId, department.id]);
+      await ctx.client.query('DELETE FROM departments WHERE organization_id = $1 AND id = $2', [TEST_FIXTURES.organizationId, department.id]);
+    }
+  });
+
   it('allows exactly 10 paid hours but flags more (breaks removed)', async () => {
     const scheduleId = scheduleIds[2];
     await ctx.call('add_shift_to_employee_on_date', { scheduleId, employeeId: TEST_FIXTURES.employeeId, date: '2028-03-22', startTime: '11:30', endTime: '22:30', breakMinutes: 60 });

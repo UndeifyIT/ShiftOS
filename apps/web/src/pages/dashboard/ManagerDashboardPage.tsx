@@ -37,6 +37,8 @@ function computeManagerNextStep(args: {
   canReadSchedules: boolean;
   scheduleCount: number;
   draftCount: number;
+  /** Where "Publish it" goes: the earliest draft's own week, not whatever week /schedules defaults to. */
+  firstDraftId?: string;
   publishedCount: number;
   canCreateSchedule: boolean;
   canReadAnnouncements: boolean;
@@ -53,6 +55,7 @@ function computeManagerNextStep(args: {
     canReadSchedules,
     scheduleCount,
     draftCount,
+    firstDraftId,
     publishedCount,
     canCreateSchedule,
     canReadAnnouncements,
@@ -92,7 +95,7 @@ function computeManagerNextStep(args: {
     return {
       title: 'Your schedule is ready for review',
       description: `${draftCount} draft schedule${draftCount === 1 ? '' : 's'} waiting — publish it so the team can see their shifts.`,
-      action: { label: 'Publish it', to: '/schedules' }
+      action: { label: 'Publish it', to: firstDraftId ? `/schedules/${firstDraftId}` : '/schedules' }
     };
   }
   if (canReadAnnouncements && announcementCount === 0 && canCreateAnnouncement) {
@@ -136,7 +139,7 @@ export default function ManagerDashboardPage(): React.ReactElement {
 
   const activeEmployees = (employees ?? []).filter((e) => e.is_active);
   const publishedSchedules = (schedules ?? []).filter((s) => s.status === 'published');
-  const draftSchedules = (schedules ?? []).filter((s) => s.status === 'draft');
+  const draftSchedules = (schedules ?? []).filter((s) => s.status === 'draft').sort((a, b) => a.start_date.localeCompare(b.start_date));
   const pendingInvitations = (invitations ?? []).filter((i) => i.status === 'pending');
   const recentlyPublished = [...publishedSchedules].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 4);
 
@@ -195,6 +198,7 @@ export default function ManagerDashboardPage(): React.ReactElement {
         canReadSchedules,
         scheduleCount: (schedules ?? []).length,
         draftCount: draftSchedules.length,
+        firstDraftId: draftSchedules[0]?.id,
         publishedCount: publishedSchedules.length,
         canCreateSchedule,
         canReadAnnouncements,
@@ -355,10 +359,10 @@ export default function ManagerDashboardPage(): React.ReactElement {
                     {canCreateSchedule ? (
                       <button
                         type="button"
-                        onClick={() => navigate('/schedules')}
+                        onClick={() => navigate(draftSchedules[0] ? `/schedules/${draftSchedules[0].id}` : '/schedules')}
                         className="mt-2 cursor-pointer text-xs font-bold text-brand-deep transition-colors hover:text-brand-500"
                       >
-                        Open scheduling →
+                        {draftSchedules.length > 0 ? 'Review drafts →' : 'Open scheduling →'}
                       </button>
                     ) : null}
                   </div>

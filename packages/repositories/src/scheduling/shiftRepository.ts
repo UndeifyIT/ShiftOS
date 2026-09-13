@@ -6,6 +6,8 @@ export type ShiftStatus = 'draft' | 'published' | 'scheduled' | 'active' | 'comp
 
 export interface Shift extends BranchEntity {
   template_id: string | null;
+  /** Optional department the shift covers (migration 063). */
+  department_id: string | null;
   title: string;
   description: string | null;
   shift_date: string;

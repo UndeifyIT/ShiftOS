@@ -1,10 +1,11 @@
 import React from 'react';
 
 export interface ShiftCellProps {
-  /** Rendered cards (already built by the grid). */
+  /** Rendered cards (already built by the grid) — including the empty-day card for an undecided day. */
   children?: React.ReactNode;
-  isEmpty: boolean;
   canEdit: boolean;
+  /** The day falls outside this schedule's own dates: nothing can be scheduled here. */
+  outOfSchedule: boolean;
   isDragOver: boolean;
   /** Lifts the cell above its neighbours while one of its card menus is open. */
   raised: boolean;
@@ -14,39 +15,39 @@ export interface ShiftCellProps {
   onDrop: () => void;
 }
 
-/** One employee/day cell — design handoff schedRows cells: stacked cards, or a dashed "+" placeholder while nothing is decided yet. */
-export function ShiftCell({ children, isEmpty, canEdit, isDragOver, raised, onClick, onDragOver, onDragLeave, onDrop }: ShiftCellProps): React.ReactElement {
+/** One employee/day cell — design handoff schedRows cells: stacked cards, or the empty-day card while nothing is decided yet. */
+export function ShiftCell({ children, canEdit, outOfSchedule, isDragOver, raised, onClick, onDragOver, onDragLeave, onDrop }: ShiftCellProps): React.ReactElement {
+  const interactive = canEdit && !outOfSchedule;
   return (
     <div
-      onClick={canEdit ? onClick : undefined}
+      onClick={interactive ? onClick : undefined}
       onDragOver={
-        canEdit
+        interactive
           ? (event) => {
               event.preventDefault();
               onDragOver();
             }
           : undefined
       }
-      onDragLeave={canEdit ? onDragLeave : undefined}
+      onDragLeave={interactive ? onDragLeave : undefined}
       onDrop={
-        canEdit
+        interactive
           ? (event) => {
               event.preventDefault();
               onDrop();
             }
           : undefined
       }
+      title={outOfSchedule ? 'Outside this schedule’s dates' : undefined}
       className={[
         'relative flex min-h-[70px] flex-col justify-center gap-1 border-l border-[#F7F4F1] px-[5px] py-[7px]',
         raised ? 'z-[25]' : '',
-        canEdit ? 'cursor-pointer' : '',
+        interactive ? 'cursor-pointer' : '',
+        outOfSchedule ? 'bg-[repeating-linear-gradient(135deg,#FAF8F6_0_6px,#F4F1EE_6px_12px)]' : '',
         isDragOver ? 'bg-[#FDF0E9] shadow-[inset_0_0_0_2px_#F04E17]' : ''
       ].join(' ')}
     >
-      {children}
-      {canEdit && isEmpty ? (
-        <span className="flex h-9 items-center justify-center rounded-[10px] border border-dashed border-[#EDE8E3] text-[14px] font-bold text-[#CFC7C0]">+</span>
-      ) : null}
+      {outOfSchedule ? null : children}
     </div>
   );
 }

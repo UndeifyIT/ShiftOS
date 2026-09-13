@@ -40,6 +40,8 @@ function computeSupervisorNextStep(args: {
   canReadSchedules: boolean;
   scheduleCount: number;
   draftCount: number;
+  /** Where "Publish it" goes: the earliest draft's own week. */
+  firstDraftId?: string;
   publishedCount: number;
   canCreateSchedule: boolean;
   canReadTasks: boolean;
@@ -54,6 +56,7 @@ function computeSupervisorNextStep(args: {
     canReadSchedules,
     scheduleCount,
     draftCount,
+    firstDraftId,
     publishedCount,
     canCreateSchedule,
     canReadTasks,
@@ -86,7 +89,7 @@ function computeSupervisorNextStep(args: {
     return {
       title: 'Your schedule is ready for review',
       description: `${draftCount} draft schedule${draftCount === 1 ? '' : 's'} waiting — publish it so your team can see their shifts.`,
-      action: { label: 'Publish it', to: '/schedules' }
+      action: { label: 'Publish it', to: firstDraftId ? `/schedules/${firstDraftId}` : '/schedules' }
     };
   }
   if (canReadTasks && canVerifyTasks && tasksAwaitingReview > 0) {
@@ -128,7 +131,7 @@ export default function SupervisorDashboardPage(): React.ReactElement {
 
   const branchEmployees = (employees ?? []).filter((e) => e.is_active);
   const publishedSchedules = (schedules ?? []).filter((s) => s.status === 'published');
-  const draftSchedules = (schedules ?? []).filter((s) => s.status === 'draft');
+  const draftSchedules = (schedules ?? []).filter((s) => s.status === 'draft').sort((a, b) => a.start_date.localeCompare(b.start_date));
   const recentSchedules = [...(schedules ?? [])].filter((s) => s.status !== 'archived').slice(0, 5);
   // Mirrors TasksPage.tsx's canShowVerify: completed tasks, plus tasks sent
   // back for rework that are now in progress again — both are states a
@@ -150,6 +153,7 @@ export default function SupervisorDashboardPage(): React.ReactElement {
         canReadSchedules,
         scheduleCount: (schedules ?? []).length,
         draftCount: draftSchedules.length,
+        firstDraftId: draftSchedules[0]?.id,
         publishedCount: publishedSchedules.length,
         canCreateSchedule,
         canReadTasks,

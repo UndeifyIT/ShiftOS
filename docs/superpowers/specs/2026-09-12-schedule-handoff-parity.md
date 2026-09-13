@@ -28,6 +28,13 @@ Where the design handoff (`Local file check/design_handoff_shiftos/ShiftOS Dashb
 - Toasts/copy that would claim something the backend doesn't do are reworded: publishing sends no notifications ("staff can see this week", not "everyone notified"); Import Schedule says it isn't available yet.
 - Page-level: no live clock pill in the header (app-wide header concern); sidebar width set to the handoff's 221px.
 
+## Additions beyond the handoff (user requests, 2026-09-13)
+
+- **All schedules menu** in the Schedules header: every schedule for the branch with Draft/Published tags and a draft count, jumping to that schedule's week — drafts for other weeks were otherwise unreachable. Dashboard "Publish it" / "Review drafts" links open the earliest draft directly.
+- **Empty-day cards**: an undecided day renders the "+" placeholder with its own "⋮" menu (Assign shift, Mark day off) — every person added gets seven such cards, Mon–Sun.
+- **Shift department**: optional Department on the shift form (branch departments, or "New department…" for users with `departments.create`), stored on `shifts.department_id` (migration 063) and shown on the card.
+- Grid columns are always the viewed Mon–Sun week; days outside an older, non-weekly schedule's own dates are hatched and inactive (previously a Tuesday-start schedule was labelled from "Mon"). Publish button reads "Republish" only once the week has been published.
+
 ## Verification
 
 `pnpm --filter @shiftos/web preview:schedule` renders the real page against an in-memory backend seeded with the handoff's own week. Measured against the running prototype at 1440×1000: identical section sizes in published, editing and summary-open states, identical grid row heights, modal and picker geometry; tolerant pixel diff ≈0.4%, remaining differences being sub-pixel anti-aliasing plus the deviations above.

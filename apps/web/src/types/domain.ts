@@ -109,6 +109,8 @@ export interface Shift {
   organization_id: string;
   branch_id: string;
   template_id: string | null;
+  /** Optional department the shift covers (migration 063). */
+  department_id?: string | null;
   title: string;
   description: string | null;
   shift_date: string;

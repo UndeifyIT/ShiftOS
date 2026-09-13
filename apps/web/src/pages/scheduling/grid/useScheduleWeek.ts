@@ -21,7 +21,7 @@ export interface ShiftBlock {
 
 /** One card inside a grid cell: a real shift assignment, or an explicit day off. */
 export type GridCard =
-  | { kind: 'shift'; id: string; assignment: ShiftAssignment; shift: Shift; block: ShiftBlock; note: string }
+  | { kind: 'shift'; id: string; assignment: ShiftAssignment; shift: Shift; block: ShiftBlock; note: string; departmentId: string | null; departmentName: string }
   | { kind: 'off'; id: string; dayOff: ScheduleDayOff };
 
 /** A shift built in the drafts tray — frontend-only until it's dropped onto someone. */
@@ -30,6 +30,7 @@ export interface TrayDraft {
   off: boolean;
   blocks: ShiftBlock[];
   note: string;
+  departmentId: string | null;
 }
 
 export interface RosterRow {
@@ -54,8 +55,21 @@ export function blockOf(shift: Shift): ShiftBlock {
   return { startTime: shift.start_time.slice(0, 5), endTime: shift.end_time.slice(0, 5), breakMinutes: shift.break_minutes };
 }
 
-/** Fetches everything the weekly grid shows for one schedule and derives the per-cell cards, conflicts and hours. */
-export function useScheduleWeek(schedule: Schedule) {
+export interface GridDay {
+  date: string;
+  weekday: string;
+  label: string;
+  /** False for days of the displayed Mon–Sun week that fall outside the schedule's own dates (older, non-weekly schedules). */
+  inSchedule: boolean;
+}
+
+/**
+ * Fetches everything the weekly grid shows for one schedule and derives the
+ * per-cell cards, conflicts and hours. Columns are always the Mon–Sun week
+ * being viewed; a schedule that doesn't line up with it (e.g. Tue–next Wed)
+ * simply has its out-of-range days marked, instead of mislabelled columns.
+ */
+export function useScheduleWeek(schedule: Schedule, weekStart: string) {
   const scheduleId = schedule.id;
   const roster = useRpcQuery<ScheduleRosterEntry[]>('list_schedule_roster', { scheduleId });
   const employees = useRpcQuery<Employee[]>('list_employees', { branchId: schedule.branch_id });
@@ -65,7 +79,10 @@ export function useScheduleWeek(schedule: Schedule) {
   const conflicts = useRpcQuery<ScheduleConflict[]>('get_schedule_conflicts', { scheduleId });
   const dayOffs = useRpcQuery<ScheduleDayOff[]>('list_schedule_day_offs', { scheduleId });
 
-  const days = useMemo(() => weekDays(schedule.start_date), [schedule.start_date]);
+  const days = useMemo<GridDay[]>(
+    () => weekDays(weekStart).map((day) => ({ ...day, inSchedule: day.date >= schedule.start_date && day.date <= schedule.end_date })),
+    [weekStart, schedule.start_date, schedule.end_date]
+  );
 
   const model = useMemo(() => {
     const employeesById = new Map((employees.data ?? []).map((e) => [e.id, e]));
@@ -88,7 +105,17 @@ export function useScheduleWeek(schedule: Schedule) {
       if (!shift) continue;
       const key = cellKey(assignment.employee_id, shift.shift_date);
       const list = cells.get(key) ?? [];
-      list.push({ kind: 'shift', id: assignment.id, assignment, shift, block: blockOf(shift), note: assignment.notes ?? '' });
+      const departmentId = shift.department_id ?? null;
+      list.push({
+        kind: 'shift',
+        id: assignment.id,
+        assignment,
+        shift,
+        block: blockOf(shift),
+        note: assignment.notes ?? '',
+        departmentId,
+        departmentName: (departmentId && departmentsById.get(departmentId)?.name) || ''
+      });
       cells.set(key, list);
     }
     for (const list of cells.values()) {
@@ -106,6 +133,7 @@ export function useScheduleWeek(schedule: Schedule) {
       .filter((c) => rosterIndex.has(c.employeeId))
       .sort((a, b) => (rosterIndex.get(a.employeeId)! - rosterIndex.get(b.employeeId)!) || a.date.localeCompare(b.date));
 
+    const scheduleDayCount = days.filter((day) => day.inSchedule).length;
     const hours = new Map<string, EmployeeWeekHours>();
     let totalPaidMinutes = 0;
     let decidedCells = 0;
@@ -113,6 +141,7 @@ export function useScheduleWeek(schedule: Schedule) {
     for (const row of rosterRows) {
       const summary: EmployeeWeekHours = { employeeId: row.employee.id, paidMinutes: 0, shiftDays: 0, offDays: 0, minutesByDate: new Map() };
       for (const day of days) {
+        if (!day.inSchedule) continue;
         const cards = cells.get(cellKey(row.employee.id, day.date)) ?? [];
         if (cards.length) decidedCells += 1;
         if (cards[0]?.kind === 'off') summary.offDays += 1;
@@ -136,7 +165,7 @@ export function useScheduleWeek(schedule: Schedule) {
       hours,
       totalPaidMinutes,
       scheduledPeople,
-      coverage: rosterRows.length ? Math.round((decidedCells / (rosterRows.length * 7)) * 100) : 0,
+      coverage: rosterRows.length && scheduleDayCount ? Math.round((decidedCells / (rosterRows.length * scheduleDayCount)) * 100) : 0,
       branchEmployeeCount: (employees.data ?? []).length
     };
   }, [roster.data, employees.data, departments.data, shifts.data, assignments.data, conflicts.data, dayOffs.data, days]);
@@ -150,6 +179,7 @@ export function useScheduleWeek(schedule: Schedule) {
     error,
     employees: employees.data ?? [],
     departmentsById: new Map((departments.data ?? []).map((d) => [d.id, d])),
+    departments: departments.data ?? [],
     refetch: () => Promise.all([roster.refetch(), shifts.refetch(), assignments.refetch(), conflicts.refetch(), dayOffs.refetch()]),
     ...model
   };

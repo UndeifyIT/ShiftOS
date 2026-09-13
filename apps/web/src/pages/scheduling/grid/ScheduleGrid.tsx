@@ -32,6 +32,10 @@ export interface ScheduleGridProps {
   isManager: boolean;
   canEdit: boolean;
   canPublish: boolean;
+  /** May create a new department from the shift form (departments.create). */
+  canCreateDepartment: boolean;
+  /** Monday of the week being viewed; the grid's columns are always this Mon–Sun week. */
+  weekStart: string;
   onNavigateWeek: (direction: -1 | 1) => void;
   onCreateNextWeek: () => void;
   showToast: (text: string, tone?: ToastTone) => void;
@@ -70,9 +74,19 @@ function downloadCsv(filename: string, rows: string[][]): void {
 }
 
 /** The weekly employee × day schedule — design handoff "Manager/Schedules" / "Supervisor/Schedules" (ShiftOS Dashboards.dc.html lines 465-737). */
-export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavigateWeek, onCreateNextWeek, showToast }: ScheduleGridProps): React.ReactElement {
+export function ScheduleGrid({
+  schedule,
+  isManager,
+  canEdit,
+  canPublish,
+  canCreateDepartment,
+  weekStart,
+  onNavigateWeek,
+  onCreateNextWeek,
+  showToast
+}: ScheduleGridProps): React.ReactElement {
   const scheduleId = schedule.id;
-  const week = useScheduleWeek(schedule);
+  const week = useScheduleWeek(schedule, weekStart);
   const { days, rosterRows, cells, conflictsByCell, orderedConflicts, hours } = week;
   const published = schedule.status === 'published';
 
@@ -101,6 +115,7 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
     invalidates: ['list_schedule_roster', ...invalidates]
   });
   const createTemplate = useRpcMutation<unknown, Record<string, unknown>>('create_shift_template', { invalidates: ['list_shift_templates'] });
+  const createDepartment = useRpcMutation<{ id: string }, { branchId: string; name: string }>('create_department', { invalidates: ['list_departments'] });
   const publish = useRpcMutation<Schedule, { scheduleId: string }>('publish_schedule', { invalidates: ['get_schedule', 'list_schedules', 'list_schedule_versions'] });
   const unpublish = useRpcMutation<Schedule, { scheduleId: string }>('unpublish_schedule', { invalidates: ['get_schedule', 'list_schedules'] });
   const ask = useRpcMutation<{ answer: string }, { question: string }>('ask_assistant');
@@ -126,7 +141,7 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
     }
   };
 
-  const addBlocks = async (employeeId: string, date: string, blocks: ShiftBlock[], note: string): Promise<void> => {
+  const addBlocks = async (employeeId: string, date: string, blocks: ShiftBlock[], note: string, departmentId: string | null): Promise<void> => {
     for (const [index, block] of blocks.entries()) {
       await addShift.mutateAsync({
         scheduleId,
@@ -137,7 +152,8 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
         endTime: block.endTime,
         crossesMidnight: crossesMidnight(block),
         breakMinutes: block.breakMinutes,
-        notes: index === 0 && note ? note : null
+        notes: index === 0 && note ? note : null,
+        departmentId
       });
     }
   };
@@ -147,13 +163,15 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
     else await clearDayOff.mutateAsync({ scheduleId, employeeId, date });
   };
 
-  const newDraft = (source: { off: boolean; blocks: ShiftBlock[]; note: string }): TrayDraft => {
+  const newDraft = (source: Omit<TrayDraft, 'id'>): TrayDraft => {
     draftCounter.current += 1;
     return { id: `draft-${draftCounter.current}`, ...source };
   };
 
   const draftFromCard = (card: GridCard): TrayDraft =>
-    card.kind === 'shift' ? newDraft({ off: false, blocks: [card.block], note: card.note }) : newDraft({ off: true, blocks: [], note: '' });
+    card.kind === 'shift'
+      ? newDraft({ off: false, blocks: [card.block], note: card.note, departmentId: card.departmentId })
+      : newDraft({ off: true, blocks: [], note: '', departmentId: null });
 
   const readOnlyHint = isManager && published ? 'Published shifts are read-only — unpublish to edit them' : 'You can only view this schedule';
 
@@ -161,11 +179,21 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
   const formInitial =
     form?.mode === 'cell'
       ? form.card?.kind === 'shift'
-        ? { off: false, blocks: [form.card.block], note: form.card.note }
-        : { off: form.card?.kind === 'off', blocks: [], note: '' }
+        ? { off: false, blocks: [form.card.block], note: form.card.note, departmentId: form.card.departmentId }
+        : { off: form.card?.kind === 'off', blocks: [], note: '', departmentId: null }
       : form?.mode === 'tray' && form.draft
-        ? { off: form.draft.off, blocks: form.draft.blocks, note: form.draft.note }
-        : { off: false, blocks: [], note: '' };
+        ? { off: form.draft.off, blocks: form.draft.blocks, note: form.draft.note, departmentId: form.draft.departmentId }
+        : { off: false, blocks: [], note: '', departmentId: null };
+
+  /** The form's department choice as an id, creating the department first when "New department…" was used. */
+  const resolveFormDepartment = async (values: ShiftFormValues): Promise<string | null> => {
+    if (values.off) return null;
+    if (!values.newDepartmentName) return values.departmentId;
+    const existing = week.departments.find((d) => d.name.trim().toLowerCase() === values.newDepartmentName.toLowerCase());
+    if (existing) return existing.id;
+    const created = await createDepartment.mutateAsync({ branchId: schedule.branch_id, name: values.newDepartmentName });
+    return created.id;
+  };
 
   const openCell = (employeeId: string, date: string, card: GridCard | null): void => {
     setMenu(null);
@@ -176,7 +204,12 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
   const saveForm = async (values: ShiftFormValues): Promise<void> => {
     if (!form) return;
     if (form.mode === 'tray') {
-      const draft = { off: values.off, blocks: values.off ? [] : values.blocks, note: values.note };
+      let departmentId: string | null = null;
+      const resolved = await run(async () => {
+        departmentId = await resolveFormDepartment(values);
+      }, setFormError);
+      if (!resolved) return;
+      const draft = { off: values.off, blocks: values.off ? [] : values.blocks, note: values.note, departmentId };
       if (form.draft) {
         const id = form.draft.id;
         setTray((prev) => prev.map((d) => (d.id === id ? { id, ...draft } : d)));
@@ -189,6 +222,7 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
     }
     const { employeeId, date, card } = form;
     const ok = await run(async () => {
+      const departmentId = await resolveFormDepartment(values);
       const apply = async (targetDate: string, primary: boolean): Promise<void> => {
         if (values.off) {
           await markDayOff.mutateAsync({ scheduleId, employeeId, date: targetDate });
@@ -202,12 +236,13 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
             endTime: first.endTime,
             crossesMidnight: crossesMidnight(first),
             breakMinutes: first.breakMinutes,
-            notes: values.note || null
+            notes: values.note || null,
+            departmentId
           });
-          await addBlocks(employeeId, targetDate, rest, '');
+          await addBlocks(employeeId, targetDate, rest, '', departmentId);
           return;
         }
-        await addBlocks(employeeId, targetDate, values.blocks, values.note);
+        await addBlocks(employeeId, targetDate, values.blocks, values.note, departmentId);
       };
       await apply(date, true);
       for (const extraDate of values.alsoDates) await apply(extraDate, false);
@@ -259,7 +294,7 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
       if (!draft) return;
       const ok = await run(async () => {
         if (draft.off) await markDayOff.mutateAsync({ scheduleId, employeeId, date });
-        else await addBlocks(employeeId, date, draft.blocks, draft.note);
+        else await addBlocks(employeeId, date, draft.blocks, draft.note, draft.departmentId);
       });
       if (ok) {
         setTray((prev) => prev.filter((d) => d.id !== draft.id));
@@ -272,7 +307,7 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
     // Write the destination first, then clear the source, so a failed drop never loses the original shift.
     const ok = await run(async () => {
       if (card.kind === 'off') await markDayOff.mutateAsync({ scheduleId, employeeId, date });
-      else await addBlocks(employeeId, date, [card.block], card.note);
+      else await addBlocks(employeeId, date, [card.block], card.note, card.departmentId);
       await removeCard(card, source.employeeId, source.date);
     });
     if (ok) showToast(movedToast);
@@ -301,7 +336,7 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
             showToast('Day off copied to shift drafts — drag it onto anyone');
             return;
           }
-          void run(() => addBlocks(employeeId, date, [card.block], card.note)).then((ok) => ok && showToast('Shift duplicated'));
+          void run(() => addBlocks(employeeId, date, [card.block], card.note, card.departmentId)).then((ok) => ok && showToast('Shift duplicated'));
         }
       },
       {
@@ -324,12 +359,21 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
     return items;
   };
 
+  /** An undecided day: nothing to duplicate or move yet, so assign a shift or mark it off. */
+  const emptyDayMenu = (employeeId: string, date: string): ShiftCardMenuItem[] => [
+    { label: 'Assign shift', onSelect: () => openCell(employeeId, date, null) },
+    {
+      label: 'Mark day off',
+      onSelect: () => void run(() => markDayOff.mutateAsync({ scheduleId, employeeId, date }).then(() => undefined)).then((ok) => ok && showToast('Marked as day off'))
+    }
+  ];
+
   const trayMenu = (draft: TrayDraft): ShiftCardMenuItem[] => [
     { label: 'Edit shift', onSelect: () => setForm({ mode: 'tray', draft }) },
     {
       label: 'Duplicate',
       onSelect: () => {
-        setTray((prev) => [...prev, newDraft({ off: draft.off, blocks: draft.blocks, note: draft.note })]);
+        setTray((prev) => [...prev, newDraft({ off: draft.off, blocks: draft.blocks, note: draft.note, departmentId: draft.departmentId })]);
         showToast('Shift duplicated');
       }
     },
@@ -381,13 +425,15 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
       return;
     }
     if (action === 'fillEmpty') {
-      const empty = rosterRows.flatMap((row) => days.filter((day) => !(cells.get(cellKey(row.employee.id, day.date)) ?? []).length).map((day) => [row.employee.id, day.date] as const));
+      const empty = rosterRows.flatMap((row) =>
+        days.filter((day) => day.inSchedule && !(cells.get(cellKey(row.employee.id, day.date)) ?? []).length).map((day) => [row.employee.id, day.date] as const)
+      );
       if (!empty.length) {
         showToast('No empty days to fill');
         return;
       }
       if (await run(async () => {
-        for (const [employeeId, date] of empty) await addBlocks(employeeId, date, [DEFAULT_FILL], '');
+        for (const [employeeId, date] of empty) await addBlocks(employeeId, date, [DEFAULT_FILL], '', null);
       })) {
         showToast(`${empty.length} empty ${empty.length === 1 ? 'day' : 'days'} filled with 7:30 AM – 5:00 PM`);
       }
@@ -413,7 +459,7 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
   const onAsk = (question: string): void => {
     showToast('Assistant is looking at this week…');
     ask.mutate(
-      { question: `About the ${weekRangeLabel(schedule.start_date)} schedule: ${question}` },
+      { question: `About the ${weekRangeLabel(weekStart)} schedule: ${question}` },
       { onSuccess: (result) => showToast(result.answer), onError: (err) => showToast(err.message, 'error') }
     );
   };
@@ -462,7 +508,8 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
   const hintOne = canEdit ? 'Click a cell to assign a shift' : isManager ? 'Published shifts are read-only — unpublish to edit them' : 'These shifts are published — they cannot be changed here';
   const hintTwo = canEdit ? 'Drag a shift to another cell to move it' : isManager ? 'Unpublishing hides the week from staff until you republish' : 'Ask your supervisor for a swap if a shift does not work';
 
-  const publishLabel = isManager ? 'Republish Schedule' : 'Publish Schedule';
+  // Matches the status bar: "Republish" only once this week has actually been published before.
+  const publishLabel = isManager && versions?.length ? 'Republish Schedule' : 'Publish Schedule';
   const cardProps = (menuKey: string) => ({
     menuOpen: menu === menuKey,
     onToggleMenu: (open: boolean) => setMenu(open ? menuKey : null),
@@ -549,8 +596,8 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
               <ScheduleIcon name="calendar" size={16} />
             </span>
             <span className="leading-[1.25]">
-              <span className="block text-[13.5px] font-extrabold">{weekRangeLabel(schedule.start_date)}</span>
-              <span className="block text-[11px] text-[#A79C93]">Week {isoWeekNumber(schedule.start_date)}</span>
+              <span className="block text-[13.5px] font-extrabold">{weekRangeLabel(weekStart)}</span>
+              <span className="block text-[11px] text-[#A79C93]">Week {isoWeekNumber(weekStart)}</span>
             </span>
           </span>
           <button
@@ -701,8 +748,8 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
                       return (
                         <ShiftCell
                           key={day.date}
-                          isEmpty={cards.length === 0}
                           canEdit={canEdit}
+                          outOfSchedule={!day.inSchedule}
                           isDragOver={dragOver === key}
                           raised={Boolean(menu?.startsWith(`${key}|`))}
                           onClick={() => {
@@ -712,12 +759,27 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
                           onDragLeave={() => setDragOver((current) => (current === key ? null : current))}
                           onDrop={() => void dropOnCell(row.employee.id, day.date)}
                         >
+                          {canEdit && cards.length === 0 ? (
+                            <ShiftCard
+                              empty
+                              off={false}
+                              blocks={[]}
+                              note=""
+                              conflict={false}
+                              canEdit={canEdit}
+                              menuItems={emptyDayMenu(row.employee.id, day.date)}
+                              onOpen={() => openCell(row.employee.id, day.date, null)}
+                              onDragStart={() => undefined}
+                              {...cardProps(`${key}|empty`)}
+                            />
+                          ) : null}
                           {cards.map((card) => (
                             <ShiftCard
                               key={card.id}
                               off={card.kind === 'off'}
                               blocks={card.kind === 'shift' ? [card.block] : []}
                               note={card.kind === 'shift' ? card.note : ''}
+                              department={card.kind === 'shift' ? card.departmentName : ''}
                               conflict={Boolean(conflictsByCell.get(key))}
                               canEdit={canEdit}
                               menuItems={cellMenu(card, row.employee.id, day.date)}
@@ -767,6 +829,7 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
                         off={draft.off}
                         blocks={draft.blocks}
                         note={draft.note}
+                        department={draft.departmentId ? (week.departmentsById.get(draft.departmentId)?.name ?? '') : ''}
                         conflict={false}
                         canEdit={canEdit}
                         menuItems={trayMenu(draft)}
@@ -816,7 +879,7 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
         open={summaryOpen}
         onToggle={() => setSummaryOpen((open) => !open)}
         onExport={() => {
-          downloadCsv(`hours-week-${isoWeekNumber(schedule.start_date)}.csv`, [
+          downloadCsv(`hours-week-${isoWeekNumber(weekStart)}.csv`, [
             ['Employee', 'Department', 'Paid hours', 'Shift days', 'Days off', 'Flag'],
             ...rosterRows.map((row) => {
               const summary = hours.get(row.employee.id);
@@ -834,9 +897,11 @@ export function ScheduleGrid({ schedule, isManager, canEdit, canPublish, onNavig
           mode={form.mode}
           editing={form.mode === 'cell' ? Boolean(form.card) : Boolean(form.draft)}
           initial={formInitial}
+          departments={week.departments}
+          canCreateDepartment={canCreateDepartment}
           employeeName={form.mode === 'cell' ? nameOf(form.employeeId) : undefined}
           date={form.mode === 'cell' ? form.date : undefined}
-          days={days}
+          days={days.filter((day) => day.inSchedule)}
           saving={busy}
           error={formError}
           onSave={(values) => void saveForm(values)}
