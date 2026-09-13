@@ -4,7 +4,7 @@ import { CheckCircle2, Clock3, Lock, ShieldCheck, User } from 'lucide-react';
 import { FormField } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
 import { checklistFor, strengthFor } from '../../lib/password.js';
-import { isNetworkError } from '../../lib/authErrors.js';
+import { isNetworkError, isRateLimitError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
 import { AuthBanner, AuthCheckbox, AuthSubmit } from './AuthInputs.js';
 import { AuthStatusPanel } from './AuthStatusPanel.js';
@@ -64,7 +64,8 @@ export default function ResetPasswordPage(): React.ReactElement {
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) {
-        setView('expired');
+        if (isRateLimitError(updateError)) setError('Too many requests. Please wait a few minutes and try again.');
+        else setView('expired');
         return;
       }
       if (signOutOthers) {
@@ -73,6 +74,7 @@ export default function ResetPasswordPage(): React.ReactElement {
       setView('success');
     } catch (err) {
       if (isNetworkError(err)) setView('network-error');
+      else if (isRateLimitError(err)) setError('Too many requests. Please wait a few minutes and try again.');
       else setError('Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
@@ -164,7 +166,7 @@ export default function ResetPasswordPage(): React.ReactElement {
             />
 
             {error && !error.includes('match') ? (
-              <AuthBanner tone="bad" title="Check your password" body={error} />
+              <AuthBanner tone="bad" title={error.startsWith('Too many') ? 'Too many requests' : 'Check your password'} body={error} />
             ) : null}
             <AuthSubmit loading={submitting} loadingLabel="Updating password…">
               Reset password →

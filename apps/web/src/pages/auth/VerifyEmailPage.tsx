@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Clock3, Mail, ShieldCheck, Users, WifiOff } from 'lucide-react';
 import { supabase } from '../../lib/supabase.js';
-import { isNetworkError } from '../../lib/authErrors.js';
+import { isNetworkError, isRateLimitError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit } from './AuthShell.js';
 import { AuthStatusPanel } from './AuthStatusPanel.js';
 
@@ -48,6 +48,8 @@ export default function VerifyEmailPage(): React.ReactElement {
       if (resendError) {
         if (isNetworkError(resendError)) {
           setView('network-error');
+        } else if (isRateLimitError(resendError)) {
+          setError('Too many requests. Please wait a few minutes before resending.');
         } else {
           setError('Could not resend the email. Please try again in a moment.');
         }

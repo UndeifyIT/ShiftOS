@@ -4,7 +4,7 @@ import { BarChart3, CalendarClock, MessageSquare, Clock3, Lock } from 'lucide-re
 import { FormField } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { supabase } from '../../lib/supabase.js';
-import { isNetworkError } from '../../lib/authErrors.js';
+import { isNetworkError, isRateLimitError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
 import { AuthBanner, AuthCheckbox, AuthGoogleButton, AuthInput, AuthSubmit } from './AuthInputs.js';
 import { PasswordInput } from './PasswordInput.js';
@@ -47,7 +47,9 @@ export default function SignInPage(): React.ReactElement {
         setError(
           isNetworkError(signInError)
             ? "Couldn't reach ShiftOS. Check your connection and try again."
-            : 'Invalid email or password.'
+            : isRateLimitError(signInError)
+              ? 'Too many requests. Please wait a few minutes and try again.'
+              : 'Invalid email or password.'
         );
       }
     } catch (err) {
