@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock3, Lock, Mail, Users, WifiOff } from 'lucide-react';
+import { Clock3, Hourglass, Lock, Mail, Users, WifiOff } from 'lucide-react';
 import { FormField } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
-import { isNetworkError } from '../../lib/authErrors.js';
+import { isNetworkError, isRateLimitError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
 import { AuthInput, AuthSubmit } from './AuthInputs.js';
 import { AuthStatusPanel } from './AuthStatusPanel.js';
@@ -21,7 +21,7 @@ const BENEFITS: AuthBenefit[] = [
   { icon: Users, title: 'Need a hand?', body: 'Your manager can also reset it for you.' }
 ];
 
-type View = 'form' | 'sent' | 'network-error';
+type View = 'form' | 'sent' | 'network-error' | 'rate-limited';
 
 /** SHARED-002 — Forgot Password, styled to match Reset Password (SHARED-003). */
 export default function ForgotPasswordPage(): React.ReactElement {
@@ -44,12 +44,19 @@ export default function ForgotPasswordPage(): React.ReactElement {
         setView('sent');
       } else if (isNetworkError(resetError)) {
         setView('network-error');
+      } else if (isRateLimitError(resetError)) {
+        setView('rate-limited');
       } else {
+        setView('form');
         setError('Something went wrong. Please try again.');
       }
     } catch (err) {
       if (isNetworkError(err)) setView('network-error');
-      else setError('Something went wrong. Please try again.');
+      else if (isRateLimitError(err)) setView('rate-limited');
+      else {
+        setView('form');
+        setError('Something went wrong. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -85,6 +92,18 @@ export default function ForgotPasswordPage(): React.ReactElement {
           ctaLabel="Try again"
           ctaLoading={submitting}
           onCta={() => void sendResetLink()}
+        />
+      ) : view === 'rate-limited' ? (
+        <AuthStatusPanel
+          icon={Hourglass}
+          tone="warn"
+          title="Too many requests"
+          body="Too many reset emails have been requested in a short time. Please wait a few minutes before asking for another link."
+          meta="Already got a reset email? Its link still works — check your inbox and spam folder."
+          ctaLabel="Back to sign in"
+          onCta={() => navigate('/sign-in')}
+          secondaryLabel="Try again"
+          onSecondary={() => setView('form')}
         />
       ) : view === 'sent' ? (
         <AuthStatusPanel

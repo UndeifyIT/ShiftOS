@@ -14,6 +14,23 @@ export function isNetworkError(error: unknown): boolean {
   return message.includes('failed to fetch') || message.includes('network');
 }
 
+/**
+ * Supabase Auth answers HTTP 429 when a rate limit trips — most often the
+ * project-wide email quota (`over_email_send_rate_limit`, "email rate limit
+ * exceeded") or the per-address resend cooldown ("you can only request this
+ * after N seconds"). Pages show "Too many requests" for these rather than a
+ * generic failure, since retrying straight away can't succeed.
+ */
+export function isRateLimitError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const status = 'status' in error ? Number((error as { status: unknown }).status) : NaN;
+  if (status === 429) return true;
+  const code = 'code' in error ? String((error as { code: unknown }).code) : '';
+  if (code.startsWith('over_') && code.endsWith('_rate_limit')) return true;
+  const message = 'message' in error ? String((error as { message: unknown }).message).toLowerCase() : '';
+  return message.includes('rate limit') || message.includes('too many requests') || message.includes('only request this after');
+}
+
 export interface AuthHashError {
   code: string | null;
   description: string | null;
