@@ -7,14 +7,16 @@ import baseConfig from './vite.config';
  * AppShell and all, running against an in-memory demo backend seeded with the
  * design handoff's own week (preview/schedule/mockBackend.ts). No Supabase,
  * no RPC server, nothing saved. Query params: `?as=manager|supervisor`,
- * `&status=published|draft`, `&week=YYYY-MM-DD`.
+ * `&status=published|draft`, `&week=YYYY-MM-DD`. `?path=/` opens the Manager
+ * overview instead, seeded with the handoff's own morning (overviewBackend.ts).
  */
 const previewDir = fileURLToPath(new URL('./preview/schedule/', import.meta.url));
 
 const MOCKED_MODULES: Array<[suffix: string, mock: string]> = [
   ['/src/lib/apiClient.ts', 'mockApiClient.ts'],
   ['/src/lib/supabase.ts', 'mockSupabase.ts'],
-  ['/src/auth/SessionProvider.tsx', 'mockSession.tsx']
+  ['/src/auth/SessionProvider.tsx', 'mockSession.tsx'],
+  ['/src/lib/clock.ts', 'mockClock.ts']
 ];
 
 function schedulePreviewMocks(): Plugin {

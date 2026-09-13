@@ -1,0 +1,266 @@
+/**
+ * In-memory backend for the Manager overview preview (`?path=/`), seeded to
+ * reproduce the design handoff's HOME.Manager morning — Friday May 16, 2025
+ * at 07:58 (see mockClock.ts): 20 people, 17 checked in, Sales Floor / Front
+ * End / Warehouse / Bakery coverage, 3 coverage gaps, 2 swaps + 3 leave
+ * waiting, 2 supervisor invitations, next week still a draft, and the
+ * handoff's two announcements.
+ */
+import type { AttendanceRecord, Employee, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap } from '../../src/types/domain.js';
+
+const ORG = 'org-abc-supermarket';
+const BRANCH = 'br-main';
+const at = (day: number, hours: number, minutes: number): string => new Date(2025, 4, day, hours, minutes).toISOString();
+const CREATED = at(9, 7, 12);
+
+const stamp = <T,>(row: T) => ({ ...row, organization_id: ORG, created_at: CREATED, updated_at: CREATED, deleted_at: null });
+
+const DEPARTMENTS: Array<[string, string]> = [
+  ['dep-sales', 'Sales Floor'],
+  ['dep-frontend', 'Front End'],
+  ['dep-warehouse', 'Warehouse'],
+  ['dep-bakery', 'Bakery'],
+  ['dep-facilities', 'Facilities']
+];
+
+// [id, first, last, department, supervisor?, clocked in today at (minutes after 07:00) or null]
+const PEOPLE: Array<[string, string, string, string, boolean, number | null]> = [
+  ['p1', 'Sarah', 'Johnson', 'dep-sales', true, 21],
+  ['p2', 'John', 'Doe', 'dep-sales', false, 49],
+  ['p3', 'Amaka', 'Nwosu', 'dep-sales', false, 24],
+  ['p4', 'Tunde', 'Adeyemi', 'dep-sales', false, 26],
+  ['p5', 'Emeka', 'Obi', 'dep-sales', false, 27],
+  ['p6', 'Chioma', 'Okafor', 'dep-sales', false, 28],
+  ['p7', 'Michael', 'Okafor', 'dep-frontend', true, 20],
+  ['p8', 'Mary', 'Johnson', 'dep-frontend', false, 52],
+  ['p9', 'Osaro', 'Miracle', 'dep-frontend', false, 25],
+  ['p10', 'Victoria', 'Odibenua', 'dep-frontend', false, null],
+  ['p11', 'Funke', 'Adebayo', 'dep-frontend', false, 23],
+  ['p12', 'Michael', 'Brown', 'dep-warehouse', false, 44],
+  ['p13', 'Kelechi', 'Eze', 'dep-warehouse', false, 22],
+  ['p14', 'Wilson', 'Ijeoma', 'dep-warehouse', false, null],
+  ['p15', 'Chidimma', 'Obi', 'dep-warehouse', false, null],
+  ['p16', 'Grace', 'Williams', 'dep-bakery', true, 19],
+  ['p17', 'James', 'Carter', 'dep-bakery', false, 24],
+  ['p18', 'Halima', 'Musa', 'dep-bakery', false, 25],
+  ['p19', 'Ifeanyi', 'Nnamdi', 'dep-bakery', false, 26],
+  ['p20', 'David', 'Wilson', 'dep-bakery', false, 29]
+];
+
+const emailOf = (first: string, last: string): string => `${first}.${last}@abc.example`.toLowerCase();
+
+export function createOverviewBackend() {
+  const employees: Employee[] = PEOPLE.map(([id, first, last, departmentId]) =>
+    stamp({
+      id,
+      branch_id: BRANCH,
+      employee_number: `EMP-${id.slice(1).padStart(3, '0')}`,
+      first_name: first,
+      last_name: last,
+      email: emailOf(first, last),
+      phone: null,
+      date_of_birth: null,
+      hire_date: '2024-01-15',
+      employment_status: 'active' as const,
+      notes: null,
+      avatar_url: null,
+      department_id: departmentId,
+      is_active: true
+    })
+  );
+
+  const members = [
+    stamp({ id: 'mem-me', user_id: 'user-me', role_id: 'role-manager', joined_at: CREATED, is_active: true, user_email: 'daniel@abc.example', user_first_name: 'Daniel', user_last_name: 'Okonkwo', role_name: 'Manager' }),
+    ...PEOPLE.filter(([, , , , supervisor]) => supervisor).map(([id, first, last]) =>
+      stamp({ id: `mem-${id}`, user_id: `user-${id}`, role_id: 'role-supervisor', joined_at: CREATED, is_active: true, user_email: emailOf(first, last), user_first_name: first, user_last_name: last, role_name: 'Supervisor' })
+    )
+  ];
+
+  const shifts: Shift[] = [];
+  const assignments: ShiftAssignment[] = [];
+  const attendance: AttendanceRecord[] = [];
+  const addShift = (id: string, date: string, departmentId: string, start: string, end: string): Shift => {
+    const shift: Shift = stamp({
+      id,
+      branch_id: BRANCH,
+      template_id: null,
+      department_id: departmentId,
+      title: 'Shift',
+      description: null,
+      shift_date: date,
+      start_time: `${start}:00`,
+      end_time: `${end}:00`,
+      crosses_midnight: false,
+      break_minutes: 60,
+      status: 'published' as const,
+      published_at: CREATED,
+      is_active: true
+    });
+    shifts.push(shift);
+    return shift;
+  };
+
+  for (const [id, , , departmentId, , clockedIn] of PEOPLE) {
+    const shift = addShift(`shf-${id}`, '2025-05-16', departmentId, '07:30', '17:00');
+    const assignment: ShiftAssignment = stamp({
+      id: `asg-${id}`,
+      shift_id: shift.id,
+      employee_id: id,
+      assignment_status: 'assigned' as const,
+      assigned_at: CREATED,
+      confirmed_at: null,
+      declined_at: null,
+      cancelled_at: null,
+      assigned_by: 'user-me',
+      notes: null
+    });
+    assignments.push(assignment);
+    if (clockedIn !== null) {
+      // Shifts start 07:30; only Mary is past the 10-minute grace.
+      const late = id === 'p8' ? clockedIn - 30 : 0;
+      attendance.push({
+        ...stamp({ id: `att-${id}` }),
+        created_at: at(16, 7, clockedIn),
+        updated_at: at(16, 7, clockedIn),
+        branch_id: BRANCH,
+        shift_assignment_id: assignment.id,
+        employee_id: id,
+        attendance_status: late > 0 ? 'late' : 'present',
+        clock_in_at: at(16, 7, clockedIn),
+        clock_out_at: null,
+        break_minutes: 0,
+        worked_minutes: 0,
+        overtime_minutes: 0,
+        late_minutes: late,
+        early_departure_minutes: 0,
+        notes: late > 0 ? 'traffic delay' : null,
+        recorded_by: 'user-me',
+        updated_by: null,
+        version: 1
+      });
+    }
+  }
+  // Three published slots nobody is on yet — the week's coverage gaps.
+  addShift('gap-1', '2025-05-17', 'dep-frontend', '07:30', '17:00');
+  addShift('gap-2', '2025-05-17', 'dep-warehouse', '14:30', '22:30');
+  addShift('gap-3', '2025-05-18', 'dep-bakery', '07:30', '17:00');
+
+  const leave = (id: string, employeeId: string, start: string, end: string, type: LeaveRequest['leave_type'], reason: string, day: number): LeaveRequest =>
+    ({
+      ...stamp({ id }),
+      created_at: at(day, 9, 0),
+      branch_id: BRANCH,
+      employee_id: employeeId,
+      requested_by: `user-${employeeId}`,
+      approved_by: null,
+      leave_type: type,
+      status: 'pending',
+      start_date: start,
+      end_date: end,
+      total_days: 1,
+      reason,
+      manager_notes: null,
+      cancellation_reason: null,
+      last_status_changed_at: at(day, 9, 0),
+      version: 1,
+      created_by: `user-${employeeId}`,
+      rejected_by: null,
+      cancelled_by: null,
+      approved_at: null,
+      rejected_at: null,
+      cancelled_at: null
+    }) as LeaveRequest;
+
+  const swap = (id: string, assignmentId: string, from: string, to: string): ShiftSwap => ({
+    id,
+    organization_id: ORG,
+    branch_id: BRANCH,
+    shift_assignment_id: assignmentId,
+    requested_by_employee_id: from,
+    target_employee_id: to,
+    status: 'accepted',
+    notes: null,
+    responded_by_employee_id: to,
+    responded_at: at(14, 12, 0),
+    decision_by: null,
+    decision_at: null,
+    decision_notes: null,
+    created_at: at(14, 10, 0),
+    updated_at: at(14, 12, 0)
+  });
+
+  const invitation = (id: string, email: string): Invitation => ({
+    id,
+    organization_id: ORG,
+    email,
+    first_name: null,
+    last_name: null,
+    role_id: 'role-supervisor',
+    role_name: 'Supervisor',
+    status: 'pending',
+    invited_by: 'user-me',
+    invited_by_first_name: 'Daniel',
+    invited_by_last_name: 'Okonkwo',
+    accepted_by: null,
+    accepted_at: null,
+    revoked_by: null,
+    revoked_at: null,
+    expires_at: at(19, 9, 0),
+    created_at: at(12, 9, 0),
+    updated_at: at(12, 9, 0)
+  });
+
+  const handlers: Record<string, () => unknown> = {
+    list_branches: () => [stamp({ id: BRANCH, name: 'Main Branch', address: null, settings: {}, is_active: true })],
+    list_employees: () => employees,
+    list_departments: () => DEPARTMENTS.map(([id, name]) => stamp({ id, branch_id: BRANCH, name, description: null, is_active: true })),
+    list_members: () => members,
+    list_invitations: () => [invitation('inv-1', 'chinedu.eze@abc.example'), invitation('inv-2', 'ngozi.balogun@abc.example')],
+    list_schedules: () => [
+      stamp({ id: 'sch-w20', branch_id: BRANCH, name: 'Week 20', start_date: '2025-05-12', end_date: '2025-05-18', status: 'published' as const }),
+      stamp({ id: 'sch-w21', branch_id: BRANCH, name: 'Week 21', start_date: '2025-05-19', end_date: '2025-05-25', status: 'draft' as const })
+    ],
+    list_shifts_for_schedule: () => shifts,
+    list_assignments_for_schedule: () => assignments,
+    list_attendance_for_branch_and_range: () => attendance,
+    list_pending_leave: () => [
+      leave('lv-1', 'p8', '2025-06-02', '2025-06-04', 'annual_leave', 'Family travel', 13),
+      leave('lv-2', 'p16', '2025-05-28', '2025-05-28', 'unpaid_leave', 'Personal appointment', 14),
+      leave('lv-3', 'p2', '2025-06-09', '2025-06-09', 'annual_leave', 'Graduation ceremony', 15)
+    ],
+    list_pending_shift_swap_approvals: () => [swap('sw-1', 'asg-p8', 'p8', 'p11'), swap('sw-2', 'asg-p9', 'p9', 'p10')],
+    list_announcements: () => [
+      {
+        ...stamp({ id: 'ann-stocktake' }),
+        branch_id: BRANCH,
+        title: 'Stocktake weekend — we close at 6 PM Saturday',
+        content: "We close early on Saturday for the monthly stocktake. Supervisors should confirm their team's finish times by Friday afternoon.",
+        announcement_type: 'operational',
+        visibility_type: 'branch',
+        is_published: true,
+        published_at: at(15, 17, 40),
+        expires_at: null,
+        created_by: 'user-me'
+      },
+      {
+        ...stamp({ id: 'ann-promotion' }),
+        branch_id: BRANCH,
+        title: 'New promotion display goes live Friday',
+        content: "Ensure all displays are updated and shelves are stocked before 10 AM. Ask Sarah if you're unsure where stock goes.",
+        announcement_type: 'general',
+        visibility_type: 'branch',
+        is_published: true,
+        published_at: at(16, 7, 30),
+        expires_at: null,
+        created_by: 'user-p1'
+      }
+    ],
+    list_tasks: () => []
+  };
+
+  return async function callRpc<TOutput>(operation: string): Promise<TOutput> {
+    await new Promise((resolve) => setTimeout(resolve, 90));
+    const handler = handlers[operation];
+    return structuredClone(handler ? handler() : []) as TOutput;
+  };
+}

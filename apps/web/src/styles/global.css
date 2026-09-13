@@ -274,6 +274,42 @@ body {
   }
 }
 
+/* Dashboards handoff: loading skeleton pulse and the Ask ShiftOS typing caret. */
+@keyframes shiftos-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes shiftos-caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-shiftos-pulse {
+  animation: shiftos-pulse 1.6s ease-in-out infinite;
+}
+
+.animate-shiftos-caret {
+  animation: shiftos-caret 1.05s step-end infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shiftos-pulse,
+  .animate-shiftos-caret {
+    animation: none !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-\[shiftos-reveal_0\.6s_ease-out\],
   .animate-so-in,

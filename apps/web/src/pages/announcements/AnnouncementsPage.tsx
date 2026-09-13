@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
@@ -51,7 +52,9 @@ export default function AnnouncementsPage(): React.ReactElement {
   const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canReadBranches });
   const { data: announcements, isLoading, refetch } = useRpcQuery<Announcement[]>('list_announcements');
 
-  const [composerOpen, setComposerOpen] = useState(false);
+  // `?compose=1` (the overview's Ask ShiftOS "Open announcement form") opens the composer straight away.
+  const [searchParams] = useSearchParams();
+  const [composerOpen, setComposerOpen] = useState(() => canCreate && searchParams.get('compose') === '1');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [audience, setAudience] = useState('organization');
