@@ -5,6 +5,7 @@ const ICONS = {
   activity: [['path', { d: 'M3 12h4l2.5-6 4 12 2.5-6h5' }]],
   checkCircle: [['circle', { cx: 12, cy: 12, r: 8.6 }], ['path', { d: 'M8.2 12.4l2.8 2.8 5-5.6' }]],
   users: [['circle', { cx: 9, cy: 8, r: 3.2 }], ['path', { d: 'M3 20c0-3.3 2.7-5.6 6-5.6s6 2.3 6 5.6' }], ['path', { d: 'M16.4 14.6c2.6.4 4.6 2.5 4.6 5.4' }]],
+  clipboard: [['rect', { x: 5.5, y: 4, width: 13, height: 17, rx: 3 }], ['path', { d: 'M9 4V2.8h6V4M9 11h6M9 15h4' }]],
   user: [['circle', { cx: 12, cy: 8, r: 3.4 }], ['path', { d: 'M5 20c0-3.7 3.1-6.2 7-6.2s7 2.5 7 6.2' }]],
   calendar: [['rect', { x: 3, y: 4, width: 18, height: 17, rx: 3 }], ['path', { d: 'M8 2v4M16 2v4M3 10h18' }]],
   clock: [['circle', { cx: 12, cy: 12, r: 8.6 }], ['path', { d: 'M12 7v5.3l3.8 2.2' }]],

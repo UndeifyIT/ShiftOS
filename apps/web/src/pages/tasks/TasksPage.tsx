@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Badge,
   type BadgeTone,
@@ -508,7 +509,9 @@ export default function TasksPage(): React.ReactElement {
   const [priorityFilter, setPriorityFilter] = useState<'all' | TaskPriority>('all');
   const [search, setSearch] = useState('');
 
-  const [createOpen, setCreateOpen] = useState(false);
+  // `?compose=1` (the overview's Ask ShiftOS "Open task form") opens the form straight away.
+  const [searchParams] = useSearchParams();
+  const [createOpen, setCreateOpen] = useState(() => canCreate && searchParams.get('compose') === '1');
   const [assignTarget, setAssignTarget] = useState<Task | null>(null);
   const [completeTarget, setCompleteTarget] = useState<Task | null>(null);
   const [verifyTarget, setVerifyTarget] = useState<Task | null>(null);
