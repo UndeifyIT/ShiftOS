@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { useSession } from '../../auth/SessionProvider.js';
+import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import { AuthBanner } from '../auth/AuthInputs.js';
 import { DashHeader } from '../dashboard/dashboardWidgets.js';
@@ -50,6 +51,9 @@ export default function AnnouncementsPage(): React.ReactElement {
   const canReadBranches = hasPermission('branches.read');
 
   const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canReadBranches });
+  // A Manager only ever addresses their own branch (or everyone) — other branches aren't offered.
+  const homeBranchId = useDefaultBranchId();
+  const audienceBranches = (branches ?? []).filter((b) => !homeBranchId || b.id === homeBranchId);
   const { data: announcements, isLoading, refetch } = useRpcQuery<Announcement[]>('list_announcements');
 
   // `?compose=1` (the overview's Ask ShiftOS "Open announcement form") opens the composer straight away.
@@ -125,7 +129,7 @@ export default function AnnouncementsPage(): React.ReactElement {
                   <ObSelect
                     value={audience}
                     onChange={(e) => setAudience(e.target.value)}
-                    options={[{ value: 'organization', label: 'Whole organization' }, ...(branches ?? []).map((b) => ({ value: b.id, label: b.name }))]}
+                    options={[{ value: 'organization', label: 'Whole organization' }, ...audienceBranches.map((b) => ({ value: b.id, label: b.name }))]}
                   />
                 </label>
                 <label className="block">

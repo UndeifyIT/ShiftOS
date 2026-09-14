@@ -54,7 +54,10 @@ export default function SchedulesPage(): React.ReactElement {
     enabled: canRead && Boolean(scheduleId)
   });
 
-  const branchId = linkedSchedule?.branch_id ?? searchParams.get('branch') ?? singleBranchId ?? branches?.[0]?.id ?? '';
+  // A Manager only ever works in their own branch (useDefaultBranchId), so `?branch=` and the picker below are for multi-branch supervisors alone.
+  const branchId = isManager
+    ? (singleBranchId ?? '')
+    : (linkedSchedule?.branch_id ?? searchParams.get('branch') ?? singleBranchId ?? branches?.[0]?.id ?? '');
   const weekStart = weekStartOf(linkedSchedule?.start_date ?? searchParams.get('week') ?? todayDateString());
 
   const {

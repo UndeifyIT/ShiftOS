@@ -1,20 +1,21 @@
 import React from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
+  Activity,
   ArrowLeftRight,
+  BarChart3,
   Building2,
   CalendarDays,
   CheckCircle2,
   Clock,
   LayoutDashboard,
-  Mail,
   Megaphone,
   Settings,
-  Shield,
-  ShieldCheck,
+  UserRound,
   Users
 } from 'lucide-react';
 import { useSession } from '../auth/SessionProvider.js';
+import { useDefaultBranchId } from '../auth/useDefaultBranchId.js';
 import logoShiftOS from '../assets/logo-shiftos.png';
 import { useRpcQuery } from '../lib/useRpc.js';
 import type { Branch, Invitation, LeaveRequest, ShiftSwap } from '../types/domain.js';
@@ -30,19 +31,20 @@ interface NavItem {
 }
 
 // If you add or remove a route here, also update APP_ROUTES in packages/constants/src/index.ts — the AI assistant's navigate tool checks paths against that list, not this one (a frontend file can't be imported from the backend).
+// The handoff's Manager nav (NAVS.Manager, in its order) plus Attendance, placed before Tasks as in the Supervisor nav.
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Overview', icon: LayoutDashboard },
   { to: '/schedules', label: 'Schedules', icon: CalendarDays, requiresPermission: 'schedules.read' },
   { to: '/employees', label: 'Employees', icon: Users, requiresPermission: 'employees.read' },
-  { to: '/tasks', label: 'Tasks', icon: CheckCircle2, requiresPermission: 'tasks.read' },
+  { to: '/supervisors', label: 'Supervisors', icon: UserRound, requiresPermission: 'org.members.manage' },
+  { to: '/admins', label: 'Admins', icon: Building2, requiresPermission: 'org.members.manage' },
   { to: '/attendance', label: 'Attendance', icon: Clock, requiresPermission: 'attendance.read' },
+  { to: '/tasks', label: 'Tasks', icon: CheckCircle2, requiresPermission: 'tasks.read' },
+  { to: '/recent-activity', label: 'Recent Activity', icon: Activity, requiresPermission: 'attendance.read' },
   { to: '/announcements', label: 'Announcements', icon: Megaphone, requiresPermission: 'announcements.read' },
   { to: '/requests', label: 'Requests', icon: ArrowLeftRight, requiresPermission: 'swaps.read' },
-  { to: '/branches', label: 'Branches', icon: Building2, requiresPermission: 'branches.read' },
-  { to: '/members', label: 'Members & Roles', icon: Shield, requiresPermission: 'org.members.manage' },
-  { to: '/invitations', label: 'Invitations', icon: Mail, requiresPermission: 'org.members.manage' },
-  { to: '/organization', label: 'Organization', icon: Settings, requiresPermission: 'organizations.read' },
-  { to: '/admin', label: 'Admin Console', icon: ShieldCheck, requiresPermission: 'organizations.read' }
+  { to: '/reports', label: 'Reports', icon: BarChart3, requiresPermission: 'attendance.read' },
+  { to: '/settings', label: 'Settings', icon: Settings }
 ];
 
 /** Resolves the permission-filtered nav — shared by the desktop sidebar and the mobile tab bar/More sheet (design's mobileTabs + moreItems). */
@@ -56,11 +58,9 @@ export function useNavItems(): NavItem[] {
   });
 }
 
-/** Handoff ICON.store for a branch scope, ICON.building for the whole organization. */
-function ScopeIcon({ organization }: { organization: boolean }): React.ReactElement {
-  const paths = organization
-    ? ['M5 21V4.5A1.5 1.5 0 0 1 6.5 3h11A1.5 1.5 0 0 1 19 4.5V21', 'M5 9h14M12 9v12']
-    : ['M4 9.5 6 4h12l2 5.5', 'M4.5 9.5h15V19a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 19z', 'M9.5 20.5v-6h5v6'];
+/** Handoff ICON.store — the branch scope card's glyph. */
+function ScopeIcon(): React.ReactElement {
+  const paths = ['M4 9.5 6 4h12l2 5.5', 'M4.5 9.5h15V19a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 19z', 'M9.5 20.5v-6h5v6'];
   return (
     <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="block">
       {paths.map((d) => (
@@ -70,28 +70,31 @@ function ScopeIcon({ organization }: { organization: boolean }): React.ReactElem
   );
 }
 
-/** Live counts for the nav badges: requests waiting on the viewer's approval, and unanswered invitations. */
+/** Live counts for the nav badges (handoff BADGES.Manager): requests waiting on the viewer's approval, and supervisor invitations still outstanding. */
 function useNavBadges(): Record<string, number> {
   const { hasPermission } = useSession();
   const { data: swaps } = useRpcQuery<ShiftSwap[]>('list_pending_shift_swap_approvals', undefined, { enabled: hasPermission('swaps.approve') });
   const { data: leave } = useRpcQuery<LeaveRequest[]>('list_pending_leave', undefined, { enabled: hasPermission('leave.approve') });
   const { data: invitations } = useRpcQuery<Invitation[]>('list_invitations', undefined, { enabled: hasPermission('org.members.manage') });
+  const outstanding = (invitations ?? []).filter((i) => i.status === 'pending' && new Date(i.expires_at).getTime() > Date.now());
   return {
     '/requests': (swaps?.length ?? 0) + (leave ?? []).filter((l) => l.status === 'pending').length,
-    '/invitations': (invitations ?? []).filter((i) => i.status === 'pending' && new Date(i.expires_at).getTime() > Date.now()).length
+    '/supervisors': outstanding.filter((i) => /supervisor/i.test(i.role_name)).length
   };
 }
 
 /**
  * Dashboard sidebar, rebuilt 1:1 from `ShiftOS Dashboards.dc.html`'s aside
- * (lines 27-65): the full logo, the uppercase role label, icon-less nav
- * buttons (current = solid brand pill with its glow), count badges, and the
- * bordered scope + account cards with Log out pinned to the bottom. Sizes are
+ * (lines 27-65): the full logo, the uppercase role label, the handoff's nav
+ * (plus Attendance) as icon-less buttons (current = solid brand pill with its
+ * glow), count badges, and the bordered branch + account cards with Log out
+ * pinned to the bottom. The branch card only names the person's branch —
+ * nobody switches branches from here. Sizes are
  * the prototype's rendered ones (no CSS reset: `line-height: normal`, the
  * browser's 13.33px button text, a content-box presence dot).
  */
 export function Sidebar(): React.ReactElement {
-  const { profile, myContext, signOut, hasPermission, activeOrganization } = useSession();
+  const { profile, myContext, signOut, hasPermission } = useSession();
   const navigate = useNavigate();
   const isOrgWide = myContext?.branchAccess.isOrgWide ?? false;
   const hasSupervisorSignal = ['employees.create', 'employees.update', 'schedules.create', 'branches.update'].some((permission) =>
@@ -108,17 +111,13 @@ export function Sidebar(): React.ReactElement {
 
   const items = useNavItems();
   const badges = useNavBadges();
-  const canReadBranches = hasPermission('branches.read');
-  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canReadBranches });
-  const liveBranches = (branches ?? []).filter((b) => b.is_active && !b.deleted_at);
-  const scopedBranch =
-    liveBranches.find((b) => b.id === myContext?.branchAccess.singleBranchId) ?? (liveBranches.length === 1 ? liveBranches[0] : undefined);
-  const scope = scopedBranch
-    ? { label: 'Branch', value: scopedBranch.name, to: `/branches/${scopedBranch.id}`, organization: false }
-    : { label: 'Organization', value: activeOrganization?.name ?? 'Your organization', to: '/branches', organization: true };
+  // The branch this person works in. Managers never switch branches, so the card only names it.
+  const homeBranchId = useDefaultBranchId();
+  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: hasPermission('branches.read') });
+  const homeBranch = (branches ?? []).find((b) => b.id === homeBranchId);
 
   const card =
-    'flex w-full cursor-pointer items-center gap-2.5 rounded-[12px] border border-solid border-[#EBE7E3] bg-white px-[11px] py-[9px] text-left text-[13.3333px] text-black hover:border-[#DDD6D0]';
+    'flex w-full items-center gap-2.5 rounded-[12px] border border-solid border-[#EBE7E3] bg-white px-[11px] py-[9px] text-left text-[13.3333px] text-black';
 
   return (
     <nav
@@ -169,21 +168,21 @@ export function Sidebar(): React.ReactElement {
       </div>
 
       <div className="flex flex-col gap-2 border-t border-solid border-[#EBE7E3] p-3">
-        {canReadBranches ? (
-          <button type="button" onClick={() => navigate(scope.to)} className={card}>
+        {homeBranch ? (
+          <div className={card}>
             <span aria-hidden="true" className="flex size-[26px] flex-none items-center justify-center rounded-[8px] bg-[#FDF0E9] text-[#C6420E]">
-              <ScopeIcon organization={scope.organization} />
+              <ScopeIcon />
             </span>
             <span className="min-w-0 flex-auto">
-              <span className="block text-[10px] text-[#A79C93]">{scope.label}</span>
-              <span className="block truncate text-[12.5px] font-bold">{scope.value}</span>
+              <span className="block text-[10px] text-[#A79C93]">Branch</span>
+              <span className="block truncate text-[12.5px] font-bold">{homeBranch.name}</span>
             </span>
             <span aria-hidden="true" className="text-[10px] text-[#A79C93]">
               ▾
             </span>
-          </button>
+          </div>
         ) : null}
-        <button type="button" onClick={() => navigate('/profile')} className={card}>
+        <button type="button" onClick={() => navigate('/profile')} className={`${card} cursor-pointer hover:border-[#DDD6D0]`}>
           <span className="relative flex-none">
             <span className="flex size-[30px] items-center justify-center rounded-full bg-[#FDF0E9] text-[11px] font-extrabold text-[#C6420E]">{initials}</span>
             {/* 9px + a 2px border each side: the handoff's content-box dot renders 13px. */}

@@ -5,7 +5,7 @@ import { useSession } from '../../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../../auth/useDefaultBranchId.js';
 import { currentTime } from '../../../lib/clock.js';
 import { useRpcMutation, useRpcQuery } from '../../../lib/useRpc.js';
-import type { Branch, Department, Employee, EmployeeImport, ImportEmployeesResult, Role } from '../../../types/domain.js';
+import type { Department, Employee, EmployeeImport, ImportEmployeesResult, Role } from '../../../types/domain.js';
 import { OverviewHeader } from '../../dashboard/manager/ManagerOverview.js';
 import { clock12, pillDate } from '../../dashboard/manager/overviewModel.js';
 import { useNow } from '../../dashboard/manager/useManagerOverview.js';
@@ -79,12 +79,8 @@ export default function ImportEmployeesPage(): React.ReactElement {
   const { toast, show, dismiss } = useScheduleToast();
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const singleBranchId = useDefaultBranchId();
-  const { data: branchRows } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: hasPermission('branches.read') });
-  const branches = (branchRows ?? []).filter((b) => b.is_active && !b.deleted_at);
-  const [branchChoice, setBranchChoice] = useState<string | null>(null);
-  const branchId = branchChoice ?? singleBranchId ?? branches[0]?.id ?? '';
-  const branch = branches.find((b) => b.id === branchId);
+  // Imports always land in the person's own branch; there's no branch to pick.
+  const branchId = useDefaultBranchId() ?? '';
 
   const departmentsQuery = useRpcQuery<Department[]>('list_departments', branchId ? { branchId } : undefined, { enabled: Boolean(branchId) && hasPermission('departments.read') });
   const rolesQuery = useRpcQuery<Role[]>('list_invitable_roles', undefined, { enabled: canInvite });
@@ -267,9 +263,6 @@ export default function ImportEmployeesPage(): React.ReactElement {
         title="Import Employees"
         subtitle="Upload a file to import multiple employees at once."
         now={now}
-        branches={step === 1 ? branches : []}
-        branchId={branchId}
-        onSelectBranch={setBranchChoice}
       />
 
       <div className="flex flex-auto flex-col gap-[18px] bg-[#FDFCFB] px-7 pb-10 pt-[22px] max-[859px]:gap-3.5 max-[859px]:px-3.5 max-[859px]:pb-[84px] max-[859px]:pt-4">
@@ -286,7 +279,7 @@ export default function ImportEmployeesPage(): React.ReactElement {
                 <section className={`${card} p-5`}>
                   <h2 className="m-0 text-[17px] font-extrabold tracking-normal">Step 1: Upload File</h2>
                   <p className="mb-4 mt-[5px] text-[12.5px] text-[#857A72]">
-                    Upload your Excel or CSV file to get started.{branch && branches.length > 1 ? ` Employees are added to ${branch.name}.` : ''}
+                    Upload your Excel or CSV file to get started.
                   </p>
                   {fileError ? (
                     <p role="alert" className="mb-3.5 mt-0 rounded-[13px] border border-solid border-[#F2C9BF] bg-[#FCEDEA] px-3.5 py-3 text-[12px] leading-[1.5] text-[#C93A22]">

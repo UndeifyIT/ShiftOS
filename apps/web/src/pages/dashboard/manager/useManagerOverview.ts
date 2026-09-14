@@ -54,10 +54,11 @@ export interface ManagerOverviewState {
  * folds it into the handoff's overview shape. Each read is gated by the
  * permission its RPC checks, so a missing permission leaves that part empty.
  */
-export function useManagerOverview(branchParam: string | null): ManagerOverviewState {
+export function useManagerOverview(): ManagerOverviewState {
   const { hasPermission } = useSession();
   const now = useNow();
-  const singleBranchId = useDefaultBranchId();
+  // The Manager's own branch — the overview never shows or switches to another.
+  const homeBranchId = useDefaultBranchId();
 
   const today = todayDateString(now);
   const weekStart = weekStartOf(today);
@@ -65,7 +66,7 @@ export function useManagerOverview(branchParam: string | null): ManagerOverviewS
 
   const branchesQuery = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: hasPermission('branches.read') });
   const branches = (branchesQuery.data ?? []).filter((b) => b.is_active && !b.deleted_at);
-  const branchId = branchParam ?? singleBranchId ?? branches[0]?.id ?? '';
+  const branchId = homeBranchId ?? '';
   const branch = branches.find((b) => b.id === branchId);
   const scoped = branchId ? { branchId } : undefined;
   const has = Boolean(branchId);

@@ -15,6 +15,7 @@ import {
   Textarea
 } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
+import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import type { AttendanceRecord, AttendanceStatus, Branch, Employee } from '../../types/domain.js';
 
@@ -349,19 +350,22 @@ export default function AttendancePage(): React.ReactElement {
   const canReadEmployees = hasPermission('employees.read');
 
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
-  const [branchId, setBranchId] = useState('');
+  const [pickedBranchId, setBranchId] = useState('');
+  // A Manager sees their own branch only: no branch picker.
+  const homeBranchId = useDefaultBranchId();
+  const branchId = homeBranchId ?? pickedBranchId;
   const [markAbsentTarget, setMarkAbsentTarget] = useState<AttendanceRecord | null>(null);
   const [correctTarget, setCorrectTarget] = useState<AttendanceRecord | null>(null);
   const [detailRecord, setDetailRecord] = useState<AttendanceRecord | null>(null);
 
   const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canRead });
-  const { data: employees } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canRead && canReadEmployees });
+  const { data: employees } = useRpcQuery<Employee[]>('list_employees', homeBranchId ? { branchId: homeBranchId } : undefined, { enabled: canRead && canReadEmployees });
 
   useEffect(() => {
-    if (!branchId && branches && branches.length > 0) {
+    if (!homeBranchId && !pickedBranchId && branches && branches.length > 0) {
       setBranchId(branches[0]!.id);
     }
-  }, [branches, branchId]);
+  }, [branches, pickedBranchId, homeBranchId]);
 
   const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
   const startIso = useMemo(() => weekStart.toISOString(), [weekStart]);
@@ -382,7 +386,7 @@ export default function AttendancePage(): React.ReactElement {
     () => new Map((employees ?? []).map((e) => [e.id, `${e.first_name} ${e.last_name}`])),
     [employees]
   );
-  const branchOptions = useMemo(() => (branches ?? []).map((b) => ({ value: b.id, label: b.name })), [branches]);
+  const branchOptions = useMemo(() => (homeBranchId ? [] : (branches ?? []).map((b) => ({ value: b.id, label: b.name }))), [branches, homeBranchId]);
 
   const sortedRecords = useMemo(
     () => [...(records ?? [])].sort((a, b) => (a.clock_in_at ?? a.created_at).localeCompare(b.clock_in_at ?? b.created_at)),
@@ -410,7 +414,7 @@ export default function AttendancePage(): React.ReactElement {
 
   return (
     <PageContainer>
-      <PageHeader title="Attendance" description="Attendance for the branches you can access, week by week." />
+      <PageHeader title="Attendance" description={homeBranchId ? 'Attendance for your branch, week by week.' : 'Attendance for the branches you can access, week by week.'} />
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         {branchOptions.length > 1 ? (

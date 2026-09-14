@@ -49,6 +49,7 @@ const InvitationsPage = lazy(() => import('./pages/members/InvitationsPage.js'))
 const SchedulesPage = lazy(() => import('./pages/scheduling/SchedulesPage.js'));
 const ProfilePage = lazy(() => import('./pages/account/ProfilePage.js'));
 const SecurityPage = lazy(() => import('./pages/account/SecurityPage.js'));
+const ComingSoonPage = lazy(() => import('./pages/placeholder/ComingSoonPage.js'));
 const TasksPage = lazy(() => import('./pages/tasks/TasksPage.js'));
 const AttendancePage = lazy(() => import('./pages/attendance/AttendancePage.js'));
 
@@ -253,6 +254,11 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/security" element={<SecurityPage />} />
+        <Route path="/supervisors" element={<ComingSoonPage page="supervisors" />} />
+        <Route path="/admins" element={<ComingSoonPage page="admins" />} />
+        <Route path="/recent-activity" element={<ComingSoonPage page="recentActivity" />} />
+        <Route path="/reports" element={<ComingSoonPage page="reports" />} />
+        <Route path="/settings" element={<ComingSoonPage page="settings" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

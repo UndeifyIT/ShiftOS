@@ -1,9 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Select } from '@shiftos/ui';
 import logoMark from '../../../assets/logo-mark.png';
 import shiftyGuide from '../../../assets/shifty-guide.png';
-import type { Branch } from '../../../types/domain.js';
 import { ScheduleIcon } from '../../scheduling/grid/ScheduleIcon.js';
 import { ScheduleToast, useScheduleToast } from '../../scheduling/grid/ScheduleToast.js';
 import { avatarTone, initialsOf, TONES, type Tone } from '../../scheduling/grid/scheduleFormat.js';
@@ -31,21 +29,7 @@ const linkButton = 'cursor-pointer border-0 bg-transparent p-0 text-[12px] font-
 const card = 'rounded-[16px] border border-solid border-[#EBE7E3] bg-white';
 
 /** The handoff's page header (title, subtitle, date/time pill) — shared by the overview and the pages it links to. */
-export function OverviewHeader({
-  title = 'Branch overview',
-  subtitle,
-  now,
-  branches,
-  branchId,
-  onSelectBranch
-}: {
-  title?: string;
-  subtitle: string;
-  now: Date;
-  branches: Branch[];
-  branchId: string;
-  onSelectBranch: (id: string) => void;
-}): React.ReactElement {
+export function OverviewHeader({ title = 'Branch overview', subtitle, now }: { title?: string; subtitle: string; now: Date }): React.ReactElement {
   return (
     <header className="flex flex-wrap items-start gap-4 border-b border-solid border-[#F2EEEA] bg-white px-7 pb-[18px] pt-[22px] max-[859px]:gap-2.5 max-[859px]:px-4 max-[859px]:pb-3 max-[859px]:pt-4">
       <div className="min-w-0 flex-[1_1_100%]">
@@ -53,11 +37,6 @@ export function OverviewHeader({
         <p className="mb-0 mt-[5px] text-[13px] text-[#857A72]">{subtitle}</p>
       </div>
       <div className="flex min-w-0 flex-[1_1_100%] flex-wrap items-center justify-end gap-2.5">
-        {branches.length > 1 ? (
-          <div className="w-56">
-            <Select aria-label="Branch" value={branchId} onChange={(event) => onSelectBranch(event.target.value)} options={branches.map((b) => ({ value: b.id, label: b.name }))} />
-          </div>
-        ) : null}
         <div className="flex flex-none items-center gap-2.5 rounded-[12px] border border-solid border-[#EBE7E3] px-3 py-[7px]">
           <span className="leading-[1.2]">
             <span className="block text-[10.5px] text-[#A79C93]">{pillDate(now)}</span>
