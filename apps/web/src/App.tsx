@@ -43,6 +43,7 @@ const BranchDetailPage = lazy(() => import('./pages/branches/BranchDetailPage.js
 const EmployeeDirectoryPage = lazy(() => import('./pages/employees/EmployeeDirectoryPage.js'));
 const EmployeeDetailPage = lazy(() => import('./pages/employees/EmployeeDetailPage.js'));
 const EmployeeFormPage = lazy(() => import('./pages/employees/EmployeeFormPage.js'));
+const ImportEmployeesPage = lazy(() => import('./pages/employees/import/ImportEmployeesPage.js'));
 const MembersPage = lazy(() => import('./pages/members/MembersPage.js'));
 const InvitationsPage = lazy(() => import('./pages/members/InvitationsPage.js'));
 const SchedulesPage = lazy(() => import('./pages/scheduling/SchedulesPage.js'));
@@ -239,6 +240,7 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/branches/:branchId" element={<BranchDetailPage />} />
         <Route path="/employees" element={<EmployeeDirectoryPage />} />
         <Route path="/employees/new" element={<EmployeeFormPage />} />
+        <Route path="/employees/import" element={<ImportEmployeesPage />} />
         <Route path="/employees/:employeeId" element={<EmployeeDetailPage />} />
         <Route path="/employees/:employeeId/edit" element={<EmployeeFormPage />} />
         <Route path="/members" element={<MembersPage />} />

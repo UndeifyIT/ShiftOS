@@ -30,7 +30,7 @@ The sidebar is rebuilt to the handoff's aside (logo image, icon-less nav with th
 - With no activity-log or reports page, "View all" (Recent Activity), "Export payroll hours" and the activity/hours answers open Attendance; the invitations answer opens Invitations ("Open Invitations" rather than "Open Supervisors").
 - Coverage rows read "Upcoming" (neutral) until at least one of the department's shifts has started, so the morning doesn't open all red; rows sort by department name.
 - Answer lines the backend can't back are reworded: no read-receipt reach figure, no 90-day log claim, no late-threshold or payroll-export lines.
-- "Import employees" on the empty view says importing isn't available yet.
+- "Import employees" on the empty view opens the Import Employees wizard (`/employees/import`, see `2026-09-14-import-employees-and-schedules.md`).
 
 ## Verification
 

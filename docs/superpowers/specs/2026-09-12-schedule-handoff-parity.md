@@ -25,7 +25,8 @@ Where the design handoff (`Local file check/design_handoff_shiftos/ShiftOS Dashb
 ## Deliberate deviations (kept honest or blocked by data)
 
 - The line under each person shows their **department**, not a job title — employees have no job-title field.
-- Toasts/copy that would claim something the backend doesn't do are reworded: publishing sends no notifications ("staff can see this week", not "everyone notified"); Import Schedule says it isn't available yet.
+- Toasts/copy that would claim something the backend doesn't do are reworded: publishing sends no notifications ("staff can see this week", not "everyone notified").
+- Import Schedule (toolbar and empty state) has no screen in the handoff beyond "Pick a spreadsheet — every row is validated before it lands"; it opens a dialog in the schedule screen's style that reads an .xlsx/.csv (Employee or Employee ID/Email, Date, Start Time, End Time; optional Break, Department, Notes; OFF for a day off), lists rejected rows with reasons, and writes the rest into the week — adding people to the roster as needed. From the empty state it drafts the week first. See `2026-09-14-import-employees-and-schedules.md`.
 - Page-level: no live clock pill in the header (app-wide header concern); sidebar width set to the handoff's 221px.
 
 ## Additions beyond the handoff (user requests, 2026-09-13)

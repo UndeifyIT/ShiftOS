@@ -68,7 +68,16 @@ export default function EmployeeDirectoryPage(): React.ReactElement {
       <PageHeader
         title="Employees"
         description="Everyone on your team, across the branches you can access."
-        actions={canCreate ? <Button onClick={() => navigate('/employees/new')}>Add Employee</Button> : undefined}
+        actions={
+          canCreate ? (
+            <div className="flex flex-wrap gap-2.5">
+              <Button variant="secondary" onClick={() => navigate('/employees/import')}>
+                Import Employees
+              </Button>
+              <Button onClick={() => navigate('/employees/new')}>Add Employee</Button>
+            </div>
+          ) : undefined
+        }
       />
       <div className="mb-4 max-w-xs">
         <Input placeholder="Search by name or employee #" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search employees" />

@@ -25,6 +25,7 @@ export * from './identity/invitationRepository.js';
 // Workforce
 export * from './workforce/employeeRepository.js';
 export * from './workforce/employeeHistoryRepository.js';
+export * from './workforce/employeeImportRepository.js';
 
 // Scheduling
 export * from './scheduling/shiftTemplateRepository.js';

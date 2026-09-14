@@ -30,13 +30,16 @@ function Pill({ tone, style, children }: { tone?: Tone; style?: React.CSSPropert
 const linkButton = 'cursor-pointer border-0 bg-transparent p-0 text-[12px] font-bold text-[#C6420E] hover:text-[#F04E17]';
 const card = 'rounded-[16px] border border-solid border-[#EBE7E3] bg-white';
 
+/** The handoff's page header (title, subtitle, date/time pill) — shared by the overview and the pages it links to. */
 export function OverviewHeader({
+  title = 'Branch overview',
   subtitle,
   now,
   branches,
   branchId,
   onSelectBranch
 }: {
+  title?: string;
   subtitle: string;
   now: Date;
   branches: Branch[];
@@ -46,7 +49,7 @@ export function OverviewHeader({
   return (
     <header className="flex flex-wrap items-start gap-4 border-b border-solid border-[#F2EEEA] bg-white px-7 pb-[18px] pt-[22px] max-[859px]:gap-2.5 max-[859px]:px-4 max-[859px]:pb-3 max-[859px]:pt-4">
       <div className="min-w-0 flex-[1_1_100%]">
-        <h1 className="m-0 text-[25px] font-extrabold leading-[1.15] tracking-[-0.025em]">Branch overview</h1>
+        <h1 className="m-0 text-[25px] font-extrabold leading-[1.15] tracking-[-0.025em]">{title}</h1>
         <p className="mb-0 mt-[5px] text-[13px] text-[#857A72]">{subtitle}</p>
       </div>
       <div className="flex min-w-0 flex-[1_1_100%] flex-wrap items-center justify-end gap-2.5">

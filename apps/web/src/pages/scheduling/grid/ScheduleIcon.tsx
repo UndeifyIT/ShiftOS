@@ -11,7 +11,18 @@ const ICONS = {
   clock: [['circle', { cx: 12, cy: 12, r: 8.6 }], ['path', { d: 'M12 7v5.3l3.8 2.2' }]],
   megaphone: [['path', { d: 'M4 10.5v3l10 4.5V6z' }], ['path', { d: 'M14 9h3a3 3 0 0 1 0 6h-3' }]],
   upload: [['path', { d: 'M12 16V4M7.5 8.5 12 4l4.5 4.5' }], ['path', { d: 'M4 16v2.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V16' }]],
+  download: [['path', { d: 'M12 4v12M7.5 11.5 12 16l4.5-4.5' }], ['path', { d: 'M4 18.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-.5' }]],
   mail: [['rect', { x: 3, y: 5, width: 18, height: 14, rx: 3 }], ['path', { d: 'M3.6 6.5 12 13l8.4-6.5' }]],
+  file: [['path', { d: 'M6 3.5h7L18.5 9v11.5H6z' }], ['path', { d: 'M13 3.5V9h5.5' }]],
+  shield: [['path', { d: 'M12 3l7.5 3v6c0 4.3-3.1 7.6-7.5 9-4.4-1.4-7.5-4.7-7.5-9V6z' }]],
+  info: [['circle', { cx: 12, cy: 12, r: 8.6 }], ['path', { d: 'M12 11v5M12 8h.01' }]],
+  headset: [
+    ['path', { d: 'M4 15v-3a8 8 0 0 1 16 0v3' }],
+    ['rect', { x: 2.5, y: 14, width: 4, height: 6, rx: 2 }],
+    ['rect', { x: 17.5, y: 14, width: 4, height: 6, rx: 2 }]
+  ],
+  eye: [['path', { d: 'M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12z' }], ['circle', { cx: 12, cy: 12, r: 2.8 }]],
+  edit: [['path', { d: 'M4 20h4L20 8l-4-4L4 16z' }]],
   alert: [['path', { d: 'M12 4.4 21 20H3z' }], ['path', { d: 'M12 10v4M12 17h.01' }]],
   bulb: [['path', { d: 'M9 17h6M10 21h4' }], ['path', { d: 'M12 3a6 6 0 0 0-3.5 10.9V17h7v-3.1A6 6 0 0 0 12 3z' }]],
   sliders: [['path', { d: 'M4 7.5h16M4 16.5h16' }], ['circle', { cx: 9, cy: 7.5, r: 2.4 }], ['circle', { cx: 15, cy: 16.5, r: 2.4 }]],
