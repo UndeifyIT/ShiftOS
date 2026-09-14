@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSession } from '../../auth/SessionProvider.js';
-import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
 import { ManagerOverviewBody, OverviewEmpty, OverviewHeader, OverviewLoading } from './manager/ManagerOverview.js';
 import { longDay } from './manager/overviewModel.js';
 import { useManagerOverview } from './manager/useManagerOverview.js';
@@ -19,7 +18,7 @@ export default function ManagerDashboardPage(): React.ReactElement {
   const { hasPermission, activeOrganization } = useSession();
   const [branchParam, setBranchParam] = useState<string | null>(searchParams.get('branch'));
   const { status, now, branches, branchId, branch, overview } = useManagerOverview(branchParam);
-  const { toast, show, dismiss } = useScheduleToast();
+  const canCreateEmployees = hasPermission('employees.create');
 
   const selectBranch = (id: string): void => {
     setBranchParam(id);
@@ -47,14 +46,13 @@ export default function ManagerDashboardPage(): React.ReactElement {
           <OverviewEmpty
             title="Add your team to get started"
             body="ShiftOS organizes people, shifts and attendance by department. Add your team to start scheduling."
-            cta={hasPermission('employees.create') ? { label: 'Add employee', onClick: () => navigate('/employees/new') } : null}
-            secondary={{ label: 'Import employees', onClick: () => show("Importing a file isn't available yet — add people one at a time for now", 'error') }}
+            cta={canCreateEmployees ? { label: 'Add employee', onClick: () => navigate('/employees/new') } : null}
+            secondary={canCreateEmployees ? { label: 'Import employees', onClick: () => navigate('/employees/import') } : null}
           />
         ) : (
           <ManagerOverviewBody overview={overview} now={now} />
         )}
       </div>
-      <ScheduleToast toast={toast} onDismiss={dismiss} />
     </div>
   );
 }

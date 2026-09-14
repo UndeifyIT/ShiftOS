@@ -86,17 +86,22 @@ export default function SchedulesPage(): React.ReactElement {
   const canEdit = Boolean(schedule) && hasPermission('shifts.create') && schedule?.status !== 'archived' && !isMobile && !(isManager && published);
   const weekLabel = `${shortDate(weekStart)} – ${shortDate(addDays(weekStart, 6))}`;
 
-  const createThisWeek = async (copyLastWeek: boolean): Promise<void> => {
+  // The empty state's Import Schedule drafts the week first, then opens the import on the new grid.
+  const [importWeek, setImportWeek] = useState<string | null>(null);
+
+  const createThisWeek = async (copyLastWeek: boolean): Promise<boolean> => {
     const previous = copyLastWeek ? scheduleForWeek(schedules ?? [], addDays(weekStart, -7)) : undefined;
     if (copyLastWeek && !previous) {
       showToast("There's no schedule for last week to copy", 'error');
-      return;
+      return false;
     }
     try {
       await createWeek(weekStart, previous);
       showToast(copyLastWeek ? `Week ${isoWeekNumber(addDays(weekStart, -7))} copied into this week as a draft` : `Draft schedule created for Week ${isoWeekNumber(weekStart)}`);
+      return true;
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Could not create the schedule', 'error');
+      return false;
     }
   };
 
@@ -184,6 +189,7 @@ export default function SchedulesPage(): React.ReactElement {
             onNavigateWeek={(direction) => goToWeek(addDays(weekStart, 7 * direction))}
             onCreateNextWeek={() => void createNextWeek()}
             showToast={showToast}
+            openImportOnMount={importWeek === weekStart}
           />
         ) : (
           <section className="flex flex-col items-center rounded-[20px] border border-[#EBE7E3] bg-white px-8 py-[54px] text-center">
@@ -210,8 +216,14 @@ export default function SchedulesPage(): React.ReactElement {
                 </button>
                 <button
                   type="button"
-                  onClick={() => showToast("Importing a schedule from a spreadsheet isn't available yet")}
-                  className="h-11 cursor-pointer rounded-[12px] border border-[#EBE7E3] bg-white px-[18px] text-[13px] font-bold text-black"
+                  disabled={creating}
+                  onClick={() => {
+                    setImportWeek(weekStart);
+                    void createThisWeek(false).then((created) => {
+                      if (!created) setImportWeek(null);
+                    });
+                  }}
+                  className="h-11 cursor-pointer rounded-[12px] border border-[#EBE7E3] bg-white px-[18px] text-[13px] font-bold text-black disabled:opacity-60"
                 >
                   Import Schedule
                 </button>

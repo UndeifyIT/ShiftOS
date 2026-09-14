@@ -66,6 +66,41 @@ export interface Employee {
   deleted_at: string | null;
 }
 
+export type EmployeeImportStatus = 'completed' | 'completed_with_errors' | 'failed';
+
+export interface EmployeeImportError {
+  row: number;
+  name: string;
+  message: string;
+}
+
+/** One confirmed spreadsheet import (migration 064), as `list_employee_imports` returns it. */
+export interface EmployeeImport {
+  id: string;
+  organization_id: string;
+  branch_id: string;
+  file_name: string;
+  imported_by: string;
+  imported_by_name?: string;
+  status: EmployeeImportStatus;
+  total_rows: number;
+  imported_count: number;
+  failed_count: number;
+  skipped_count: number;
+  invites_sent: number;
+  errors: EmployeeImportError[];
+  created_at: string;
+  deleted_at: string | null;
+}
+
+export interface ImportEmployeesResult {
+  import: EmployeeImport;
+  imported: Array<{ row: number; employeeId: string; name: string }>;
+  failed: EmployeeImportError[];
+  invitesSent: number;
+  inviteFailures: EmployeeImportError[];
+}
+
 export interface EmployeeHistoryEntry {
   id: string;
   employee_id: string;

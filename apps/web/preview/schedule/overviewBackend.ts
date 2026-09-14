@@ -6,7 +6,7 @@
  * waiting, 2 supervisor invitations, next week still a draft, and the
  * handoff's two announcements.
  */
-import type { AttendanceRecord, Employee, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap } from '../../src/types/domain.js';
+import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap } from '../../src/types/domain.js';
 
 const ORG = 'org-abc-supermarket';
 const BRANCH = 'br-main';
@@ -210,7 +210,68 @@ export function createOverviewBackend() {
     updated_at: at(12, 9, 0)
   });
 
-  const handlers: Record<string, () => unknown> = {
+  // Import Employees preview: the handoff's three RECENT_IMPORTS, and a working in-memory import.
+  const recentImport = (id: string, file: string, day: number, hours: number, minutes: number, status: EmployeeImport['status'], count: number): EmployeeImport => ({
+    id,
+    organization_id: ORG,
+    branch_id: BRANCH,
+    file_name: file,
+    imported_by: 'user-p1',
+    imported_by_name: 'Sarah Johnson',
+    status,
+    total_rows: count,
+    imported_count: status === 'failed' ? 0 : count,
+    failed_count: status === 'failed' ? count : 0,
+    skipped_count: 0,
+    invites_sent: status === 'failed' ? 0 : count,
+    errors: status === 'failed' ? [{ row: 2, name: 'Linda Okafor', message: 'Email is required' }] : [],
+    created_at: at(day, hours, minutes),
+    deleted_at: null
+  });
+  const imports: EmployeeImport[] = [
+    recentImport('imp-3', 'employees_may_2025.xlsx', 15, 14, 30, 'completed', 45),
+    recentImport('imp-2', 'staff_list.csv', 10, 11, 15, 'completed', 38),
+    recentImport('imp-1', 'team_import.xlsx', 5, 9, 45, 'failed', 12)
+  ];
+  const importEmployees = (input: Record<string, unknown>) => {
+    const rows = (input.rows as Array<Record<string, unknown>>) ?? [];
+    const imported = rows.map((row, index) => {
+      const id = `imp-emp-${Date.now()}-${index}`;
+      employees.push(
+        stamp({
+          id,
+          branch_id: BRANCH,
+          employee_number: `EMP-${String(employees.length + 1).padStart(3, '0')}`,
+          first_name: String(row.firstName),
+          last_name: String(row.lastName),
+          email: (row.email as string) ?? null,
+          phone: (row.phone as string) ?? null,
+          date_of_birth: (row.dateOfBirth as string) ?? null,
+          hire_date: String(row.hireDate),
+          employment_status: 'active' as const,
+          notes: null,
+          avatar_url: null,
+          department_id: (row.departmentId as string) ?? null,
+          is_active: true
+        })
+      );
+      return { row: Number(row.row), employeeId: id, name: `${row.firstName} ${row.lastName}` };
+    });
+    const invitesSent = input.sendInvites ? rows.filter((row) => row.roleId && row.email).length : 0;
+    const record = recentImport(`imp-${Date.now()}`, String(input.fileName), 16, 7, 58, 'completed', imported.length);
+    record.skipped_count = Number(input.skippedCount ?? 0);
+    record.total_rows = imported.length + record.skipped_count;
+    record.invites_sent = invitesSent;
+    imports.unshift(record);
+    return { import: record, imported, failed: [], invitesSent, inviteFailures: [] };
+  };
+
+  const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
+    list_employee_imports: () => imports.slice(0, 5),
+    import_employees: importEmployees,
+    invite_member: () => ({}),
+    list_invitable_roles: () =>
+      ['Employee', 'Supervisor', 'Admin'].map((name) => stamp({ id: `role-${name.toLowerCase()}`, name, description: null, is_system: true, is_active: true, grants_org_wide_branch_access: false })),
     list_branches: () => [stamp({ id: BRANCH, name: 'Main Branch', address: null, settings: {}, is_active: true })],
     list_employees: () => employees,
     list_departments: () => DEPARTMENTS.map(([id, name]) => stamp({ id, branch_id: BRANCH, name, description: null, is_active: true })),
@@ -258,9 +319,9 @@ export function createOverviewBackend() {
     list_tasks: () => []
   };
 
-  return async function callRpc<TOutput>(operation: string): Promise<TOutput> {
+  return async function callRpc<TOutput>(operation: string, _organizationId?: string, input?: unknown): Promise<TOutput> {
     await new Promise((resolve) => setTimeout(resolve, 90));
     const handler = handlers[operation];
-    return structuredClone(handler ? handler() : []) as TOutput;
+    return structuredClone(handler ? handler((input ?? {}) as Record<string, unknown>) : []) as TOutput;
   };
 }

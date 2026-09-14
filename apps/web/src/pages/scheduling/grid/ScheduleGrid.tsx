@@ -5,6 +5,8 @@ import { AddEmployeeModal } from './AddEmployeeModal.js';
 import { AiAssistantPanel, type AiActionKey } from './AiAssistantPanel.js';
 import { ScheduleConflictsPanel } from './ScheduleConflictsPanel.js';
 import { ScheduleIcon } from './ScheduleIcon.js';
+import { ScheduleImportModal } from './ScheduleImportModal.js';
+import type { ScheduleImportContext, ScheduleImportRow } from './scheduleImportModel.js';
 import { OVER_HOURS_MINUTES, ScheduleSummaryBar } from './ScheduleSummaryBar.js';
 import type { ToastTone } from './ScheduleToast.js';
 import { ShiftCard, type ShiftCardMenuItem } from './ShiftCard.js';
@@ -39,6 +41,8 @@ export interface ScheduleGridProps {
   onNavigateWeek: (direction: -1 | 1) => void;
   onCreateNextWeek: () => void;
   showToast: (text: string, tone?: ToastTone) => void;
+  /** Open Import Schedule straight away (the empty state's "Import Schedule" creates the week first, then lands here). */
+  openImportOnMount?: boolean;
 }
 
 type ShiftCardData = Extract<GridCard, { kind: 'shift' }>;
@@ -83,7 +87,8 @@ export function ScheduleGrid({
   weekStart,
   onNavigateWeek,
   onCreateNextWeek,
-  showToast
+  showToast,
+  openImportOnMount = false
 }: ScheduleGridProps): React.ReactElement {
   const scheduleId = schedule.id;
   const week = useScheduleWeek(schedule, weekStart);
@@ -101,6 +106,8 @@ export function ScheduleGrid({
   const [dragging, setDragging] = useState<DragSource | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [importOpen, setImportOpen] = useState(openImportOnMount && canEdit);
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
   const draftCounter = useRef(0);
   const assistantRef = useRef<HTMLDivElement>(null);
 
@@ -172,6 +179,64 @@ export function ScheduleGrid({
     card.kind === 'shift'
       ? newDraft({ off: false, blocks: [card.block], note: card.note, departmentId: card.departmentId })
       : newDraft({ off: true, blocks: [], note: '', departmentId: null });
+
+  const importContext = useMemo<ScheduleImportContext>(
+    () => ({
+      people: week.employees
+        .filter((employee) => employee.is_active && !employee.deleted_at)
+        .map((employee) => ({ id: employee.id, name: `${employee.first_name} ${employee.last_name}`.trim(), email: employee.email, employeeNumber: employee.employee_number })),
+      departments: week.departments.map((department) => ({ id: department.id, name: department.name })),
+      dates: days.filter((day) => day.inSchedule).map((day) => day.date),
+      weekLabel: `Week ${isoWeekNumber(weekStart)} · ${weekRangeLabel(weekStart)}`
+    }),
+    [week.employees, week.departments, days, weekStart]
+  );
+
+  /** Writes each validated spreadsheet row into this week, adding people to the roster as needed; one bad row doesn't stop the rest. */
+  const importRows = async (rows: ScheduleImportRow[], fileName: string): Promise<void> => {
+    const rostered = new Set(rosterRows.map((row) => row.employee.id));
+    const failures: string[] = [];
+    setImportProgress({ done: 0, total: rows.length });
+    for (const [index, row] of rows.entries()) {
+      try {
+        const employeeId = row.employeeId as string;
+        const date = row.date as string;
+        if (!rostered.has(employeeId)) {
+          await addToRoster.mutateAsync({ scheduleId, employeeId });
+          rostered.add(employeeId);
+        }
+        if (row.off) {
+          await markDayOff.mutateAsync({ scheduleId, employeeId, date });
+        } else {
+          const block = { startTime: row.startTime as string, endTime: row.endTime as string, breakMinutes: row.breakMinutes };
+          await addShift.mutateAsync({
+            scheduleId,
+            employeeId,
+            date,
+            templateId: null,
+            startTime: block.startTime,
+            endTime: block.endTime,
+            crossesMidnight: crossesMidnight(block),
+            breakMinutes: block.breakMinutes,
+            notes: row.notes || null,
+            departmentId: row.departmentId
+          });
+        }
+      } catch (err) {
+        failures.push(`row ${row.row}: ${errorText(err)}`);
+      }
+      setImportProgress({ done: index + 1, total: rows.length });
+    }
+    setImportProgress(null);
+    setImportOpen(false);
+    const landed = rows.length - failures.length;
+    showToast(
+      failures.length
+        ? `${landed} of ${rows.length} rows imported from ${fileName} — ${failures[0]}${failures.length > 1 ? ` (+${failures.length - 1} more)` : ''}`
+        : `${landed} ${landed === 1 ? 'row' : 'rows'} imported from ${fileName}`,
+      failures.length ? 'error' : 'success'
+    );
+  };
 
   const readOnlyHint = isManager && published ? 'Published shifts are read-only — unpublish to edit them' : 'You can only view this schedule';
 
@@ -613,7 +678,7 @@ export function ScheduleGrid({
           <div className="ml-auto flex flex-wrap items-center gap-2.5">
             <button
               type="button"
-              onClick={() => showToast("Importing a schedule from a spreadsheet isn't available yet")}
+              onClick={() => setImportOpen(true)}
               className="flex h-[42px] cursor-pointer items-center gap-2 rounded-[12px] border border-[#EBE7E3] bg-white px-4 text-[12.5px] font-bold text-[#38312B] hover:border-[#DDD6D0]"
             >
               <ScheduleIcon name="upload" size={15} />
@@ -937,6 +1002,16 @@ export function ScheduleGrid({
       ) : null}
 
       {historyOpen ? <VersionHistoryModal scheduleId={scheduleId} onClose={() => setHistoryOpen(false)} /> : null}
+
+      {importOpen && canEdit ? (
+        <ScheduleImportModal
+          context={importContext}
+          template={{ name: rosterRows[0]?.name ?? importContext.people[0]?.name ?? 'Jane Doe', department: week.departments[0]?.name ?? '' }}
+          progress={importProgress}
+          onImport={(rows, fileName) => void importRows(rows, fileName)}
+          onClose={() => setImportOpen(false)}
+        />
+      ) : null}
     </>
   );
 }

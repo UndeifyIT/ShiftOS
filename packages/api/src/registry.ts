@@ -8,6 +8,7 @@ import {
 import { getOrganization, updateOrganization, listAccessibleOrganizations } from './operations/organization.js';
 import { createBranch, updateBranch, archiveBranch, getBranch, listBranches } from './operations/branch.js';
 import { createEmployee, getEmployee, updateEmployee, archiveEmployee, listEmployees, getEmployeeHistory } from './operations/employee.js';
+import { importEmployees, listEmployeeImports } from './operations/employeeImport.js';
 import {
   createSchedule, getSchedule, updateSchedule, archiveSchedule, listSchedules,
   listScheduleVersions, getLatestScheduleVersion,
@@ -105,6 +106,8 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(archiveEmployee);
   registry.register(listEmployees);
   registry.register(getEmployeeHistory);
+  registry.register(importEmployees);
+  registry.register(listEmployeeImports);
 
   registry.register(createSchedule);
   registry.register(getSchedule);
