@@ -164,7 +164,9 @@ export function TipsCard(): React.ReactElement {
   );
 }
 
-export function WhatGetsImportedCards(): React.ReactElement {
+const linkButton = 'mt-[9px] cursor-pointer border-0 bg-transparent p-0 text-left text-[11.5px] font-bold text-[#F04E17]';
+
+export function WhatGetsImportedCards({ onLearnSecurity }: { onLearnSecurity: () => void }): React.ReactElement {
   return (
     <>
       <section className={`${card} p-4`}>
@@ -187,6 +189,9 @@ export function WhatGetsImportedCards(): React.ReactElement {
           <span className="min-w-0">
             <span className="block text-[13px] font-extrabold">Your data is secure</span>
             <span className="mt-1 block text-[11.5px] leading-[1.5] text-[#857A72]">We use industry-standard encryption to keep your data safe and secure.</span>
+            <button type="button" onClick={onLearnSecurity} className={linkButton}>
+              Learn more about security →
+            </button>
           </span>
         </div>
       </section>
@@ -200,7 +205,7 @@ const HELP = [
   'If you need help getting started, our support team is here for you.'
 ];
 
-export function HelpCard({ step }: { step: number }): React.ReactElement {
+export function HelpCard({ step, onContactSupport }: { step: number; onContactSupport: () => void }): React.ReactElement {
   return (
     <section className={`${card} p-4`}>
       <div className="flex gap-[11px]">
@@ -210,6 +215,9 @@ export function HelpCard({ step }: { step: number }): React.ReactElement {
         <span className="min-w-0">
           <span className="block text-[13px] font-extrabold">Need help?</span>
           <span className="mt-1 block text-[11.5px] leading-[1.5] text-[#857A72]">{HELP[Math.min(step, 3) - 1]}</span>
+          <button type="button" onClick={onContactSupport} className={linkButton}>
+            Contact Support →
+          </button>
         </span>
       </div>
     </section>

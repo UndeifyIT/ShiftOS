@@ -705,8 +705,8 @@ export default function ImportEmployeesPage(): React.ReactElement {
               />
             ) : null}
             {step === 2 ? <TipsCard /> : null}
-            {step === 3 ? <WhatGetsImportedCards /> : null}
-            <HelpCard step={step} />
+            {step === 3 ? <WhatGetsImportedCards onLearnSecurity={() => show('The security overview page is coming soon')} /> : null}
+            <HelpCard step={step} onContactSupport={() => show('Support is coming soon — the contact page is being set up')} />
           </div>
         </div>
       </div>
