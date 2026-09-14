@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import {
   Badge,
   type BadgeTone,
@@ -122,15 +123,19 @@ function canShowReopen(task: Task, canUpdate: boolean): boolean {
 function CreateTaskForm({
   branches,
   requireBranchPicker,
+  homeBranchId,
   onCreate,
   onDone
 }: {
   branches: Branch[];
   requireBranchPicker: boolean;
+  /** Set for a Manager: the task always goes to their own branch and there's no branch field. */
+  homeBranchId: string | null;
   onCreate: (input: Record<string, unknown>) => Promise<unknown>;
   onDone: () => void;
 }): React.ReactElement {
-  const [branchId, setBranchId] = useState(branches.length === 1 ? branches[0]!.id : '');
+  const [pickedBranchId, setBranchId] = useState(branches.length === 1 ? branches[0]!.id : '');
+  const branchId = homeBranchId ?? pickedBranchId;
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -166,7 +171,7 @@ function CreateTaskForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {requireBranchPicker ? (
+      {requireBranchPicker && !homeBranchId ? (
         <FormField label="Branch" htmlFor="taskBranch" required>
           {(fieldProps) => (
             <Select
@@ -503,6 +508,8 @@ export default function TasksPage(): React.ReactElement {
   const canUpdate = hasPermission('tasks.update');
   const canReadEmployees = hasPermission('employees.read');
   const canReadBranches = hasPermission('branches.read');
+  // A Manager works in their own branch only: no branch filter, column or form field.
+  const homeBranchId = useDefaultBranchId();
 
   const [branchId, setBranchId] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | TaskStatus>('all');
@@ -521,14 +528,14 @@ export default function TasksPage(): React.ReactElement {
   const [detailTask, setDetailTask] = useState<Task | null>(null);
 
   const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canReadBranches });
-  const { data: employees } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canRead && canReadEmployees });
+  const { data: employees } = useRpcQuery<Employee[]>('list_employees', homeBranchId ? { branchId: homeBranchId } : undefined, { enabled: canRead && canReadEmployees });
 
   const myEmployeeRecord = useMemo(
     () => employees?.find((e) => e.email && profile?.email && e.email.toLowerCase() === profile.email.toLowerCase()),
     [employees, profile]
   );
 
-  const activeBranchId = branchId || undefined;
+  const activeBranchId = homeBranchId ?? (branchId || undefined);
   const {
     data: tasks,
     isLoading,
@@ -542,7 +549,7 @@ export default function TasksPage(): React.ReactElement {
 
   const branchNameById = useMemo(() => new Map((branches ?? []).map((b) => [b.id, b.name])), [branches]);
   const employeeNameById = useMemo(() => new Map((employees ?? []).map((e) => [e.id, `${e.first_name} ${e.last_name}`])), [employees]);
-  const branchOptions = useMemo(() => (branches ?? []).map((b) => ({ value: b.id, label: b.name })), [branches]);
+  const branchOptions = useMemo(() => (homeBranchId ? [] : (branches ?? []).map((b) => ({ value: b.id, label: b.name }))), [branches, homeBranchId]);
 
   const filtered = useMemo(() => {
     if (!tasks) return [];
@@ -586,7 +593,7 @@ export default function TasksPage(): React.ReactElement {
     <PageContainer>
       <PageHeader
         title="Tasks"
-        description="Recurring checks and one-off jobs for the branches you can access."
+        description={homeBranchId ? 'Recurring checks and one-off jobs for your branch.' : 'Recurring checks and one-off jobs for the branches you can access.'}
         actions={canCreate ? <Button onClick={() => setCreateOpen(true)}>New task</Button> : undefined}
       />
 
@@ -706,6 +713,7 @@ export default function TasksPage(): React.ReactElement {
         <CreateTaskForm
           branches={branches ?? []}
           requireBranchPicker={requireBranchPicker}
+          homeBranchId={homeBranchId}
           onCreate={(input) => createMutation.mutateAsync(input)}
           onDone={() => setCreateOpen(false)}
         />

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSession } from '../../auth/SessionProvider.js';
 import { ManagerOverviewBody, OverviewEmpty, OverviewHeader, OverviewLoading } from './manager/ManagerOverview.js';
 import { longDay } from './manager/overviewModel.js';
@@ -10,27 +10,20 @@ import { useManagerOverview } from './manager/useManagerOverview.js';
  * (`ShiftOS Dashboards.dc.html`, Manager / Overview): Shifty nudge, Ask
  * ShiftOS, four stats, department coverage today, needs your attention,
  * quick actions, announcements and recent activity — every number from the
- * branch's live data. `?branch=` picks the branch for multi-branch managers.
+ * live data of the Manager's own branch (they never see or switch to others).
  */
 export default function ManagerDashboardPage(): React.ReactElement {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { hasPermission, activeOrganization } = useSession();
-  const [branchParam, setBranchParam] = useState<string | null>(searchParams.get('branch'));
-  const { status, now, branches, branchId, branch, overview } = useManagerOverview(branchParam);
+  const { status, now, branch, overview } = useManagerOverview();
   const canCreateEmployees = hasPermission('employees.create');
-
-  const selectBranch = (id: string): void => {
-    setBranchParam(id);
-    navigate(`/?branch=${id}`, { replace: true });
-  };
 
   const subtitle = overview?.subtitle ?? `${branch?.name ?? activeOrganization?.name ?? 'Your branch'} · ${longDay(now)}`;
 
   return (
     // 13px base and the browser's default line height are what the handoff renders with (it has no CSS reset).
     <div className="flex min-h-full flex-col text-[13px] text-[#38312B] [line-height:normal]">
-      <OverviewHeader subtitle={subtitle} now={now} branches={branches} branchId={branchId} onSelectBranch={selectBranch} />
+      <OverviewHeader subtitle={subtitle} now={now} />
 
       <div className="flex flex-auto flex-col gap-[18px] bg-[#FDFCFB] px-7 pb-10 pt-[22px] max-[859px]:gap-3.5 max-[859px]:px-3.5 max-[859px]:pb-[84px] max-[859px]:pt-4">
         {status === 'loading' ? (

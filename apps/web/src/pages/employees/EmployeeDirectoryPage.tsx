@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Badge, Button, DataTable, Input, PageContainer, PageHeader, PermissionDenied } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
+import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import { useRpcQuery } from '../../lib/useRpc.js';
 import { useSignedAvatarUrl } from '../../lib/avatars.js';
 import type { Branch, Employee, EmploymentStatus } from '../../types/domain.js';
@@ -42,8 +43,10 @@ export default function EmployeeDirectoryPage(): React.ReactElement {
   const canCreate = hasPermission('employees.create');
   const [search, setSearch] = useState('');
 
-  const { data: employees, isLoading, error, refetch } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canRead });
-  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canRead });
+  // A Manager sees their own branch's people only, so there's no Branch column either.
+  const homeBranchId = useDefaultBranchId();
+  const { data: employees, isLoading, error, refetch } = useRpcQuery<Employee[]>('list_employees', homeBranchId ? { branchId: homeBranchId } : undefined, { enabled: canRead });
+  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canRead && !homeBranchId });
   const branchNameById = useMemo(() => new Map((branches ?? []).map((b) => [b.id, b.name])), [branches]);
 
   const filtered = useMemo(() => {
@@ -67,7 +70,7 @@ export default function EmployeeDirectoryPage(): React.ReactElement {
     <PageContainer>
       <PageHeader
         title="Employees"
-        description="Everyone on your team, across the branches you can access."
+        description={homeBranchId ? 'Everyone on your team.' : 'Everyone on your team, across the branches you can access.'}
         actions={
           canCreate ? (
             <div className="flex flex-wrap gap-2.5">
@@ -85,7 +88,7 @@ export default function EmployeeDirectoryPage(): React.ReactElement {
       <DataTable<Employee>
         columns={[
           { key: 'name', header: 'Name', primary: true, render: (e) => <EmployeeNameCell employee={e} /> },
-          { key: 'branch', header: 'Branch', render: (e) => branchNameById.get(e.branch_id) ?? '—' },
+          ...(homeBranchId ? [] : [{ key: 'branch', header: 'Branch', render: (e: Employee) => branchNameById.get(e.branch_id) ?? '—' }]),
           { key: 'status', header: 'Status', render: (e) => <Badge tone={STATUS_TONE[e.employment_status]}>{STATUS_LABEL[e.employment_status]}</Badge> }
         ]}
         rows={filtered}
