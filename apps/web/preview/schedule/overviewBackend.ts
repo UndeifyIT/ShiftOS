@@ -50,24 +50,27 @@ const PEOPLE: Array<[string, string, string, string, boolean, number | null]> = 
 const emailOf = (first: string, last: string): string => `${first}.${last}@abc.example`.toLowerCase();
 
 export function createOverviewBackend() {
-  const employees: Employee[] = PEOPLE.map(([id, first, last, departmentId]) =>
-    stamp({
+  // Employees page preview: handoff-style phone numbers, one person on leave and two inactive (EMP_STATS 17 active · 1 on leave).
+  const STATUS_OF: Record<string, Employee['employment_status']> = { p10: 'on_leave', p14: 'inactive', p15: 'inactive' };
+  const employees: Employee[] = PEOPLE.map(([id, first, last, departmentId], index) => ({
+    ...stamp({
       id,
       branch_id: BRANCH,
       employee_number: `EMP-${id.slice(1).padStart(3, '0')}`,
       first_name: first,
       last_name: last,
       email: emailOf(first, last),
-      phone: null,
+      phone: `+234 80${(index % 9) + 1} ${String(234 + index * 111).slice(-3)} ${String(5678 + index * 1111).slice(-4)}`,
       date_of_birth: null,
       hire_date: '2024-01-15',
-      employment_status: 'active' as const,
+      employment_status: STATUS_OF[id] ?? ('active' as const),
       notes: null,
       avatar_url: null,
       department_id: departmentId,
       is_active: true
-    })
-  );
+    }),
+    created_at: at(index % 2 ? 12 : 28 - (index % 5) * 3, 9, 0)
+  }));
 
   const members = [
     stamp({ id: 'mem-me', user_id: 'user-me', role_id: 'role-manager', joined_at: CREATED, is_active: true, user_email: 'daniel@abc.example', user_first_name: 'Daniel', user_last_name: 'Okonkwo', role_name: 'Manager' }),

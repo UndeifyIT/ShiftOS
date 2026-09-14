@@ -29,7 +29,18 @@ const linkButton = 'cursor-pointer border-0 bg-transparent p-0 text-[12px] font-
 const card = 'rounded-[16px] border border-solid border-[#EBE7E3] bg-white';
 
 /** The handoff's page header (title, subtitle, date/time pill) — shared by the overview and the pages it links to. */
-export function OverviewHeader({ title = 'Branch overview', subtitle, now }: { title?: string; subtitle: string; now: Date }): React.ReactElement {
+export function OverviewHeader({
+  title = 'Branch overview',
+  subtitle,
+  now,
+  actions
+}: {
+  title?: string;
+  subtitle: string;
+  now: Date;
+  /** The page's own header buttons (handoff pageSecondary / pageCta), shown before the date pill. */
+  actions?: React.ReactNode;
+}): React.ReactElement {
   return (
     <header className="flex flex-wrap items-start gap-4 border-b border-solid border-[#F2EEEA] bg-white px-7 pb-[18px] pt-[22px] max-[859px]:gap-2.5 max-[859px]:px-4 max-[859px]:pb-3 max-[859px]:pt-4">
       <div className="min-w-0 flex-[1_1_100%]">
@@ -37,6 +48,7 @@ export function OverviewHeader({ title = 'Branch overview', subtitle, now }: { t
         <p className="mb-0 mt-[5px] text-[13px] text-[#857A72]">{subtitle}</p>
       </div>
       <div className="flex min-w-0 flex-[1_1_100%] flex-wrap items-center justify-end gap-2.5">
+        {actions}
         <div className="flex flex-none items-center gap-2.5 rounded-[12px] border border-solid border-[#EBE7E3] px-3 py-[7px]">
           <span className="leading-[1.2]">
             <span className="block text-[10.5px] text-[#A79C93]">{pillDate(now)}</span>
