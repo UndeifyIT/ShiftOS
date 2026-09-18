@@ -21,7 +21,7 @@ import { createTestContext, TEST_FIXTURES, type TestContext } from '../testEnv.j
  * comment on TEST_FIXTURES) via the real create_employee RPC -- not raw SQL
  * -- so this also exercises EmployeeService.createEmployee's now-optional
  * employeeNumber handling (packages/services/src/workforce/employeeService.ts)
- * end to end, the same path EmployeeFormPage.tsx's Add Employee form uses.
+ * end to end, the same path AddEmployeePage.tsx's Add Employee form uses.
  * Every row created here is a disposable throwaway, deleted in afterAll;
  * the fixture org's own pre-existing employees ('EMP-0001', 'EMP-002') are
  * never touched.

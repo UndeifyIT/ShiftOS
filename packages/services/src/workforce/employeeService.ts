@@ -10,6 +10,8 @@ import type { ApplicationContext } from '../applicationContext.js';
 import { assertNonEmptyString, assertUuid, assertOneOf } from '../validation.js';
 
 const EMPLOYMENT_STATUSES: readonly EmploymentStatus[] = ['active', 'inactive', 'terminated', 'on_leave'];
+export const EMPLOYEE_GENDERS = ['female', 'male', 'non_binary', 'prefer_not_to_say'] as const;
+export const EMPLOYMENT_TYPES = ['full_time', 'part_time', 'contract', 'temporary'] as const;
 
 /** Fields whose changes are recorded to employee_history — the fields that actually matter for workforce auditing (PER-002-01 "every workforce action affecting employees should generate an audit log"), not a diff of every column. */
 const TRACKED_FIELDS = ['first_name', 'last_name', 'branch_id', 'employment_status', 'employee_number'] as const;
@@ -25,6 +27,9 @@ export interface CreateEmployeeInput {
   dateOfBirth?: string | null;
   hireDate: string;
   departmentId?: string | null;
+  gender?: string | null;
+  employmentType?: string | null;
+  reportsToEmployeeId?: string | null;
 }
 
 export interface UpdateEmployeeInput {
@@ -38,6 +43,11 @@ export interface UpdateEmployeeInput {
   notes?: string | null;
   avatarUrl?: string | null;
   departmentId?: string | null;
+  hireDate?: string;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  employmentType?: string | null;
+  reportsToEmployeeId?: string | null;
 }
 
 export class EmployeeService {
@@ -64,6 +74,8 @@ export class EmployeeService {
       throw new ValidationError('Invalid hireDate', ['hireDate must be a valid date']);
     }
 
+    await this.assertProfileFields(input, null);
+
     if (employeeNumber !== undefined) {
       const existing = await this.employees.findByEmployeeNumber(this.context.organizationId, employeeNumber);
       if (existing) {
@@ -84,7 +96,11 @@ export class EmployeeService {
       phone: input.phone ?? null,
       date_of_birth: input.dateOfBirth ?? null,
       hire_date: input.hireDate,
-      department_id: input.departmentId ?? null
+      department_id: input.departmentId ?? null,
+      // Left out of the INSERT when not supplied, like employee_number above.
+      gender: input.gender || undefined,
+      employment_type: input.employmentType || undefined,
+      reports_to_employee_id: input.reportsToEmployeeId || undefined
     } as Partial<Employee>);
   }
 
@@ -111,6 +127,10 @@ export class EmployeeService {
     }
     if (input.firstName !== undefined) assertNonEmptyString(input.firstName, 'firstName');
     if (input.lastName !== undefined) assertNonEmptyString(input.lastName, 'lastName');
+    if (input.hireDate !== undefined && Number.isNaN(Date.parse(input.hireDate))) {
+      throw new ValidationError('Invalid hireDate', ['hireDate must be a valid date']);
+    }
+    await this.assertProfileFields(input, employeeId);
 
     const changes: Partial<Employee> = {};
     if (input.branchId !== undefined) changes.branch_id = input.branchId;
@@ -123,6 +143,11 @@ export class EmployeeService {
     if (input.notes !== undefined) changes.notes = input.notes;
     if (input.avatarUrl !== undefined) changes.avatar_url = input.avatarUrl;
     if (input.departmentId !== undefined) changes.department_id = input.departmentId;
+    if (input.hireDate !== undefined) changes.hire_date = input.hireDate;
+    if (input.dateOfBirth !== undefined) changes.date_of_birth = input.dateOfBirth || null;
+    if (input.gender !== undefined) changes.gender = input.gender || null;
+    if (input.employmentType !== undefined) changes.employment_type = input.employmentType || null;
+    if (input.reportsToEmployeeId !== undefined) changes.reports_to_employee_id = input.reportsToEmployeeId || null;
 
     if (Object.keys(changes).length === 0) {
       throw new ValidationError('No changes supplied');
@@ -156,6 +181,29 @@ export class EmployeeService {
     const employee = await this.employees.getByIdOrThrow(this.context.organizationId, employeeId);
     this.context.requireBranchAccess(employee.branch_id);
     return this.history.listForEmployee(this.context.organizationId, employeeId);
+  }
+
+  /** Gender and employment type must be known values; Reports To must be another employee in this organization the caller can see. */
+  private async assertProfileFields(
+    input: { gender?: string | null; employmentType?: string | null; reportsToEmployeeId?: string | null; dateOfBirth?: string | null },
+    employeeId: string | null
+  ): Promise<void> {
+    if (input.gender) assertOneOf(input.gender, EMPLOYEE_GENDERS, 'gender');
+    if (input.employmentType) assertOneOf(input.employmentType, EMPLOYMENT_TYPES, 'employmentType');
+    if (input.dateOfBirth && Number.isNaN(Date.parse(input.dateOfBirth))) {
+      throw new ValidationError('Invalid dateOfBirth', ['dateOfBirth must be a valid date']);
+    }
+    if (input.reportsToEmployeeId) {
+      assertUuid(input.reportsToEmployeeId, 'reportsToEmployeeId');
+      if (input.reportsToEmployeeId === employeeId) {
+        throw new ValidationError('Invalid reportsToEmployeeId', ['An employee cannot report to themselves']);
+      }
+      const manager = await this.employees.getById(this.context.organizationId, input.reportsToEmployeeId);
+      if (!manager) {
+        throw new ValidationError('Invalid reportsToEmployeeId', ['The person this employee reports to was not found']);
+      }
+      this.context.requireBranchAccess(manager.branch_id);
+    }
   }
 
   private async recordHistory(before: Employee, after: Employee): Promise<void> {

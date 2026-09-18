@@ -17,6 +17,12 @@ export interface Employee extends BranchEntity {
   /** Storage object path under the private `avatars` bucket (employees/{organizationId}/{employeeId}/{filename}), not a public URL. Optional. */
   avatar_url: string | null;
   department_id: string | null;
+  /** 'female' | 'male' | 'non_binary' | 'prefer_not_to_say' (migration 065). */
+  gender?: string | null;
+  /** 'full_time' | 'part_time' | 'contract' | 'temporary' (migration 065). */
+  employment_type?: string | null;
+  /** The manager or supervisor this person reports to (migration 065). */
+  reports_to_employee_id?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

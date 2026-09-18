@@ -60,6 +60,12 @@ export interface Employee {
   avatar_url: string | null;
   /** Optional (migration 041); the schedule grid shows the department's name under each person. */
   department_id?: string | null;
+  /** 'female' | 'male' | 'non_binary' | 'prefer_not_to_say' (migration 065). */
+  gender?: string | null;
+  /** 'full_time' | 'part_time' | 'contract' | 'temporary' (migration 065). */
+  employment_type?: string | null;
+  /** The manager or supervisor this person reports to (migration 065). */
+  reports_to_employee_id?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -300,6 +306,11 @@ export interface AttendanceRecord {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  /** Joined in by `list_attendance_for_employee` only: the shift this record belongs to. */
+  shift_date?: string | null;
+  shift_start_time?: string | null;
+  shift_end_time?: string | null;
+  shift_title?: string | null;
 }
 
 export type AnnouncementType = 'general' | 'policy' | 'safety' | 'operational' | 'emergency';

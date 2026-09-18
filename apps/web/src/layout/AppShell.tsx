@@ -5,6 +5,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar, useNavItems } from './Sidebar.js';
 import { TopBar } from './TopBar.js';
 import { useSession } from '../auth/SessionProvider.js';
+import { FloatingAskShiftOS } from '../components/assistant/FloatingAskShiftOS.js';
 
 /**
  * UI-003 §5 Application Shell + UI-010 §6 navigation adaptation: a
@@ -13,11 +14,11 @@ import { useSession } from '../auth/SessionProvider.js';
  * sheet for the overflow (ported from `ShiftOS Dashboards.dc.html`'s
  * isMobile nav + moreSheet), rather than a resized/cramped sidebar.
  *
- * Shifty deliberately does NOT render here. It previously floated on every
- * authenticated page for the lifetime of the account, which ran against the
- * product requirement that it appear "primarily where onboarding/help
- * actually benefits" — not as permanent chrome. Shifty now only appears in
- * OnboardingWizard, where its per-step guidance is genuinely contextual.
+ * The onboarding Shifty guide doesn't render here — it only appears in
+ * OnboardingWizard, where its per-step guidance is genuinely contextual. The
+ * one floating element is the handoff's Ask ShiftOS bubble
+ * (FloatingAskShiftOS), which shows only for Managers and never on the
+ * overview, where the full Ask ShiftOS card already sits.
  */
 
 const PRIMARY_TAB_COUNT = 4;
@@ -188,6 +189,7 @@ export function AppShell(): React.ReactElement {
           <Outlet />
         </main>
         <MobileTabBar onOpenMobileNav={() => setMobileNavOpen(true)} />
+        <FloatingAskShiftOS />
       </div>
     </div>
   );

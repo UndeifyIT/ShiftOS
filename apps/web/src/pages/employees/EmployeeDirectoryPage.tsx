@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { PermissionDenied } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
+import { useDismiss } from '../../lib/useDismiss.js';
 import { useRpcQuery } from '../../lib/useRpc.js';
 import type { Branch, Department, Employee, Member, Schedule, Shift, ShiftAssignment } from '../../types/domain.js';
 import { OverviewEmpty, OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
 import { ScheduleIcon } from '../scheduling/grid/ScheduleIcon.js';
-import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
+import { ScheduleToast, useRouteToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
+import { EMPLOYMENT_TYPE_OPTIONS } from './profile/employeeFields.js';
 import { avatarTone, initialsOf, TONES, todayDateString, type Tone } from '../scheduling/grid/scheduleFormat.js';
 import {
   applyFilters,
@@ -51,27 +53,6 @@ function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }): Re
       {children}
     </span>
   );
-}
-
-/** Closes a popover on an outside click or Escape. */
-function useDismiss(open: boolean, onClose: () => void): React.RefObject<HTMLDivElement> {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (event: MouseEvent): void => {
-      if (ref.current && !ref.current.contains(event.target as Node)) onClose();
-    };
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('mousedown', onPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onPointer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open, onClose]);
-  return ref;
 }
 
 /** Handoff filter field: a label over a 40px select-looking button, opening its options below. */
@@ -190,6 +171,7 @@ export default function EmployeeDirectoryPage(): React.ReactElement {
   const navigate = useNavigate();
   const now = useNow();
   const { toast, show, dismiss } = useScheduleToast();
+  useRouteToast(show);
   const canRead = hasPermission('employees.read');
   const canCreate = hasPermission('employees.create');
   const canUpdate = hasPermission('employees.update');
@@ -441,7 +423,7 @@ export default function EmployeeDirectoryPage(): React.ReactElement {
                             row={row}
                             canEdit={canUpdate}
                             onOpen={() => navigate(`/employees/${row.employee.id}`)}
-                            onEdit={() => navigate(`/employees/${row.employee.id}/edit`)}
+                            onEdit={() => navigate(`/employees/${row.employee.id}`)}
                           />
                         </div>
                       ))
@@ -514,10 +496,9 @@ export default function EmployeeDirectoryPage(): React.ReactElement {
                   <FilterSelect label="Role" value={draft.role} options={roleOptions} onChange={(value) => setDraft((current) => ({ ...current, role: value }))} />
                   <FilterSelect
                     label="Employment Type"
-                    value="all"
-                    options={[{ value: 'all', label: 'All Types' }]}
-                    note="Employment type isn't recorded for employees yet."
-                    onChange={() => undefined}
+                    value={draft.employmentType}
+                    options={[{ value: 'all', label: 'All Types' }, ...EMPLOYMENT_TYPE_OPTIONS]}
+                    onChange={(value) => setDraft((current) => ({ ...current, employmentType: value }))}
                   />
                   <label className="block">
                     <span className="mb-[5px] block text-[11.5px] font-bold text-[#857A72]">Search by Name or ID</span>

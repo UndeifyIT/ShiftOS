@@ -30,8 +30,24 @@ export class AttendanceRecordRepository extends BranchScopedRepository<Attendanc
     super(client, 'attendance_records');
   }
 
+  /** Newest first, with the shift each record belongs to (date, times, title) joined in for the employee history table. */
   async findByEmployee(organizationId: string, employeeId: string, options?: { limit?: number; offset?: number }): Promise<AttendanceRecord[]> {
-    return this.list(organizationId, { ...options, filters: { employee_id: employeeId }, orderBy: 'created_at desc' });
+    const params: unknown[] = [organizationId, employeeId];
+    let sql = `SELECT ar.*, s.shift_date, s.start_time AS shift_start_time, s.end_time AS shift_end_time, s.title AS shift_title
+                 FROM attendance_records ar
+                 LEFT JOIN shift_assignments sa ON sa.id = ar.shift_assignment_id AND sa.organization_id = ar.organization_id
+                 LEFT JOIN shifts s ON s.id = sa.shift_id AND s.organization_id = ar.organization_id
+                WHERE ar.organization_id = $1 AND ar.employee_id = $2 AND ar.deleted_at IS NULL
+                ORDER BY ar.created_at DESC`;
+    if (typeof options?.limit === 'number') {
+      params.push(options.limit);
+      sql += ` LIMIT $${params.length}`;
+    }
+    if (typeof options?.offset === 'number') {
+      params.push(options.offset);
+      sql += ` OFFSET $${params.length}`;
+    }
+    return this.client.query<AttendanceRecord>(sql, params);
   }
 
   async findByShiftAssignment(organizationId: string, shiftAssignmentId: string): Promise<AttendanceRecord | null> {
