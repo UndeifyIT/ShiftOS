@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useRef } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { SkeletonRows, Spinner } from '@shiftos/ui';
 import { useSession } from './auth/SessionProvider.js';
 import { AppShell } from './layout/AppShell.js';
@@ -41,8 +41,8 @@ const OrganizationSettingsPage = lazy(() => import('./pages/organization/Organiz
 const BranchListPage = lazy(() => import('./pages/branches/BranchListPage.js'));
 const BranchDetailPage = lazy(() => import('./pages/branches/BranchDetailPage.js'));
 const EmployeeDirectoryPage = lazy(() => import('./pages/employees/EmployeeDirectoryPage.js'));
-const EmployeeDetailPage = lazy(() => import('./pages/employees/EmployeeDetailPage.js'));
-const EmployeeFormPage = lazy(() => import('./pages/employees/EmployeeFormPage.js'));
+const EmployeeProfilePage = lazy(() => import('./pages/employees/EmployeeProfilePage.js'));
+const AddEmployeePage = lazy(() => import('./pages/employees/AddEmployeePage.js'));
 const ImportEmployeesPage = lazy(() => import('./pages/employees/import/ImportEmployeesPage.js'));
 const MembersPage = lazy(() => import('./pages/members/MembersPage.js'));
 const InvitationsPage = lazy(() => import('./pages/members/InvitationsPage.js'));
@@ -227,6 +227,11 @@ export function App(): React.ReactElement {
   );
 }
 
+function EmployeeEditRedirect(): React.ReactElement {
+  const { employeeId = '' } = useParams<{ employeeId: string }>();
+  return <Navigate to={`/employees/${employeeId}`} replace />;
+}
+
 function AppShellRoutes(): React.ReactElement {
   return (
     <Routes>
@@ -240,10 +245,11 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/branches/new" element={<BranchDetailPage />} />
         <Route path="/branches/:branchId" element={<BranchDetailPage />} />
         <Route path="/employees" element={<EmployeeDirectoryPage />} />
-        <Route path="/employees/new" element={<EmployeeFormPage />} />
+        <Route path="/employees/new" element={<AddEmployeePage />} />
         <Route path="/employees/import" element={<ImportEmployeesPage />} />
-        <Route path="/employees/:employeeId" element={<EmployeeDetailPage />} />
-        <Route path="/employees/:employeeId/edit" element={<EmployeeFormPage />} />
+        <Route path="/employees/:employeeId" element={<EmployeeProfilePage />} />
+        {/* The profile's Employee Details tab is the edit form (design handoff), so the old edit route lands there. */}
+        <Route path="/employees/:employeeId/edit" element={<EmployeeEditRedirect />} />
         <Route path="/members" element={<MembersPage />} />
         <Route path="/invitations" element={<InvitationsPage />} />
         <Route path="/schedules" element={<SchedulesPage />} />

@@ -67,10 +67,12 @@ export interface DirectoryFilters {
   status: StatusFilter;
   department: string;
   role: string;
+  /** An employment_type value, or 'all'. */
+  employmentType: string;
   query: string;
 }
 
-export const NO_FILTERS: DirectoryFilters = { status: 'all', department: 'all', role: 'all', query: '' };
+export const NO_FILTERS: DirectoryFilters = { status: 'all', department: 'all', role: 'all', employmentType: 'all', query: '' };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -123,6 +125,7 @@ export function applyFilters(rows: DirectoryRow[], filters: DirectoryFilters, to
       matchesStatus(row.status, filters.status) &&
       (filters.department === 'all' || row.department === filters.department) &&
       (filters.role === 'all' || row.role === filters.role) &&
+      (filters.employmentType === 'all' || row.employee.employment_type === filters.employmentType) &&
       matchesQuery(row, filters.query) &&
       matchesQuery(row, toolbarQuery)
   );

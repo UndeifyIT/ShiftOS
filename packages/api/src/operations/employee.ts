@@ -15,7 +15,10 @@ export const createEmployee = defineRpc('create_employee', async (context, rawIn
     phone: stringField(input, 'phone') ?? null,
     dateOfBirth: stringField(input, 'dateOfBirth') ?? null,
     hireDate: requiredStringField(input, 'hireDate'),
-    departmentId: stringField(input, 'departmentId') ?? null
+    departmentId: stringField(input, 'departmentId') ?? null,
+    gender: stringField(input, 'gender') ?? null,
+    employmentType: stringField(input, 'employmentType') ?? null,
+    reportsToEmployeeId: stringField(input, 'reportsToEmployeeId') ?? null
   });
 });
 
@@ -38,7 +41,12 @@ export const updateEmployee = defineRpc('update_employee', async (context, rawIn
     employmentStatus: employmentStatus as 'active' | 'inactive' | 'terminated' | 'on_leave' | undefined,
     notes: stringField(input, 'notes'),
     avatarUrl: stringField(input, 'avatarUrl') ?? (input.avatarUrl === null ? null : undefined),
-    departmentId: stringField(input, 'departmentId') ?? (input.departmentId === null ? null : undefined)
+    departmentId: stringField(input, 'departmentId') ?? (input.departmentId === null ? null : undefined),
+    hireDate: stringField(input, 'hireDate'),
+    dateOfBirth: stringField(input, 'dateOfBirth') ?? (input.dateOfBirth === null ? null : undefined),
+    gender: stringField(input, 'gender') ?? (input.gender === null ? null : undefined),
+    employmentType: stringField(input, 'employmentType') ?? (input.employmentType === null ? null : undefined),
+    reportsToEmployeeId: stringField(input, 'reportsToEmployeeId') ?? (input.reportsToEmployeeId === null ? null : undefined)
   });
 });
 

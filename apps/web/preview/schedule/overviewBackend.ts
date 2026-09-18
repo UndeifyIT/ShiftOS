@@ -67,10 +67,91 @@ export function createOverviewBackend() {
       notes: null,
       avatar_url: null,
       department_id: departmentId,
-      is_active: true
+      is_active: true,
+      gender: null,
+      employment_type: index % 4 === 3 ? 'part_time' : 'full_time',
+      reports_to_employee_id: id === 'p2' ? 'p1' : null
     }),
     created_at: at(index % 2 ? 12 : 28 - (index % 5) * 3, 9, 0)
   }));
+
+  // Employee Profile preview: John Doe's month so far — the handoff's HISTORY_DAYS marks with its HISTORY_ROWS times — and the first half of April to compare with.
+  // [month, day, clock in 'HH:MM' | null (absent), clock out, late minutes, notes]
+  const HISTORY: Array<[number, number, string | null, string | null, number, string | null]> = [
+    [5, 1, '09:00', '17:00', 0, null], [5, 2, '09:00', '17:00', 0, null], [5, 5, '09:00', '17:00', 0, null], [5, 6, '09:10', '17:00', 10, null],
+    [5, 7, '09:00', '17:00', 0, null], [5, 8, '09:00', '17:00', 0, null], [5, 9, '09:16', '17:00', 16, null], [5, 11, null, null, 0, null],
+    [5, 12, '09:20', '17:05', 20, null], [5, 13, '09:12', '17:37', 12, null], [5, 14, '08:55', '17:25', 0, 'Approved OT'], [5, 15, '09:00', '17:00', 0, null],
+    [5, 16, '09:05', '17:25', 5, null],
+    [4, 1, '09:00', '17:00', 0, null], [4, 2, '09:00', '17:00', 0, null], [4, 3, '09:25', '17:00', 25, null], [4, 4, '09:00', '17:00', 0, null],
+    [4, 7, '09:00', '16:30', 0, null], [4, 8, '09:00', '17:00', 0, null], [4, 9, '09:30', '17:00', 30, null], [4, 10, '09:00', '17:00', 0, null],
+    [4, 11, '09:18', '17:00', 18, null], [4, 14, null, null, 0, null], [4, 15, '09:00', '15:00', 0, null], [4, 16, '09:00', '17:00', 0, null]
+  ];
+  const minutesOf = (hm: string): number => Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3));
+  const history: AttendanceRecord[] = HISTORY.map(([month, day, clockIn, clockOut, late, notes]) => {
+    const date = `2025-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const stampAt = (hm: string) => new Date(2025, month - 1, day, Number(hm.slice(0, 2)), Number(hm.slice(3))).toISOString();
+    return {
+      ...stamp({ id: `hist-${date}` }),
+      created_at: stampAt(clockIn ?? '09:00'),
+      updated_at: stampAt(clockOut ?? '09:00'),
+      branch_id: BRANCH,
+      shift_assignment_id: `asg-hist-${date}`,
+      employee_id: 'p2',
+      attendance_status: clockIn === null ? 'absent' : late > 0 ? 'late' : 'completed',
+      clock_in_at: clockIn ? stampAt(clockIn) : null,
+      clock_out_at: clockOut ? stampAt(clockOut) : null,
+      break_minutes: 0,
+      worked_minutes: clockIn && clockOut ? minutesOf(clockOut) - minutesOf(clockIn) : 0,
+      overtime_minutes: 0,
+      late_minutes: late,
+      early_departure_minutes: 0,
+      notes,
+      recorded_by: 'user-me',
+      updated_by: null,
+      version: 1,
+      shift_date: date,
+      shift_start_time: '09:00:00',
+      shift_end_time: '17:00:00',
+      shift_title: 'Day Shift'
+    };
+  });
+  const patchEmployee = (input: Record<string, unknown>): Employee => {
+    const employee = employees.find((e) => e.id === input.employeeId);
+    if (!employee) throw new Error('Employee not found');
+    const fields: Record<string, keyof Employee> = {
+      firstName: 'first_name', lastName: 'last_name', email: 'email', phone: 'phone', employmentStatus: 'employment_status', avatarUrl: 'avatar_url',
+      departmentId: 'department_id', hireDate: 'hire_date', dateOfBirth: 'date_of_birth', gender: 'gender', employmentType: 'employment_type', reportsToEmployeeId: 'reports_to_employee_id'
+    };
+    for (const [key, column] of Object.entries(fields)) if (key in input) (employee as unknown as Record<string, unknown>)[column] = input[key];
+    return employee;
+  };
+  const createEmployee = (input: Record<string, unknown>): Employee => {
+    const id = `new-${Date.now()}`;
+    const employee: Employee = {
+      ...stamp({
+        id,
+        branch_id: BRANCH,
+        employee_number: (input.employeeNumber as string) || `EMP-${String(employees.length + 1).padStart(3, '0')}`,
+        first_name: String(input.firstName),
+        last_name: String(input.lastName),
+        email: (input.email as string) ?? null,
+        phone: (input.phone as string) ?? null,
+        date_of_birth: (input.dateOfBirth as string) ?? null,
+        hire_date: String(input.hireDate),
+        employment_status: 'active' as const,
+        notes: null,
+        avatar_url: null,
+        department_id: (input.departmentId as string) ?? null,
+        is_active: true,
+        gender: (input.gender as string) ?? null,
+        employment_type: (input.employmentType as string) ?? null,
+        reports_to_employee_id: (input.reportsToEmployeeId as string) ?? null
+      }),
+      created_at: at(16, 7, 58)
+    };
+    employees.push(employee);
+    return employee;
+  };
 
   const members = [
     stamp({ id: 'mem-me', user_id: 'user-me', role_id: 'role-manager', joined_at: CREATED, is_active: true, user_email: 'daniel@abc.example', user_first_name: 'Daniel', user_last_name: 'Okonkwo', role_name: 'Manager' }),
@@ -277,6 +358,14 @@ export function createOverviewBackend() {
       ['Employee', 'Supervisor', 'Admin'].map((name) => stamp({ id: `role-${name.toLowerCase()}`, name, description: null, is_system: true, is_active: true, grants_org_wide_branch_access: false })),
     list_branches: () => [stamp({ id: BRANCH, name: 'Main Branch', address: null, settings: {}, is_active: true })],
     list_employees: () => employees,
+    get_employee: (input) => {
+      const employee = employees.find((e) => e.id === input.employeeId);
+      if (!employee) throw new Error('Employee not found');
+      return employee;
+    },
+    update_employee: patchEmployee,
+    create_employee: createEmployee,
+    list_attendance_for_employee: (input) => history.filter((r) => r.employee_id === input.employeeId),
     list_departments: () => DEPARTMENTS.map(([id, name]) => stamp({ id, branch_id: BRANCH, name, description: null, is_active: true })),
     list_members: () => members,
     list_invitations: () => [invitation('inv-1', 'chinedu.eze@abc.example'), invitation('inv-2', 'ngozi.balogun@abc.example')],

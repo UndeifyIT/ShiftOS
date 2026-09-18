@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export type ToastTone = 'success' | 'error';
 
@@ -25,6 +26,18 @@ export function useScheduleToast(): { toast: ToastState | null; show: (text: str
   }, []);
 
   return { toast, show, dismiss: useCallback(() => setToast(null), []) };
+}
+
+/** Shows a toast handed over through navigation (`navigate(to, { state: { toast, tone } })`), then clears it so a reload doesn't repeat it. */
+export function useRouteToast(show: (text: string, tone?: ToastTone) => void): void {
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const state = location.state as { toast?: unknown; tone?: unknown } | null;
+    if (!state || typeof state.toast !== 'string') return;
+    show(state.toast, state.tone === 'error' ? 'error' : 'success');
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [location, navigate, show]);
 }
 
 /** Bottom-centre dark toast — design handoff toast (lines 2791-2797). Errors swap the green ✓ for a red "!". */

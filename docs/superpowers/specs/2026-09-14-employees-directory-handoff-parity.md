@@ -24,8 +24,8 @@
 ## Deliberate deviations
 
 - Employees have no job title, so Role shows their ShiftOS role, or Staff without a login.
-- Employment Type isn't stored on employees; the filter shows "All Types" with a note saying so.
-- The ⋮ menu (a toast in the handoff) has View profile and Edit details.
+- ~~Employment Type isn't stored on employees; the filter shows "All Types" with a note saying so.~~ Employees carry an employment type since migration 065, and the filter is real — see `2026-09-18-employee-profile-add-assistant.md`.
+- The ⋮ menu (a toast in the handoff) has View profile and Edit details — both open the profile, whose first tab is the edit form.
 - The footer adds "· N selected" while rows are selected — the handoff has no selection feedback.
 
 ## Verification
