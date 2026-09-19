@@ -354,6 +354,27 @@ export function createOverviewBackend() {
     list_employee_imports: () => imports.slice(0, 5),
     import_employees: importEmployees,
     invite_member: () => ({}),
+    // Supervisors page: the org's roles (org-wide ones are Admins, the rest are supervisors) and what each role may do.
+    list_roles: () =>
+      [
+        ['role-manager', 'Manager', true],
+        ['role-admin', 'Admin', true],
+        ['role-supervisor', 'Supervisor', false],
+        ['role-employee', 'Employee', false]
+      ].map(([id, name, orgWide]) => stamp({ id, name, description: null, is_system: true, is_active: true, grants_org_wide_branch_access: orgWide })),
+    // The Employee role is a plain staff login: no management capability, so it is not a supervisor role.
+    get_role_capabilities: (input) => {
+      const supervisor = input.roleId === 'role-supervisor';
+      return {
+        manageSchedules: supervisor,
+        markAttendance: supervisor,
+        assignTasks: supervisor,
+        approveSwaps: supervisor,
+        postAnnouncements: false,
+        viewReports: supervisor
+      };
+    },
+    update_role_permissions: (input) => input.capabilities,
     list_invitable_roles: () =>
       ['Employee', 'Supervisor', 'Admin'].map((name) => stamp({ id: `role-${name.toLowerCase()}`, name, description: null, is_system: true, is_active: true, grants_org_wide_branch_access: false })),
     list_branches: () => [stamp({ id: BRANCH, name: 'Main Branch', address: null, settings: {}, is_active: true })],

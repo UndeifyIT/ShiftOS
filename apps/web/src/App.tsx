@@ -43,6 +43,7 @@ const BranchDetailPage = lazy(() => import('./pages/branches/BranchDetailPage.js
 const EmployeeDirectoryPage = lazy(() => import('./pages/employees/EmployeeDirectoryPage.js'));
 const EmployeeProfilePage = lazy(() => import('./pages/employees/EmployeeProfilePage.js'));
 const AddEmployeePage = lazy(() => import('./pages/employees/AddEmployeePage.js'));
+const SupervisorsPage = lazy(() => import('./pages/supervisors/SupervisorsPage.js'));
 const ImportEmployeesPage = lazy(() => import('./pages/employees/import/ImportEmployeesPage.js'));
 const MembersPage = lazy(() => import('./pages/members/MembersPage.js'));
 const InvitationsPage = lazy(() => import('./pages/members/InvitationsPage.js'));
@@ -260,7 +261,7 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/security" element={<SecurityPage />} />
-        <Route path="/supervisors" element={<ComingSoonPage page="supervisors" />} />
+        <Route path="/supervisors" element={<SupervisorsPage />} />
         <Route path="/admins" element={<ComingSoonPage page="admins" />} />
         <Route path="/recent-activity" element={<ComingSoonPage page="recentActivity" />} />
         <Route path="/reports" element={<ComingSoonPage page="reports" />} />

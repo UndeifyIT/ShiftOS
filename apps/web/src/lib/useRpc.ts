@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, type UseMutationOptions, type UseQueryOptions } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient, type UseMutationOptions, type UseQueryOptions } from '@tanstack/react-query';
 import { callRpc } from './apiClient.js';
 import { useSession } from '../auth/SessionProvider.js';
 
@@ -21,6 +21,24 @@ export function useRpcQuery<TOutput>(
     queryFn: () => callRpc<TOutput>(operation, organizationId as string, input),
     enabled: Boolean(organizationId) && (options?.enabled ?? true),
     ...options
+  });
+}
+
+/**
+ * The same query for a list of inputs whose length can change between renders
+ * (one call per role, say) — a plain useRpcQuery per item would break the
+ * rules of hooks. Keys match useRpcQuery's, so both share one cache entry.
+ */
+export function useRpcQueries<TOutput>(operation: string, inputs: unknown[], options?: { enabled?: boolean }) {
+  const { myContext } = useSession();
+  const organizationId = myContext?.organizationId;
+
+  return useQueries({
+    queries: inputs.map((input) => ({
+      queryKey: [operation, organizationId, input],
+      queryFn: () => callRpc<TOutput>(operation, organizationId as string, input),
+      enabled: Boolean(organizationId) && (options?.enabled ?? true)
+    }))
   });
 }
 
