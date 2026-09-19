@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate, Link } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
 import { MoreHorizontal, UserCircle, X } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar, useNavItems } from './Sidebar.js';
 import { TopBar } from './TopBar.js';
 import { useSession } from '../auth/SessionProvider.js';
 import { FloatingAskShiftOS } from '../components/assistant/FloatingAskShiftOS.js';
+import { RouteErrorBoundary } from './RouteErrorBoundary.js';
 
 /**
  * UI-003 §5 Application Shell + UI-010 §6 navigation adaptation: a
@@ -162,6 +163,8 @@ function DisposableEmailNotice(): React.ReactElement | null {
 
 export function AppShell(): React.ReactElement {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Keyed by path so a page that failed doesn't keep its error after navigating away.
+  const { pathname } = useLocation();
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">
@@ -186,7 +189,9 @@ export function AppShell(): React.ReactElement {
         </div>
         <main id="main-content" className="flex-1 overflow-y-auto pb-[72px] pt-[68px] min-[860px]:pb-0 sm:pt-[72px]">
           <DisposableEmailNotice />
-          <Outlet />
+          <RouteErrorBoundary key={pathname}>
+            <Outlet />
+          </RouteErrorBoundary>
         </main>
         <MobileTabBar onOpenMobileNav={() => setMobileNavOpen(true)} />
         <FloatingAskShiftOS />
