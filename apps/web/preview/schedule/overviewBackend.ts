@@ -155,6 +155,8 @@ export function createOverviewBackend() {
 
   const members = [
     stamp({ id: 'mem-me', user_id: 'user-me', role_id: 'role-manager', joined_at: CREATED, is_active: true, user_email: 'daniel@abc.example', user_first_name: 'Daniel', user_last_name: 'Okonkwo', role_name: 'Manager' }),
+    // Admins page: a second organization-wide login.
+    stamp({ id: 'mem-admin', user_id: 'user-admin', role_id: 'role-admin', joined_at: at(14, 9, 0), is_active: true, user_email: 'ngozi.umeh@abc.example', user_first_name: 'Ngozi', user_last_name: 'Umeh', role_name: 'Admin' }),
     ...PEOPLE.filter(([, , , , supervisor]) => supervisor).map(([id, first, last]) =>
       stamp({ id: `mem-${id}`, user_id: `user-${id}`, role_id: 'role-supervisor', joined_at: CREATED, is_active: true, user_email: emailOf(first, last), user_first_name: first, user_last_name: last, role_name: 'Supervisor' })
     )
@@ -354,6 +356,28 @@ export function createOverviewBackend() {
     list_employee_imports: () => imports.slice(0, 5),
     import_employees: importEmployees,
     invite_member: () => ({}),
+    // Supervisors page: the org's roles (org-wide ones are Admins, the rest are supervisors) and what each role may do.
+    // [id, name, org-wide?] — Admin is branch-scoped on purpose (048), so it can be invited.
+    list_roles: () =>
+      [
+        ['role-manager', 'Manager', true],
+        ['role-admin', 'Admin', false],
+        ['role-supervisor', 'Supervisor', false],
+        ['role-employee', 'Employee', false]
+      ].map(([id, name, orgWide]) => stamp({ id, name, description: null, is_system: true, is_active: true, grants_org_wide_branch_access: orgWide })),
+    // The Employee role is a plain staff login: no management capability, so it is not a supervisor role.
+    get_role_capabilities: (input) => {
+      const supervisor = input.roleId === 'role-supervisor';
+      return {
+        manageSchedules: supervisor,
+        markAttendance: supervisor,
+        assignTasks: supervisor,
+        approveSwaps: supervisor,
+        postAnnouncements: false,
+        viewReports: supervisor
+      };
+    },
+    update_role_permissions: (input) => input.capabilities,
     list_invitable_roles: () =>
       ['Employee', 'Supervisor', 'Admin'].map((name) => stamp({ id: `role-${name.toLowerCase()}`, name, description: null, is_system: true, is_active: true, grants_org_wide_branch_access: false })),
     list_branches: () => [stamp({ id: BRANCH, name: 'Main Branch', address: null, settings: {}, is_active: true })],
