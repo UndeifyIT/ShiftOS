@@ -85,10 +85,26 @@ export function recordDay(record: AttendanceRecord): string {
 
 export type DayState = 'ok' | 'late' | 'absent' | 'off';
 
+/**
+ * How late the clock-in was. `late_minutes` is zeroed by the database on
+ * every write (011/018 leave it to an attendance engine that doesn't exist
+ * yet), so when the shift's own start time is known it is measured from
+ * there — the same rule the Attendance screen marks people by.
+ */
+export function lateMinutes(record: AttendanceRecord): number {
+  if (record.late_minutes > 0) return record.late_minutes;
+  if (!record.clock_in_at || !record.shift_start_time) return 0;
+  const at = new Date(record.clock_in_at);
+  const [hours, minutes] = record.shift_start_time.split(':').map(Number);
+  const start = new Date(at);
+  start.setHours(hours, minutes, 0, 0);
+  return Math.max(0, Math.round((at.getTime() - start.getTime()) / 60_000));
+}
+
 export function recordState(record: AttendanceRecord): DayState {
   if (record.attendance_status === 'absent' || record.attendance_status === 'no_show') return 'absent';
   if (!record.clock_in_at) return 'off';
-  return record.attendance_status === 'late' || record.late_minutes > 0 ? 'late' : 'ok';
+  return record.attendance_status === 'late' || lateMinutes(record) > 0 ? 'late' : 'ok';
 }
 
 const inRange = (record: AttendanceRecord, range: DayRange): boolean => {
@@ -212,7 +228,7 @@ export function historyRows(records: AttendanceRecord[], range: DayRange, filter
             ? 'No-show'
             : 'Absent'
           : state === 'late'
-            ? `Late (${record.late_minutes}m)`
+            ? `Late (${lateMinutes(record)}m)`
             : record.attendance_status === 'left_early'
               ? 'Left Early'
               : state === 'ok'

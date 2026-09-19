@@ -1,5 +1,6 @@
 import { AttendanceService } from '@shiftos/services';
 import type { AttendanceStatus } from '@shiftos/repositories';
+import { ValidationError } from '@shiftos/errors';
 import { defineRpc } from '../rpc.js';
 import { asRecord, requiredStringField, stringField, booleanField, numberField } from '../parse.js';
 
@@ -20,6 +21,21 @@ export const markAttendanceAbsent = defineRpc('mark_attendance_absent', async (c
     booleanField(input, 'noShow') ?? false,
     stringField(input, 'notes') ?? null
   );
+});
+
+/** Supervisor-side marking from the Attendance screen — clock_in/clock_out stay self-service. */
+export const markAttendance = defineRpc('mark_attendance', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  const status = requiredStringField(input, 'status');
+  if (!['present', 'late', 'absent', 'no_show', 'scheduled'].includes(status)) {
+    throw new ValidationError(`Unsupported attendance status "${status}"`);
+  }
+  return new AttendanceService(context).markAttendance({
+    shiftAssignmentId: requiredStringField(input, 'shiftAssignmentId'),
+    status: status as 'present' | 'late' | 'absent' | 'no_show' | 'scheduled',
+    at: stringField(input, 'at') ?? null,
+    notes: 'notes' in input ? stringField(input, 'notes') ?? null : undefined
+  });
 });
 
 export const getAttendanceRecord = defineRpc('get_attendance_record', async (context, rawInput: unknown) => {
@@ -66,6 +82,6 @@ export const listAttendanceCorrections = defineRpc('list_attendance_corrections'
 });
 
 export const attendanceOperations = [
-  clockIn, clockOut, markAttendanceAbsent, getAttendanceRecord, listAttendanceForEmployee,
+  clockIn, clockOut, markAttendance, markAttendanceAbsent, getAttendanceRecord, listAttendanceForEmployee,
   listMyAttendance, listAttendanceForBranchAndRange, recordAttendanceCorrection, listAttendanceCorrections
 ];

@@ -26,6 +26,8 @@ const ICONS = {
   phone: [['path', { d: 'M6.5 4h3l1.5 4-2 1.5a10 10 0 0 0 5.5 5.5L16 13l4 1.5v3a2 2 0 0 1-2.2 2A15.5 15.5 0 0 1 4.5 6.2 2 2 0 0 1 6.5 4z' }]],
   lock: [['rect', { x: 4.5, y: 10, width: 15, height: 10.5, rx: 3 }], ['path', { d: 'M8 10V7.5a4 4 0 0 1 8 0V10' }]],
   alert: [['path', { d: 'M12 4.4 21 20H3z' }], ['path', { d: 'M12 10v4M12 17h.01' }]],
+  x: [['circle', { cx: 12, cy: 12, r: 8.6 }], ['path', { d: 'M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6' }]],
+  minus: [['circle', { cx: 12, cy: 12, r: 8.6 }], ['path', { d: 'M8.4 12h7.2' }]],
   bulb: [['path', { d: 'M9 17h6M10 21h4' }], ['path', { d: 'M12 3a6 6 0 0 0-3.5 10.9V17h7v-3.1A6 6 0 0 0 12 3z' }]],
   sliders: [['path', { d: 'M4 7.5h16M4 16.5h16' }], ['circle', { cx: 9, cy: 7.5, r: 2.4 }], ['circle', { cx: 15, cy: 16.5, r: 2.4 }]],
   refresh: [['path', { d: 'M20 12a8 8 0 1 1-2.6-5.9' }], ['path', { d: 'M20 4v4h-4' }]],

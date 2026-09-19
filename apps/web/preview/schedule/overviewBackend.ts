@@ -400,6 +400,37 @@ export function createOverviewBackend() {
     list_shifts_for_schedule: () => shifts,
     list_assignments_for_schedule: () => assignments,
     list_attendance_for_branch_and_range: () => attendance,
+    // Attendance screen: marking someone writes the record the same way the real RPC does.
+    mark_attendance: (input) => {
+      const assignmentId = String(input.shiftAssignmentId);
+      const status = String(input.status);
+      const existing = attendance.find((record) => record.shift_assignment_id === assignmentId);
+      const assignment = assignments.find((row) => row.id === assignmentId);
+      const arrived = status === 'present' || status === 'late';
+      const record = existing ?? {
+        ...stamp({ id: `att-new-${assignmentId}` }),
+        branch_id: BRANCH,
+        shift_assignment_id: assignmentId,
+        employee_id: assignment?.employee_id ?? '',
+        attendance_status: 'scheduled' as const,
+        clock_in_at: null,
+        clock_out_at: null,
+        break_minutes: 0,
+        worked_minutes: 0,
+        overtime_minutes: 0,
+        late_minutes: 0,
+        early_departure_minutes: 0,
+        notes: null,
+        recorded_by: 'user-me',
+        updated_by: 'user-me',
+        version: 1
+      };
+      record.attendance_status = status as AttendanceRecord['attendance_status'];
+      record.clock_in_at = arrived ? (input.at as string) ?? record.clock_in_at ?? at(16, 7, 58) : null;
+      record.notes = (input.notes as string) ?? null;
+      if (!existing) attendance.push(record);
+      return record;
+    },
     list_pending_leave: () => [
       leave('lv-1', 'p8', '2025-06-02', '2025-06-04', 'annual_leave', 'Family travel', 13),
       leave('lv-2', 'p16', '2025-05-28', '2025-05-28', 'unpaid_leave', 'Personal appointment', 14),
