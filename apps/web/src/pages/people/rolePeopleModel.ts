@@ -15,18 +15,25 @@ export const SUPERVISOR_FILTERS: SupervisorFilter[] = ['All', 'Active', 'Invited
 
 export type SupervisorStatus = 'Active' | 'Invited' | 'Expired';
 
-/** An org-wide role is the Admins page; everything else branch-scoped is the Supervisors page. */
+/**
+ * Organization-level access: the org-wide bootstrap role (Owner), plus the
+ * standard "Admin" role. Admin is deliberately branch-scoped (migration 048)
+ * so it can be invited through the ordinary invite pipeline — inviteMember
+ * never grants an org-wide role — and migration 049's trigger grants every
+ * new branch to its holders, so it sees the whole organization anyway. Naming
+ * is the same signal 049 itself keys off.
+ */
 export function isAdminRole(role: Role | undefined): boolean {
-  return Boolean(role?.grants_org_wide_branch_access);
+  return Boolean(role && (role.grants_org_wide_branch_access || role.name.trim().toLowerCase() === 'admin'));
 }
 
 /**
- * The roles an admin can actually be invited into: org-wide, but never the
- * role the organization was bootstrapped with — that one holds every
- * permission, so the server refuses to grant it by invitation (066).
+ * The roles an admin can actually be invited into — admin-level, but not
+ * org-wide: the server refuses to grant an org-wide role by invitation, so
+ * that issuing an invite can never hand over full organization access.
  */
 export function invitableAdminRoles(roles: Role[]): Role[] {
-  return roles.filter((role) => role.is_active && !role.deleted_at && isAdminRole(role) && !role.is_owner_role);
+  return roles.filter((role) => role.is_active && !role.deleted_at && isAdminRole(role) && !role.grants_org_wide_branch_access);
 }
 
 export interface SupervisorRow {
@@ -59,7 +66,7 @@ export const UNASSIGNED = '—';
  * rather than disappearing.
  */
 export function isSupervisorRole(role: Role | undefined, permissionCounts: Record<string, number> = {}): boolean {
-  if (!role || role.grants_org_wide_branch_access) return false;
+  if (!role || isAdminRole(role)) return false;
   const granted = permissionCounts[role.id];
   return granted === undefined || granted > 0;
 }

@@ -357,16 +357,14 @@ export function createOverviewBackend() {
     import_employees: importEmployees,
     invite_member: () => ({}),
     // Supervisors page: the org's roles (org-wide ones are Admins, the rest are supervisors) and what each role may do.
-    // [id, name, org-wide?, the role the org was bootstrapped with?]
+    // [id, name, org-wide?] — Admin is branch-scoped on purpose (048), so it can be invited.
     list_roles: () =>
       [
-        ['role-manager', 'Manager', true, true],
-        ['role-admin', 'Admin', true, false],
-        ['role-supervisor', 'Supervisor', false, false],
-        ['role-employee', 'Employee', false, false]
-      ].map(([id, name, orgWide, owner]) =>
-        stamp({ id, name, description: null, is_system: true, is_active: true, grants_org_wide_branch_access: orgWide, is_owner_role: owner })
-      ),
+        ['role-manager', 'Manager', true],
+        ['role-admin', 'Admin', false],
+        ['role-supervisor', 'Supervisor', false],
+        ['role-employee', 'Employee', false]
+      ].map(([id, name, orgWide]) => stamp({ id, name, description: null, is_system: true, is_active: true, grants_org_wide_branch_access: orgWide })),
     // The Employee role is a plain staff login: no management capability, so it is not a supervisor role.
     get_role_capabilities: (input) => {
       const supervisor = input.roleId === 'role-supervisor';

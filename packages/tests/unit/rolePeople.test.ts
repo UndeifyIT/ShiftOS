@@ -15,8 +15,9 @@ const BASE = { organization_id: 'org', created_at: '2025-05-01T09:00:00Z', updat
 const NOW = new Date('2025-05-16T07:58:00Z');
 
 const roles = [
-  { ...BASE, id: 'role-manager', name: 'Manager', description: null, is_system: true, is_active: true, grants_org_wide_branch_access: true, is_owner_role: true },
-  { ...BASE, id: 'role-admin', name: 'Admin', description: null, is_system: true, is_active: true, grants_org_wide_branch_access: true, is_owner_role: false },
+  { ...BASE, id: 'role-manager', name: 'Manager', description: null, is_system: true, is_active: true, grants_org_wide_branch_access: true },
+  // Branch-scoped on purpose (migration 048) so it can be invited; 049 grants it every new branch.
+  { ...BASE, id: 'role-admin', name: 'Admin', description: null, is_system: true, is_active: true, grants_org_wide_branch_access: false },
   { ...BASE, id: 'role-supervisor', name: 'Supervisor', description: null, is_system: true, is_active: true, grants_org_wide_branch_access: false },
   { ...BASE, id: 'role-employee', name: 'Employee', description: null, is_system: true, is_active: true, grants_org_wide_branch_access: false }
 ];
@@ -184,8 +185,8 @@ describe('Admins page (design handoff PAGES["Manager/Admins"] / ADMINS)', () => 
     expect(emails).not.toContain('john.doe@abc.example');
   });
 
-  it('offers only non-owner organization-wide roles when inviting an admin', () => {
-    // The role the organization was bootstrapped with holds every permission, and migration 066 keeps it un-invitable.
+  it('offers the invitable admin role, never the org-wide one', () => {
+    // An org-wide role is never invitable — that guard is what stops an invitation from handing over the whole organization.
     expect(invitableAdminRoles(roles).map((r) => r.name)).toEqual(['Admin']);
     expect(invitableAdminRoles(roles.filter((r) => r.id !== 'role-admin'))).toEqual([]);
   });

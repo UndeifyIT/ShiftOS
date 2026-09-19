@@ -4,7 +4,7 @@ import { PermissionDenied } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { HandoffModal, ModalField, ModalFields, modalControl } from '../../components/HandoffModal.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import type { Invitation, Member, Role } from '../../types/domain.js';
+import type { Branch, Invitation, Member, Role } from '../../types/domain.js';
 import { OverviewEmpty, OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
 import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
@@ -23,22 +23,24 @@ const COLUMNS: [string, string, string, string, string] = ['Admin', 'Scope', 'Ac
 const FOOT = "Admins manage billing and view every branch. They can't edit schedules, employees or approvals.";
 
 /**
- * The handoff's "Invite an Admin" dialog, over the real `invite_member`. An
- * admin holds an organization-wide role — migration 066's standard Admin —
- * which grants every branch plus organization settings. The role the
- * organization was bootstrapped with is never on offer: it holds every
- * permission, and the server refuses to grant it by invitation so that
- * issuing an invite can never hand over ownership.
+ * The handoff's "Invite an Admin" dialog, over the real `invite_member`. The
+ * Admin role is branch-scoped on purpose (migration 048) so it can go through
+ * the ordinary invite pipeline — an org-wide role is never invitable, which
+ * is what stops invite issuance from handing over full organization access —
+ * so the invitation grants every current branch, and migration 049's trigger
+ * adds any branch created later.
  */
 function InviteAdminModal({
   open,
   roles,
+  branchIds,
   onClose,
   onInvited,
   onOpenMembers
 }: {
   open: boolean;
   roles: Role[];
+  branchIds: string[];
   onClose: () => void;
   onInvited: (email: string) => void;
   onOpenMembers: () => void;
@@ -56,8 +58,8 @@ function InviteAdminModal({
       return;
     }
     try {
-      // An org-wide role resolves to every branch on its own, so no branch is sent.
-      await invite.mutateAsync({ email: address, roleId: role, branchIds: [] });
+      // Every current branch; 049's trigger grants any branch added later.
+      await invite.mutateAsync({ email: address, roleId: role, branchIds });
       setEmail('');
       setError(null);
       onInvited(address);
@@ -73,8 +75,8 @@ function InviteAdminModal({
     return (
       <HandoffModal open={open} title="Invite an Admin" subtitle={subtitle} primary="Open Members & Roles" onPrimary={onOpenMembers} onClose={onClose}>
         <DialogNote>
-          This organization has no admin role to grant yet — only the role it was created with, which holds every permission and can never be handed out by invitation. Add an
-          organization-wide role under Members &amp; Roles, then invite into it.
+          This organization has no Admin role to grant yet — only the role it was created with, which holds every permission and can never be handed out by invitation. Open
+          Members &amp; Roles to see the roles this organization has.
         </DialogNote>
       </HandoffModal>
     );
@@ -107,8 +109,8 @@ function InviteAdminModal({
         ) : null}
       </ModalFields>
       <DialogNote>
-        They see every branch and can manage organization settings and billing — but not schedules, employees or approvals. They set their own password from the invitation;
-        invitations last 7 days.
+        They get every branch in {branchIds.length === 1 ? 'this organization' : `all ${branchIds.length} branches`}, and any branch added later. They set their own password from
+        the invitation; invitations last 7 days.
       </DialogNote>
       {error ? <p className="mx-[22px] mb-0 mt-2.5 text-[12px] font-semibold text-[#C93A22]">{error}</p> : null}
     </HandoffModal>
@@ -125,7 +127,9 @@ export default function AdminsPage(): React.ReactElement {
   const membersQuery = useRpcQuery<Member[]>('list_members', undefined, { enabled: canManage });
   const { data: invitations } = useRpcQuery<Invitation[]>('list_invitations', undefined, { enabled: canManage });
   const { data: roles } = useRpcQuery<Role[]>('list_roles', undefined, { enabled: canManage });
+  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: hasPermission('branches.read') });
   const adminRoles = useMemo(() => invitableAdminRoles(roles ?? []), [roles]);
+  const branchIds = useMemo(() => (branches ?? []).filter((branch) => branch.is_active && !branch.deleted_at).map((branch) => branch.id), [branches]);
 
   const [filter, setFilter] = useState<SupervisorFilter>('All');
   const [query, setQuery] = useState('');
@@ -181,6 +185,7 @@ export default function AdminsPage(): React.ReactElement {
       <InviteAdminModal
         open={inviteOpen}
         roles={adminRoles}
+        branchIds={branchIds}
         onClose={() => setInviteOpen(false)}
         onInvited={(email) => {
           setInviteOpen(false);
