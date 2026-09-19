@@ -41,7 +41,18 @@ Also a "coming soon" placeholder before; now the same table with the handoff's o
 | Foot "Admins manage billing and view every branch…" | Text only — the handoff gives this table no foot actions |
 | Empty view ("No admins yet", Invite admin / Learn about roles) | Shown when nobody holds an org-wide role |
 
-**Invite admin** opens the handoff's dialog, but not a form: `MembershipService.inviteMember` deliberately refuses org-wide roles, so invite issuance can never become a path to full organization access. The dialog says so and its primary button opens Members & Roles, where an existing member can be moved onto an org-wide role. A form that the server would always reject would be worse than the truth.
+**Invite admin** is the handoff's dialog over the real `invite_member`: a work email, and the role to grant when the organization has more than one admin role. Migration 066 makes that possible without weakening the guard that was there before — see below.
+
+## The Admin role (migration 066)
+
+Before this, the only org-wide role was the one an organization is bootstrapped with, and `MembershipService.inviteMember` refused **every** org-wide role, so "Invite an Admin" had nothing it could grant. The refusal exists so invite issuance can never become a path to full organization ownership, so 066 keeps that guarantee and narrows it:
+
+- `roles.is_owner_role` marks the single role `create_organization_with_owner` creates. It holds every permission and stays un-invitable, forever — `inviteMember` now refuses exactly that role, with "The owner role cannot be assigned via invitation."
+- `ensure_standard_roles` also provisions an org-wide, **non-owner** `Admin` role: `organizations.read` / `organizations.update` plus read-only access across branches (branches, departments, employees, schedules, shifts, attendance, leave, swaps, tasks, announcements, shift notes, reports, notifications) — "Admins manage billing and view every branch. They can't edit schedules, employees or approvals." It is deliberately **not** granted `org.members.manage`, `org.roles.manage` or `org.branches.manage`, so an admin can neither hand out roles nor edit permissions, and inviting one can never escalate into ownership.
+- Existing organizations are backfilled; new ones get it at creation.
+- An org-wide role resolves to every branch on its own (021), so `inviteMember` now stores no branch grants for one instead of validating the caller's list.
+
+The dialog falls back to explaining the situation (and opening Members & Roles) only if an organization somehow has no non-owner org-wide role.
 
 ## Verification
 

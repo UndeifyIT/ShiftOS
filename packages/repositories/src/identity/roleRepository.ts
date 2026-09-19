@@ -8,6 +8,8 @@ export interface RoleRecord extends TenantEntity {
   is_active: boolean;
   /** True = every branch in the organization (PER-018 Rule 2, e.g. Manager); false = explicit grants only (organization_member_branch_access). */
   grants_org_wide_branch_access: boolean;
+  /** True for the one role an organization was bootstrapped with (066) — it can never be granted by invitation. */
+  is_owner_role: boolean;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

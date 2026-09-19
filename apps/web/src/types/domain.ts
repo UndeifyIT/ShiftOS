@@ -175,6 +175,8 @@ export interface Role {
   is_system: boolean;
   is_active: boolean;
   grants_org_wide_branch_access: boolean;
+  /** True for the role the organization was bootstrapped with (migration 066) — it can never be granted by invitation. */
+  is_owner_role?: boolean;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

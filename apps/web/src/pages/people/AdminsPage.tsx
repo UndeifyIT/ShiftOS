@@ -2,13 +2,14 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PermissionDenied } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
-import { HandoffModal } from '../../components/HandoffModal.js';
-import { useRpcQuery } from '../../lib/useRpc.js';
+import { HandoffModal, ModalField, ModalFields, modalControl } from '../../components/HandoffModal.js';
+import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import type { Invitation, Member, Role } from '../../types/domain.js';
 import { OverviewEmpty, OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
+import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
 import { DialogNote, HeaderCta, RolePeopleTable } from './RolePeopleTable.js';
-import { adminsCount, adminsSubtitle, buildAdminRows, filterSupervisors, type SupervisorFilter } from './rolePeopleModel.js';
+import { adminsCount, adminsSubtitle, buildAdminRows, filterSupervisors, invitableAdminRoles, type SupervisorFilter } from './rolePeopleModel.js';
 
 /*
  * The Manager's Admins page, built to the design handoff
@@ -22,26 +23,94 @@ const COLUMNS: [string, string, string, string, string] = ['Admin', 'Scope', 'Ac
 const FOOT = "Admins manage billing and view every branch. They can't edit schedules, employees or approvals.";
 
 /**
- * The handoff's "Invite an Admin" dialog. Org-wide roles deliberately cannot
- * be granted by invitation (MembershipService.inviteMember refuses them, so
- * invite issuance can never become a path to full organization access), so
- * the dialog says how admin access really happens instead of offering a form
- * that the server would reject.
+ * The handoff's "Invite an Admin" dialog, over the real `invite_member`. An
+ * admin holds an organization-wide role — migration 066's standard Admin —
+ * which grants every branch plus organization settings. The role the
+ * organization was bootstrapped with is never on offer: it holds every
+ * permission, and the server refuses to grant it by invitation so that
+ * issuing an invite can never hand over ownership.
  */
-function InviteAdminModal({ open, onClose, onOpenMembers }: { open: boolean; onClose: () => void; onOpenMembers: () => void }): React.ReactElement {
+function InviteAdminModal({
+  open,
+  roles,
+  onClose,
+  onInvited,
+  onOpenMembers
+}: {
+  open: boolean;
+  roles: Role[];
+  onClose: () => void;
+  onInvited: (email: string) => void;
+  onOpenMembers: () => void;
+}): React.ReactElement {
+  const [email, setEmail] = useState('');
+  const [roleId, setRoleId] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const invite = useRpcMutation<Invitation, { email: string; roleId: string; branchIds: string[] }>('invite_member', { invalidates: ['list_invitations'] });
+  const role = roleId || roles[0]?.id || '';
+
+  const send = async (): Promise<void> => {
+    const address = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(address)) {
+      setError('Enter a valid work email address');
+      return;
+    }
+    try {
+      // An org-wide role resolves to every branch on its own, so no branch is sent.
+      await invite.mutateAsync({ email: address, roleId: role, branchIds: [] });
+      setEmail('');
+      setError(null);
+      onInvited(address);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : 'Could not send the invitation');
+    }
+  };
+
+  const subtitle =
+    "Admins can manage your ShiftOS subscription and view organization-wide branch information. They don't manage day-to-day branch operations.";
+
+  if (roles.length === 0) {
+    return (
+      <HandoffModal open={open} title="Invite an Admin" subtitle={subtitle} primary="Open Members & Roles" onPrimary={onOpenMembers} onClose={onClose}>
+        <DialogNote>
+          This organization has no admin role to grant yet — only the role it was created with, which holds every permission and can never be handed out by invitation. Add an
+          organization-wide role under Members &amp; Roles, then invite into it.
+        </DialogNote>
+      </HandoffModal>
+    );
+  }
+
   return (
     <HandoffModal
       open={open}
       title="Invite an Admin"
-      subtitle="Admins can manage your ShiftOS subscription and view organization-wide branch information. They don't manage day-to-day branch operations."
-      primary="Open Members & Roles"
-      onPrimary={onOpenMembers}
+      subtitle={subtitle}
+      primary={invite.isPending ? 'Sending\u2026' : 'Send Invitation'}
+      primaryDisabled={invite.isPending}
+      onPrimary={() => void send()}
       onClose={onClose}
     >
+      <ModalFields>
+        <ModalField label="Work email" required full>
+          <input type="email" value={email} aria-label="Work email" placeholder="name@yourcompany.com" onChange={(event) => setEmail(event.target.value)} className={modalControl} />
+        </ModalField>
+        {roles.length > 1 ? (
+          <ModalField label="Access" required full>
+            <select value={role} aria-label="Access" onChange={(event) => setRoleId(event.target.value)} className={`${modalControl} cursor-pointer`}>
+              {roles.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
+          </ModalField>
+        ) : null}
+      </ModalFields>
       <DialogNote>
-        Organization-wide access isn&apos;t handed out by email invitation — an invitation can only grant a branch role, which keeps invites from becoming a way into your whole
-        organization. To make someone an admin, add them under Members &amp; Roles and move them onto an organization-wide role there.
+        They see every branch and can manage organization settings and billing — but not schedules, employees or approvals. They set their own password from the invitation;
+        invitations last 7 days.
       </DialogNote>
+      {error ? <p className="mx-[22px] mb-0 mt-2.5 text-[12px] font-semibold text-[#C93A22]">{error}</p> : null}
     </HandoffModal>
   );
 }
@@ -49,12 +118,14 @@ function InviteAdminModal({ open, onClose, onOpenMembers }: { open: boolean; onC
 export default function AdminsPage(): React.ReactElement {
   const navigate = useNavigate();
   const now = useNow();
+  const { toast, show, dismiss } = useScheduleToast();
   const { hasPermission } = useSession();
   const canManage = hasPermission('org.members.manage');
 
   const membersQuery = useRpcQuery<Member[]>('list_members', undefined, { enabled: canManage });
   const { data: invitations } = useRpcQuery<Invitation[]>('list_invitations', undefined, { enabled: canManage });
   const { data: roles } = useRpcQuery<Role[]>('list_roles', undefined, { enabled: canManage });
+  const adminRoles = useMemo(() => invitableAdminRoles(roles ?? []), [roles]);
 
   const [filter, setFilter] = useState<SupervisorFilter>('All');
   const [query, setQuery] = useState('');
@@ -109,12 +180,18 @@ export default function AdminsPage(): React.ReactElement {
 
       <InviteAdminModal
         open={inviteOpen}
+        roles={adminRoles}
         onClose={() => setInviteOpen(false)}
+        onInvited={(email) => {
+          setInviteOpen(false);
+          show(`Invitation sent to ${email}`);
+        }}
         onOpenMembers={() => {
           setInviteOpen(false);
           navigate('/members');
         }}
       />
+      <ScheduleToast toast={toast} onDismiss={dismiss} />
     </div>
   );
 }

@@ -94,6 +94,7 @@ export class MembershipService {
   }
 
   /** Roles a member can actually be invited into — excludes org-wide (Owner-style) roles. */
+  /** Branch roles only — the employee-facing invite flows pick from these. Admin roles come from listRoles (they are org-wide). */
   async listInvitableRoles(): Promise<RoleRecord[]> {
     await this.context.requirePermission('org.members.manage');
     const roles = await this.roles.listActive(this.context.organizationId);
@@ -125,8 +126,13 @@ export class MembershipService {
     if (!role || !role.is_active) {
       throw new NotFoundError('Role not found');
     }
-    if (role.grants_org_wide_branch_access) {
-      throw new AuthorizationError('This role cannot be assigned via invitation.');
+    // The bootstrap owner role (066: roles.is_owner_role) holds every
+    // permission in the organization, so it stays un-invitable — otherwise
+    // invite issuance would be a path to full organization ownership. Other
+    // org-wide roles (the standard Admin role) are invitable: they carry a
+    // curated, non-escalating permission set.
+    if (role.is_owner_role) {
+      throw new AuthorizationError('The owner role cannot be assigned via invitation.');
     }
 
     const existingPending = await this.invitations.findPendingByEmail(this.context.organizationId, email);
@@ -134,9 +140,12 @@ export class MembershipService {
       throw new ValidationError('An invitation is already pending for this email address.');
     }
 
+    // An org-wide role resolves to every branch on its own (021), so it needs
+    // — and stores — no explicit branch grants.
     const validBranchIds = new Set(await this.branches.listAllBranchIds(this.context.organizationId));
-    const branchIds = input.branchIds.filter((id) => validBranchIds.has(id));
-    if (branchIds.length !== input.branchIds.length) {
+    const requestedBranchIds = role.grants_org_wide_branch_access ? [] : input.branchIds;
+    const branchIds = requestedBranchIds.filter((id) => validBranchIds.has(id));
+    if (branchIds.length !== requestedBranchIds.length) {
       throw new ValidationError('One or more selected branches were not found in this organization.');
     }
 

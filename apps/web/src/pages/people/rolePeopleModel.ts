@@ -20,6 +20,15 @@ export function isAdminRole(role: Role | undefined): boolean {
   return Boolean(role?.grants_org_wide_branch_access);
 }
 
+/**
+ * The roles an admin can actually be invited into: org-wide, but never the
+ * role the organization was bootstrapped with — that one holds every
+ * permission, so the server refuses to grant it by invitation (066).
+ */
+export function invitableAdminRoles(roles: Role[]): Role[] {
+  return roles.filter((role) => role.is_active && !role.deleted_at && isAdminRole(role) && !role.is_owner_role);
+}
+
 export interface SupervisorRow {
   id: string;
   name: string;
