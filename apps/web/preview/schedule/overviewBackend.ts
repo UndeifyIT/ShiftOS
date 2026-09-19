@@ -155,6 +155,8 @@ export function createOverviewBackend() {
 
   const members = [
     stamp({ id: 'mem-me', user_id: 'user-me', role_id: 'role-manager', joined_at: CREATED, is_active: true, user_email: 'daniel@abc.example', user_first_name: 'Daniel', user_last_name: 'Okonkwo', role_name: 'Manager' }),
+    // Admins page: a second organization-wide login.
+    stamp({ id: 'mem-admin', user_id: 'user-admin', role_id: 'role-admin', joined_at: at(14, 9, 0), is_active: true, user_email: 'ngozi.umeh@abc.example', user_first_name: 'Ngozi', user_last_name: 'Umeh', role_name: 'Admin' }),
     ...PEOPLE.filter(([, , , , supervisor]) => supervisor).map(([id, first, last]) =>
       stamp({ id: `mem-${id}`, user_id: `user-${id}`, role_id: 'role-supervisor', joined_at: CREATED, is_active: true, user_email: emailOf(first, last), user_first_name: first, user_last_name: last, role_name: 'Supervisor' })
     )

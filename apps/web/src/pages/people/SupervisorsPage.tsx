@@ -9,17 +9,16 @@ import type { Department, Employee, Invitation, Member, Role } from '../../types
 import { OverviewEmpty, OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
 import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
-import { avatarTone, initialsOf, TONES, type Tone } from '../scheduling/grid/scheduleFormat.js';
+import { TONES, type Tone } from '../scheduling/grid/scheduleFormat.js';
+import { HeaderCta, RolePeopleTable, TableAction } from './RolePeopleTable.js';
 import {
   buildSupervisorRows,
   filterSupervisors,
-  SUPERVISOR_FILTERS,
   supervisorRoles,
   supervisorsCount,
   supervisorsSubtitle,
-  type SupervisorFilter,
-  type SupervisorRow
-} from './supervisorsModel.js';
+  type SupervisorFilter
+} from './rolePeopleModel.js';
 
 /*
  * WEB-009 — the Manager's Supervisors page, built to the design handoff
@@ -30,10 +29,7 @@ import {
  * Sizes are the prototype's rendered ones, not Tailwind approximations.
  */
 
-/** The handoff's shared 5-column track for the employee/supervisor/team tables. */
-const TABLE_GRID = 'grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(70px,auto)]';
-const CELL = 'min-w-0 truncate text-[12.5px] text-[#857A72]';
-const COLUMNS = ['Supervisor', 'Department', 'Permissions', 'Team size', 'Status'];
+const COLUMNS: [string, string, string, string, string] = ['Supervisor', 'Department', 'Permissions', 'Team size', 'Status'];
 
 /** The six capabilities a branch-scoped role can hold, plus what it can never do (handoff "Manage permissions"). */
 const CAPABILITIES: Array<{ key: string; label: string }> = [
@@ -292,15 +288,7 @@ export default function SupervisorsPage(): React.ReactElement {
     );
   }
 
-  const headerActions = (
-    <button
-      type="button"
-      onClick={() => setInviteOpen(true)}
-      className="h-10 cursor-pointer rounded-[11px] border-0 bg-[#F04E17] px-4 text-[13px] font-bold text-white shadow-[0_10px_22px_-13px_rgba(240,78,23,.75)]"
-    >
-      Invite supervisor
-    </button>
-  );
+  const headerActions = <HeaderCta label="Invite supervisor" onClick={() => setInviteOpen(true)} />;
 
   const body = (): React.ReactNode => {
     if (membersQuery.isLoading || capabilitiesLoading) return <OverviewLoading />;
@@ -315,86 +303,19 @@ export default function SupervisorsPage(): React.ReactElement {
       );
     }
     return (
-      <>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <label className="block min-w-[190px] flex-[1_1_240px]">
-            <span className="sr-only">Search</span>
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search supervisors"
-              className="box-border h-10 w-full rounded-[11px] border border-solid border-[#E4DED9] bg-white px-[13px] text-[13px] text-[#38312B] outline-none focus:border-[#F04E17]"
-            />
-          </label>
-          {SUPERVISOR_FILTERS.map((name) => (
-            <button
-              key={name}
-              type="button"
-              aria-pressed={filter === name}
-              onClick={() => setFilter(name)}
-              className={[
-                'h-10 cursor-pointer rounded-[11px] border border-solid px-[13px] text-[12.5px] font-bold',
-                filter === name ? 'border-[#F04E17] bg-[#FDF0E9] text-[#C6420E]' : 'border-[#EBE7E3] bg-white text-[#857A72]'
-              ].join(' ')}
-            >
-              {name}
-            </button>
-          ))}
-          <span className="ml-auto text-[12px] text-[#A79C93]">{supervisorsCount(shown, filter)}</span>
-        </div>
-
-        <section className="overflow-hidden rounded-[16px] border border-solid border-[#EBE7E3] bg-white">
-          <div className="overflow-x-auto">
-            <div className="min-w-[760px]">
-              <div className={`grid ${TABLE_GRID} gap-3 border-b border-solid border-[#F2EEEA] px-[18px] py-[11px] text-[10.5px] font-extrabold uppercase tracking-[.08em] text-[#A79C93]`}>
-                {COLUMNS.map((column, index) => (
-                  <span key={column} className={index === COLUMNS.length - 1 ? 'min-w-0 text-right' : 'min-w-0 truncate'}>
-                    {column}
-                  </span>
-                ))}
-              </div>
-              {shown.length === 0 ? (
-                <p className="m-0 border-b border-solid border-[#F7F4F1] px-[18px] py-3.5 text-[12.5px] text-[#A79C93]">No supervisors match this search.</p>
-              ) : (
-                shown.map((row: SupervisorRow) => (
-                  <div key={row.id} className={`grid ${TABLE_GRID} items-center gap-3 border-b border-solid border-[#F7F4F1] px-[18px] py-3`}>
-                    <span className="flex min-w-0 items-center gap-[11px]">
-                      <span className="flex size-[30px] flex-none items-center justify-center rounded-full text-[10.5px] font-extrabold" style={avatarTone(row.name)}>
-                        {initialsOf(row.name)}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-[12.5px] font-bold">{row.name}</span>
-                        <span className="block truncate text-[11px] text-[#A79C93]">{row.sub}</span>
-                      </span>
-                    </span>
-                    <span className={CELL}>{row.department}</span>
-                    <span className={CELL}>{row.permissions}</span>
-                    <span className={CELL}>{row.teamSize}</span>
-                    <span className="min-w-0 text-right">
-                      <span className="inline-flex items-center gap-[5px] rounded-full px-2.5 py-1 text-[11px] font-bold" style={pillStyle(row.tone)}>
-                        {row.status}
-                      </span>
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2.5 px-[18px] py-3">
-            <p className="m-0 text-[11.5px] text-[#A79C93]">Invitations expire after 7 days. Resending issues a fresh link.</p>
-            <div className="ml-auto flex gap-1.5">
-              <button
-                type="button"
-                onClick={() => setPermissionsOpen(true)}
-                className="h-8 cursor-pointer rounded-[9px] border border-solid border-[#EBE7E3] bg-white px-3 text-[12px] font-bold text-black"
-              >
-                Manage permissions
-              </button>
-            </div>
-          </div>
-        </section>
-      </>
+      <RolePeopleTable
+        columns={COLUMNS}
+        rows={shown}
+        filter={filter}
+        onFilter={setFilter}
+        query={query}
+        onQuery={setQuery}
+        searchPlaceholder="Search supervisors"
+        count={supervisorsCount(shown, filter)}
+        foot="Invitations expire after 7 days. Resending issues a fresh link."
+        actions={<TableAction label="Manage permissions" onClick={() => setPermissionsOpen(true)} />}
+        emptyLine="No supervisors match this search."
+      />
     );
   };
 

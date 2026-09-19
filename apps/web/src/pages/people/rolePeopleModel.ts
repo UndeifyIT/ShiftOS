@@ -1,17 +1,24 @@
 /**
- * The Manager's Supervisors page (`ShiftOS Dashboards.dc.html`,
- * `PAGES["Manager/Supervisors"]` + `SUPERVISORS`, rendered by the generic
- * table at markup lines 378-407): one row per supervisor — the people with a
- * branch-scoped login — plus the invitations that haven't been accepted yet.
- * Pure, so the counts and labels are unit-testable.
+ * The Manager's Supervisors and Admins pages (`ShiftOS Dashboards.dc.html`,
+ * `PAGES["Manager/Supervisors"]` + `SUPERVISORS` and `PAGES["Manager/Admins"]`
+ * + `ADMINS`), both rendered by the generic table at markup lines 378-407:
+ * one row per person with a login of that kind, then the invitations that
+ * haven't been accepted yet. Supervisors hold a branch-scoped role, admins an
+ * org-wide one. Pure, so the counts and labels are unit-testable.
  */
 import type { Department, Employee, Invitation, Member, Role } from '../../types/domain.js';
+import { agoText, daysAgo } from '../dashboard/manager/overviewModel.js';
 import type { Tone } from '../scheduling/grid/scheduleFormat.js';
 
 export type SupervisorFilter = 'All' | 'Active' | 'Invited' | 'Expired';
 export const SUPERVISOR_FILTERS: SupervisorFilter[] = ['All', 'Active', 'Invited', 'Expired'];
 
 export type SupervisorStatus = 'Active' | 'Invited' | 'Expired';
+
+/** An org-wide role is the Admins page; everything else branch-scoped is the Supervisors page. */
+export function isAdminRole(role: Role | undefined): boolean {
+  return Boolean(role?.grants_org_wide_branch_access);
+}
 
 export interface SupervisorRow {
   id: string;
@@ -62,6 +69,14 @@ export function nameFromEmail(email: string): string {
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(' ') || email
   );
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** '14 May' — when an admin accepted. */
+export function dayMonthText(iso: string): string {
+  const at = new Date(iso);
+  return Number.isNaN(at.getTime()) ? '—' : `${at.getDate()} ${MONTHS[at.getMonth()]}`;
 }
 
 export function plural(count: number, word: string): string {
@@ -143,6 +158,63 @@ export function buildSupervisorRows({ members, invitations, roles, employees, de
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return [...active, ...outstanding];
+}
+
+/**
+ * The Admins page rows (`ADMINS`): everyone whose role is org-wide, then any
+ * org-wide invitation. Scope is what the role grants, Access is the role
+ * itself, and Invited says when they accepted or when the invite went out.
+ */
+export function buildAdminRows({ members, invitations, roles, now }: Pick<SupervisorSources, 'members' | 'invitations' | 'roles' | 'now'>): SupervisorRow[] {
+  const roleById = new Map(roles.map((role) => [role.id, role]));
+
+  const active: SupervisorRow[] = members
+    .filter((member) => member.is_active && !member.deleted_at && isAdminRole(roleById.get(member.role_id)))
+    .map((member) => ({
+      id: member.id,
+      name: `${member.user_first_name} ${member.user_last_name}`.trim() || nameFromEmail(member.user_email),
+      sub: member.user_email,
+      department: 'Organization-wide',
+      permissions: member.role_name,
+      teamSize: `Accepted ${dayMonthText(member.joined_at)}`,
+      status: 'Active' as const,
+      tone: STATUS_TONE.Active,
+      roleId: member.role_id,
+      roleName: member.role_name,
+      email: member.user_email
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const outstanding: SupervisorRow[] = invitations
+    .filter((invitation) => isAdminRole(roleById.get(invitation.role_id)))
+    .map((invitation) => ({ invitation, status: invitationStatus(invitation, now) }))
+    .filter((entry): entry is { invitation: Invitation; status: SupervisorStatus } => entry.status !== null)
+    .map(({ invitation, status }) => ({
+      id: invitation.id,
+      name: `${invitation.first_name ?? ''} ${invitation.last_name ?? ''}`.trim() || nameFromEmail(invitation.email),
+      sub: invitation.email,
+      department: 'Organization-wide',
+      permissions: invitation.role_name,
+      teamSize: `Sent ${agoText(daysAgo(invitation.created_at, now))}`,
+      status,
+      tone: STATUS_TONE[status],
+      invitationId: invitation.id,
+      roleId: invitation.role_id,
+      roleName: invitation.role_name,
+      email: invitation.email
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return [...active, ...outstanding];
+}
+
+/** "2 admins · organization-wide access" */
+export function adminsSubtitle(rows: SupervisorRow[]): string {
+  return `${plural(rows.length, 'admin')} · organization-wide access`;
+}
+
+export function adminsCount(shown: SupervisorRow[], filter: SupervisorFilter): string {
+  return filter === 'All' ? plural(shown.length, 'admin') : `${plural(shown.length, 'admin')} · ${filter.toLowerCase()}`;
 }
 
 export function filterSupervisors(rows: SupervisorRow[], filter: SupervisorFilter, query: string): SupervisorRow[] {

@@ -1,7 +1,7 @@
-# Supervisors (Manager) — Handoff Parity
+# Supervisors and Admins (Manager) — Handoff Parity
 
 **Created:** 2026-09-19
-**Source:** `Local file check/design_handoff_shiftos/ShiftOS Dashboards.dc.html` — `PAGES["Manager/Supervisors"]` and `SUPERVISORS`, rendered by the shared toolbar (markup lines 363-376) and the generic table (lines 378-407, `TABLE_GRID`, `CELL`, `tonePill`, `avatar`), plus `MODALS.inviteSupervisor` and `MODALS.managePermissions` (lines 2697-2738).
+**Source:** `Local file check/design_handoff_shiftos/ShiftOS Dashboards.dc.html` — `PAGES["Manager/Supervisors"]` + `SUPERVISORS` and `PAGES["Manager/Admins"]` + `ADMINS`, both rendered by the shared toolbar (markup lines 363-376) and the generic table (lines 378-407, `TABLE_GRID`, `CELL`, `tonePill`, `avatar`), plus `MODALS.inviteSupervisor`, `MODALS.managePermissions` and `MODALS.inviteAdmin` (lines 2697-2738).
 **Rule:** the handoff wins (see `2026-09-12-schedule-handoff-parity.md`).
 
 ## What the page is now
@@ -30,10 +30,23 @@ The invite dialog (`invite_member`) takes the work email and which role to grant
 - The handoff has no per-row menu, so neither does this page: resending or revoking an invitation is still `/invitations`.
 - Roles whose capabilities can't be read are treated as supervisor roles rather than dropping their people from the page.
 
+## Admins — `/admins`
+
+Also a "coming soon" placeholder before; now the same table with the handoff's own columns.
+
+| Handoff part | Real behaviour |
+|---|---|
+| Header "Admins", "2 admins · organization-wide access", Invite admin | Everyone whose ShiftOS role is org-wide — they see every branch |
+| Admin / Scope / Access / Invited / Status | Name and email; Scope is "Organization-wide" (what the role grants); Access is the role itself; Invited is "Accepted 14 May" for a member or "Sent 2 days ago" for an invitation |
+| Foot "Admins manage billing and view every branch…" | Text only — the handoff gives this table no foot actions |
+| Empty view ("No admins yet", Invite admin / Learn about roles) | Shown when nobody holds an org-wide role |
+
+**Invite admin** opens the handoff's dialog, but not a form: `MembershipService.inviteMember` deliberately refuses org-wide roles, so invite issuance can never become a path to full organization access. The dialog says so and its primary button opens Members & Roles, where an existing member can be moved onto an org-wide role. A form that the server would always reject would be worse than the truth.
+
 ## Verification
 
 Preview `pnpm --filter @shiftos/web preview:schedule`, `/?as=manager&path=/supervisors` (3 supervisors, 2 invitations). Measured against the running prototype at 1440px: the search field (782.8 × 40), the four filter chips, the count, the table section (1163 × 369), every column header position, the row avatar and name block, the status pill column, the foot text and the Manage permissions button (145.5 × 32) all match; rows differ only in which person sorts first. Scripted run-through: each filter and the search, the invite dialog (invalid email blocked, role list, invitation sent), Manage permissions (six capability rows, save) and Escape closing a dialog, with no page errors. Unit tests: `packages/tests/unit/supervisors.test.ts`.
 
-## Next
+Both pages share `pages/people/rolePeopleModel.ts` (rows, filters, counts) and `pages/people/RolePeopleTable.tsx` (toolbar, table, foot), with the dialog chrome in `components/HandoffModal.tsx`.
 
-`PAGES["Manager/Admins"]` is the same generic table over the org-wide roles — `SupervisorsPage` and `supervisorsModel` are shaped so that page can reuse them.
+Admins measured the same way: section 1163 × 187, every column header, the foot text and the toolbar all match the prototype; its dialog and filters were clicked through with no page errors.

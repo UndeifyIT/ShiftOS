@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
+  adminsCount,
+  adminsSubtitle,
+  buildAdminRows,
   buildSupervisorRows,
   filterSupervisors,
   nameFromEmail,
   supervisorsCount,
   supervisorsSubtitle
-} from '../../../apps/web/src/pages/supervisors/supervisorsModel.js';
+} from '../../../apps/web/src/pages/people/rolePeopleModel.js';
 
 const BASE = { organization_id: 'org', created_at: '2025-05-01T09:00:00Z', updated_at: '2025-05-01T09:00:00Z', deleted_at: null };
 const NOW = new Date('2025-05-16T07:58:00Z');
@@ -77,7 +80,8 @@ const sources = {
     member('m1', 'Sarah', 'Johnson', 'sarah.johnson@abc.example', 'role-supervisor'),
     member('m2', 'Grace', 'Williams', 'grace.williams@abc.example', 'role-supervisor'),
     member('m0', 'Daniel', 'Okonkwo', 'daniel@abc.example', 'role-manager'),
-    member('m3', 'John', 'Doe', 'john.doe@abc.example', 'role-employee')
+    member('m3', 'John', 'Doe', 'john.doe@abc.example', 'role-employee'),
+    member('m4', 'Ngozi', 'Umeh', 'ngozi.umeh@abc.example', 'role-manager')
   ],
   invitations: [
     invitation('i1', 'chinedu.e@abc.example', 'role-supervisor', '2025-05-19T09:00:00Z'),
@@ -157,5 +161,30 @@ describe('Supervisors page (design handoff PAGES["Manager/Supervisors"] / SUPERV
   it('makes a readable name out of an invitation email', () => {
     expect(nameFromEmail('chinedu.e@abc.example')).toBe('Chinedu E');
     expect(nameFromEmail('fatima-bello@abc.example')).toBe('Fatima Bello');
+  });
+});
+
+describe('Admins page (design handoff PAGES["Manager/Admins"] / ADMINS)', () => {
+  const rows = buildAdminRows(sources);
+
+  it('lists the organization-wide logins, then org-wide invitations', () => {
+    expect(rows.map((r) => [r.name, r.department, r.permissions, r.teamSize, r.status])).toEqual([
+      ['Daniel Okonkwo', 'Organization-wide', 'Manager', 'Accepted 1 May', 'Active'],
+      ['Ngozi Umeh', 'Organization-wide', 'Manager', 'Accepted 1 May', 'Active'],
+      ['Ngozi', 'Organization-wide', 'Manager', 'Sent 15 days ago', 'Invited']
+    ]);
+  });
+
+  it('leaves every branch-scoped person to the Supervisors page', () => {
+    const emails = rows.map((r) => r.sub);
+    expect(emails).not.toContain('sarah.johnson@abc.example');
+    expect(emails).not.toContain('chinedu.e@abc.example');
+    expect(emails).not.toContain('john.doe@abc.example');
+  });
+
+  it('writes the handoff subtitle and count', () => {
+    expect(adminsSubtitle(rows)).toBe('3 admins · organization-wide access');
+    expect(adminsCount(rows, 'All')).toBe('3 admins');
+    expect(adminsCount(rows.slice(0, 1), 'Invited')).toBe('1 admin · invited');
   });
 });
