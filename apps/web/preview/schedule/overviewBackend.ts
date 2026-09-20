@@ -49,6 +49,15 @@ const PEOPLE: Array<[string, string, string, string, boolean, number | null]> = 
 
 const emailOf = (first: string, last: string): string => `${first}.${last}@abc.example`.toLowerCase();
 
+/**
+ * `?data=edge` serves the same screens with the shapes real databases
+ * actually contain — a member whose user row has no email, an employee with
+ * no department, phone, email or hire date, attendance with no shift joined —
+ * so a page that only survives tidy fixtures fails here instead of in front
+ * of someone.
+ */
+const MESSY = new URLSearchParams(window.location.search).get('data') === 'edge';
+
 export function createOverviewBackend() {
   // Employees page preview: handoff-style phone numbers, one person on leave and two inactive (EMP_STATS 17 active · 1 on leave).
   const STATUS_OF: Record<string, Employee['employment_status']> = { p10: 'on_leave', p14: 'inactive', p15: 'inactive' };
@@ -351,6 +360,39 @@ export function createOverviewBackend() {
     imports.unshift(record);
     return { import: record, imported, failed: [], invitesSent, inviteFailures: [] };
   };
+
+  if (MESSY) {
+    // p2 keeps an email, so the member lookup really runs against the null-email row below.
+    const target = employees.find((e) => e.id === 'p2');
+    if (target) Object.assign(target, { department_id: null, phone: null, hire_date: null, avatar_url: 'employees/org/p2/missing.png', reports_to_employee_id: 'nobody' });
+    const noEmail = employees.find((e) => e.id === 'p3');
+    if (noEmail) Object.assign(noEmail, { email: null, department_id: null });
+    members.push(
+      stamp({ id: 'mem-ghost', user_id: 'user-ghost', role_id: 'role-supervisor', joined_at: CREATED, is_active: true, user_email: null as unknown as string, user_first_name: 'Ghost', user_last_name: 'Row', role_name: 'Supervisor' })
+    );
+    history.push({
+      ...stamp({ id: 'hist-messy' }),
+      branch_id: BRANCH,
+      shift_assignment_id: 'asg-missing',
+      employee_id: 'p2',
+      attendance_status: 'present' as const,
+      clock_in_at: at(16, 9, 0),
+      clock_out_at: null,
+      break_minutes: 0,
+      worked_minutes: 0,
+      overtime_minutes: 0,
+      late_minutes: 0,
+      early_departure_minutes: 0,
+      notes: null,
+      recorded_by: 'user-me',
+      updated_by: null,
+      version: 1,
+      shift_date: null,
+      shift_start_time: null,
+      shift_end_time: null,
+      shift_title: null
+    });
+  }
 
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
     list_employee_imports: () => imports.slice(0, 5),

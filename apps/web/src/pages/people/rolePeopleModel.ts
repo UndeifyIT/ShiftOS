@@ -6,6 +6,7 @@
  * haven't been accepted yet. Supervisors hold a branch-scoped role, admins an
  * org-wide one. Pure, so the counts and labels are unit-testable.
  */
+import { emailKey } from '../../lib/members.js';
 import type { Department, Employee, Invitation, Member, Role } from '../../types/domain.js';
 import { agoText, daysAgo } from '../dashboard/manager/overviewModel.js';
 import type { Tone } from '../scheduling/grid/scheduleFormat.js';
@@ -125,12 +126,12 @@ export function buildSupervisorRows({ members, invitations, roles, employees, de
   const roleById = new Map(roles.map((role) => [role.id, role]));
   const departmentName = new Map(departments.map((department) => [department.id, department.name]));
   const staff = employees.filter((employee) => !employee.deleted_at && employee.employment_status !== 'terminated');
-  const employeeByEmail = new Map(staff.filter((employee) => employee.email).map((employee) => [employee.email!.toLowerCase(), employee]));
+  const employeeByEmail = new Map(staff.map((employee) => [emailKey(employee.email), employee] as const).filter((entry): entry is readonly [string, Employee] => entry[0] !== null));
 
   const active: SupervisorRow[] = members
     .filter((member) => member.is_active && !member.deleted_at && isSupervisorRole(roleById.get(member.role_id), permissionCounts))
     .map((member) => {
-      const employee = employeeByEmail.get(member.user_email.toLowerCase());
+      const employee = employeeByEmail.get(emailKey(member.user_email) ?? '');
       const reports = employee ? staff.filter((person) => person.id !== employee.id && person.reports_to_employee_id === employee.id).length : 0;
       const sameDepartment = employee?.department_id
         ? staff.filter((person) => person.id !== employee.id && person.department_id === employee.department_id).length
