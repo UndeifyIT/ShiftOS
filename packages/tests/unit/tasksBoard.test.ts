@@ -50,6 +50,7 @@ const task = (id: string, fields: Partial<Task>): Task =>
     due_date: '2025-05-16',
     due_time: null,
     priority: 'normal',
+    recurrence: 'none',
     task_status: 'draft',
     assigned_supervisor_id: null,
     assigned_by: null,
@@ -92,6 +93,20 @@ describe('tasks board', () => {
     expect(todo.cards[1]).toMatchObject({ meta: 'Due 11:00 AM', priority: 'Low', assignee: 'Unassigned' });
     expect(progress.cards[0].meta).toBe('Started 07:10 AM · Warehouse');
     expect(done.cards[0]).toMatchObject({ meta: 'Completed 07:15 AM', done: true });
+  });
+
+  it('says on the card when a task repeats, since nothing else can', () => {
+    const [todo, , done] = buildBoard({
+      tasks: [
+        task('walk', { title: 'Floor walk', task_status: 'assigned', assigned_supervisor_id: 'p1', due_time: '09:00:00', recurrence: 'daily' }),
+        task('cold', { title: 'Cold room', task_status: 'completed', assigned_supervisor_id: 'p2', completed_at: at(7, 15), recurrence: 'weekdays' })
+      ],
+      employees,
+      departments,
+      now: NOW
+    });
+    expect(todo.cards[0]).toMatchObject({ meta: 'Due 09:00 AM · Front End · repeats daily', repeats: true });
+    expect(done.cards[0].meta).toBe('Completed 07:15 AM · repeats every weekday');
   });
 
   it('leaves a cancelled task off the board', () => {

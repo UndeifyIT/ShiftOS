@@ -16,6 +16,7 @@
 | Card check circle | Ticking runs the real RPC: `complete_task` for an owned task, `reopen_task` to undo it. A `draft` has no owner, and the schema only lets an assigned task be completed, so ticking one opens the assign dialog instead |
 | "Due 10:00 AM · Front End" | The due time, then the owner's department. In progress cards read "Started HH:MM" from `assigned_at`; Completed cards read "Completed HH:MM" from `completed_at`. A task carried over from an earlier day says which day |
 | Priority pill | `low` → Low, `normal` → Medium, `high` → High, in the handoff's own tones; the schema's fourth level shows as Critical |
+| New task "Repeats" | Real, backed by migration 066 — see below |
 | Owner, or "Unassigned" | Clicking it assigns the task (`assign_task`) |
 | Empty column "Nothing here" | Shown per column, dashed, as drawn |
 | Empty page: "No tasks today" + Create task / Copy yesterday | Copy yesterday really copies: every task dated yesterday is created again for today, title, description, time and priority intact |
@@ -30,9 +31,22 @@ The board is everything still open — including anything carried over from an e
 
 `tasks` (012) has no department column, so a card's department is its **owner's**. An unassigned task shows just its due time, and the New task form's Department field narrows the list of people to assign to rather than being stored. That is the one place the board can show less than the prototype's fixture does, and it was preferred to inventing a column.
 
+## Repeats (migration 066)
+
+The handoff's form offers "Repeats", and the checks this board exists for — cold room, floor walk, restock round — are daily work. `tasks` had no way to say so, so **066 adds one column**: `recurrence task_recurrence_enum NOT NULL DEFAULT 'none'` over `('none','daily','weekdays','weekly')`. Additive only; every existing row keeps today's behaviour and no constraint or trigger moves.
+
+**There is no scheduler in this system and 066 does not add one.** The chain advances on completion: `TaskService.completeTask` creates the next occurrence (`nextTaskOccurrence`, unit-tested — daily rolls the calendar, weekdays carries Friday and the weekend to Monday, weekly keeps its day). That has a property worth keeping: an unfinished daily check **stays on the board** instead of being silently replaced by tomorrow's copy. The owner carries over when they are still an active employee of the branch, because the trigger rejects anything else; otherwise the next one arrives unassigned.
+
+Spawning the next occurrence deliberately does **not** require `tasks.create`: whoever set the task up authorized the repetition, and the person finishing the work is only closing the loop.
+
+The handoff's placeholder is "Every shift"; tasks have no shift link in the schema (no `shift_id` on `tasks`), so the choices are Every day / Every weekday / Every week, plus "Does not repeat".
+
+A repeating task says so on its card — "Due 09:00 AM · Front End · repeats daily". The handoff's card has nowhere else to put it, and recurrence you cannot see is worse than a third segment on a line already built out of them.
+
+**This migration must be applied before this code is deployed**: `create_task` now always writes `recurrence`, so it would fail against a database that lacks the column.
+
 ## Deliberate deviations
 
-- **No "Repeats" field** in the New task form. The handoff offers "Every shift"; there is no recurrence anywhere in the schema, and a control that silently does nothing is worse than an absent one.
 - **Verify, cancel and archive left the page** with the old table, along with the task-history modal. The RPCs are untouched (`verify_task`, `cancel_task`, `archive_task`, `get_task_history`); the handoff's board has no menu to hang them on, so they need a home of their own if they are wanted back.
 - The card's owner is a button; it looks exactly like the handoff's text and only underlines on hover.
 

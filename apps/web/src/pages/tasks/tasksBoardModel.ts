@@ -1,4 +1,4 @@
-import type { Department, Employee, Task, TaskPriority, TaskStatus } from '../../types/domain.js';
+import type { Department, Employee, Task, TaskPriority, TaskRecurrence, TaskStatus } from '../../types/domain.js';
 import type { Tone } from '../scheduling/grid/scheduleFormat.js';
 
 /*
@@ -29,6 +29,15 @@ export const PRIORITY_LABEL: Record<TaskPriority, string> = { low: 'Low', normal
 export const PRIORITY_TONE: Record<TaskPriority, Tone> = { low: 'info', normal: 'warn', high: 'bad', critical: 'bad' };
 const PRIORITY_RANK: Record<TaskPriority, number> = { critical: 0, high: 1, normal: 2, low: 3 };
 
+/** The "Repeats" choices (066), as the form offers them and as a card says them. */
+export const RECURRENCE_LABEL: Record<TaskRecurrence, string> = {
+  none: 'Does not repeat',
+  daily: 'Every day',
+  weekdays: 'Every weekday',
+  weekly: 'Every week'
+};
+const RECURRENCE_META: Record<TaskRecurrence, string> = { none: '', daily: 'repeats daily', weekdays: 'repeats every weekday', weekly: 'repeats weekly' };
+
 export interface TaskCard {
   id: string;
   title: string;
@@ -41,6 +50,8 @@ export interface TaskCard {
   done: boolean;
   status: TaskStatus;
   overdue: boolean;
+  /** Completing it creates the next occurrence (066). */
+  repeats: boolean;
 }
 
 export interface TaskColumn {
@@ -113,12 +124,17 @@ export function onTodaysBoard(task: Task, now: Date): boolean {
   return due === null || due <= new Date(`${todayOf(now)}T23:59:59`).getTime();
 }
 
-/** The meta line under a card's title. */
+/**
+ * The meta line under a card's title. A repeating task says so here: the
+ * handoff's card has nowhere else to put it, and recurrence you cannot see is
+ * worse than a third segment on a line already built out of them.
+ */
 function metaOf(task: Task, column: ColumnTitle, department: string | null, now: Date): string {
-  const suffix = department ? ` · ${department}` : '';
+  const repeats = RECURRENCE_META[task.recurrence] ?? '';
+  const suffix = `${department ? ` · ${department}` : ''}${repeats ? ` · ${repeats}` : ''}`;
   if (column === 'Completed') {
     const at = clockFromIso(task.completed_at) || clockFromIso(task.verified_at);
-    return at ? `Completed ${at}` : 'Completed today';
+    return `${at ? `Completed ${at}` : 'Completed today'}${repeats ? ` · ${repeats}` : ''}`;
   }
   if (column === 'In progress') {
     const started = clockFromIso(task.assigned_at);
@@ -173,7 +189,8 @@ export function buildBoard({ tasks, employees, departments, now }: BoardSources)
       assigneeId: task.assigned_supervisor_id,
       done: isDone(task),
       status: task.task_status,
-      overdue: isOverdue(task, now)
+      overdue: isOverdue(task, now),
+      repeats: task.recurrence !== 'none'
     });
   }
 

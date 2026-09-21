@@ -405,7 +405,8 @@ export function createOverviewBackend() {
     status: Task['task_status'],
     ownerId: string | null,
     dueTime: string | null,
-    when: string | null
+    when: string | null,
+    recurrence: Task['recurrence'] = 'none'
   ): Task => ({
     ...stamp({ id }),
     branch_id: BRANCH,
@@ -414,6 +415,7 @@ export function createOverviewBackend() {
     due_date: '2025-05-16',
     due_time: dueTime,
     priority,
+    recurrence,
     task_status: status,
     assigned_supervisor_id: ownerId,
     assigned_by: ownerId ? 'user-me' : null,
@@ -431,12 +433,22 @@ export function createOverviewBackend() {
   });
   const tasks: Task[] = [
     task('t1', 'Restock beverages in aisle 4', 'normal', 'assigned', 'p16', '10:00:00', null),
-    task('t2', 'Bakery preparation check', 'low', 'draft', null, '11:00:00', null),
+    task('t2', 'Bakery preparation check', 'low', 'draft', null, '11:00:00', null, 'daily'),
     task('t3', 'Floor cleanliness check', 'low', 'assigned', 'p20', '14:00:00', null),
-    task('t4', 'Weekly stock count', 'high', 'in_progress', 'p12', null, at(16, 9, 10)),
-    task('t5', 'Check cold room temperature', 'high', 'completed', 'p12', '08:00:00', at(16, 8, 15)),
-    task('t6', 'Morning store walkthrough', 'normal', 'completed', 'p1', '08:00:00', at(16, 8, 25))
+    task('t4', 'Weekly stock count', 'high', 'in_progress', 'p12', null, at(16, 9, 10), 'weekly'),
+    task('t5', 'Check cold room temperature', 'high', 'completed', 'p12', '08:00:00', at(16, 8, 15), 'daily'),
+    task('t6', 'Morning store walkthrough', 'normal', 'completed', 'p1', '08:00:00', at(16, 8, 25), 'weekdays')
   ];
+  const DAY = 86_400_000;
+  const nextDue = (from: string, recurrence: Task['recurrence']): string | null => {
+    if (recurrence === 'none') return null;
+    const start = Date.parse(`${from}T00:00:00Z`);
+    if (recurrence === 'weekly') return new Date(start + 7 * DAY).toISOString().slice(0, 10);
+    if (recurrence === 'daily') return new Date(start + DAY).toISOString().slice(0, 10);
+    let next = start + DAY;
+    while ([0, 6].includes(new Date(next).getUTCDay())) next += DAY;
+    return new Date(next).toISOString().slice(0, 10);
+  };
   const taskOr = (id: unknown): Task => {
     const found = tasks.find((row) => row.id === id);
     if (!found) throw new Error('Task not found');
@@ -565,7 +577,8 @@ export function createOverviewBackend() {
         'draft',
         null,
         (input.dueTime as string) ?? null,
-        null
+        null,
+        (input.recurrence as Task['recurrence']) ?? 'none'
       );
       row.due_date = (input.dueDate as string) ?? row.due_date;
       row.description = (input.description as string) ?? null;
@@ -586,6 +599,13 @@ export function createOverviewBackend() {
       row.completed_at = NOW;
       row.completed_by = 'user-me';
       row.completion_notes = (input.notes as string) ?? null;
+      // Finishing a repeating task creates its next occurrence, as the service does (066).
+      const due = nextDue(row.due_date ?? '2025-05-16', row.recurrence);
+      if (due) {
+        const next = task(`task-${Date.now()}`, row.title, row.priority, row.assigned_supervisor_id ? 'assigned' : 'draft', row.assigned_supervisor_id, row.due_time, null, row.recurrence);
+        next.due_date = due;
+        tasks.push(next);
+      }
       return row;
     },
     reopen_task: (input) => {

@@ -242,6 +242,8 @@ export interface ShiftAssignment {
 export type TaskStatus = 'draft' | 'assigned' | 'in_progress' | 'completed' | 'verified' | 'cancelled';
 export type TaskPriority = 'low' | 'normal' | 'high' | 'critical';
 export type TaskVerificationStatus = 'pending' | 'verified' | 'rework_required';
+/** How often a task comes back (066); completing a repeating task creates its next occurrence. */
+export type TaskRecurrence = 'none' | 'daily' | 'weekdays' | 'weekly';
 
 export interface Task {
   id: string;
@@ -252,6 +254,7 @@ export interface Task {
   due_date: string | null;
   due_time: string | null;
   priority: TaskPriority;
+  recurrence: TaskRecurrence;
   task_status: TaskStatus;
   assigned_supervisor_id: string | null;
   assigned_by: string | null;

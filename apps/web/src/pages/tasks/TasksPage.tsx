@@ -6,7 +6,7 @@ import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import { HandoffModal, ModalField, ModalFields, modalControl } from '../../components/HandoffModal.js';
 import { emailKey } from '../../lib/members.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import type { Department, Employee, Task, TaskPriority } from '../../types/domain.js';
+import type { Department, Employee, Task, TaskPriority, TaskRecurrence } from '../../types/domain.js';
 import { OverviewEmpty, OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
 import { HeaderCta } from '../people/RolePeopleTable.js';
@@ -17,6 +17,7 @@ import {
   boardTotal,
   filterBoard,
   PRIORITY_LABEL,
+  RECURRENCE_LABEL,
   TASK_FILTERS,
   tasksCount,
   tasksSubtitle,
@@ -39,6 +40,7 @@ import {
 const pillStyle = (tone: Tone): React.CSSProperties => ({ color: TONES[tone][0], backgroundColor: TONES[tone][1] });
 
 const PRIORITY_OPTIONS: TaskPriority[] = ['low', 'normal', 'high', 'critical'];
+const RECURRENCE_OPTIONS: TaskRecurrence[] = ['none', 'daily', 'weekdays', 'weekly'];
 
 function NewTaskModal({
   open,
@@ -52,7 +54,7 @@ function NewTaskModal({
   employees: Employee[];
   departments: Department[];
   onClose: () => void;
-  onCreate: (input: { title: string; dueTime: string; priority: TaskPriority; assigneeId: string }) => void;
+  onCreate: (input: { title: string; dueTime: string; priority: TaskPriority; recurrence: TaskRecurrence; assigneeId: string }) => void;
   pending: boolean;
 }): React.ReactElement {
   const [title, setTitle] = useState('');
@@ -60,6 +62,7 @@ function NewTaskModal({
   const [assigneeId, setAssigneeId] = useState('');
   const [dueTime, setDueTime] = useState('10:00');
   const [priority, setPriority] = useState<TaskPriority>('normal');
+  const [recurrence, setRecurrence] = useState<TaskRecurrence>('none');
   const [error, setError] = useState<string | null>(null);
 
   const people = employees.filter((employee) => employee.is_active && (!departmentId || employee.department_id === departmentId));
@@ -70,7 +73,7 @@ function NewTaskModal({
       return;
     }
     setError(null);
-    onCreate({ title: title.trim(), dueTime, priority, assigneeId });
+    onCreate({ title: title.trim(), dueTime, priority, recurrence, assigneeId });
   };
 
   return (
@@ -141,9 +144,24 @@ function NewTaskModal({
             ))}
           </select>
         </ModalField>
+        <ModalField label="Repeats">
+          <select
+            value={recurrence}
+            aria-label="Repeats"
+            onChange={(event) => setRecurrence(event.target.value as TaskRecurrence)}
+            className={`${modalControl} cursor-pointer`}
+          >
+            {RECURRENCE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {RECURRENCE_LABEL[option]}
+              </option>
+            ))}
+          </select>
+        </ModalField>
       </ModalFields>
       <p className="mx-[22px] mb-0 mt-3.5 rounded-[13px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] p-3.5 text-[12.5px] leading-[1.55] text-[#57504A]">
-        The task lands on today&rsquo;s board. Whoever owns it carries their department with them — that is the department the card shows.
+        The task lands on today&rsquo;s board. Whoever owns it carries their department with them — that is the department the card shows. A repeating
+        task comes back when this one is ticked off, not before: an unfinished check stays put.
       </p>
       {error ? <p className="mx-[22px] mb-0 mt-2.5 text-[12px] font-semibold text-[#C93A22]">{error}</p> : null}
     </HandoffModal>
@@ -346,15 +364,17 @@ export default function TasksPage(): React.ReactElement {
     title,
     dueTime,
     priority,
+    recurrence,
     assigneeId
   }: {
     title: string;
     dueTime: string;
     priority: TaskPriority;
+    recurrence: TaskRecurrence;
     assigneeId: string;
   }): Promise<void> => {
     try {
-      const task = await create.mutateAsync({ branchId, title, dueDate: todayOf(now), dueTime: dueTime || null, priority });
+      const task = await create.mutateAsync({ branchId, title, dueDate: todayOf(now), dueTime: dueTime || null, priority, recurrence });
       if (assigneeId && canAssign) await assign.mutateAsync({ taskId: task.id, supervisorEmployeeId: assigneeId });
       setCreateOpen(false);
       show('Task created');
@@ -379,7 +399,8 @@ export default function TasksPage(): React.ReactElement {
           description: task.description,
           dueDate: todayOf(now),
           dueTime: task.due_time,
-          priority: task.priority
+          priority: task.priority,
+          recurrence: task.recurrence
         });
       }
       show(`Copied ${previous.length} task${previous.length === 1 ? '' : 's'} from yesterday`);
@@ -406,7 +427,7 @@ export default function TasksPage(): React.ReactElement {
     return () => {
       complete
         .mutateAsync({ taskId: card.id })
-        .then(() => show(`${card.title} done`))
+        .then(() => show(card.repeats ? `${card.title} done · the next one is on its way` : `${card.title} done`))
         .catch((problem: unknown) => show(problem instanceof Error ? problem.message : 'Could not complete the task'));
     };
   };

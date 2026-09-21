@@ -1,5 +1,5 @@
 import { TaskService } from '@shiftos/services';
-import type { TaskPriority, TaskStatus, TaskVerificationStatus } from '@shiftos/repositories';
+import type { TaskPriority, TaskRecurrence, TaskStatus, TaskVerificationStatus } from '@shiftos/repositories';
 import { defineRpc } from '../rpc.js';
 import { asRecord, requiredStringField, stringField, numberField } from '../parse.js';
 
@@ -11,7 +11,8 @@ export const createTask = defineRpc('create_task', async (context, rawInput: unk
     description: stringField(input, 'description') ?? null,
     dueDate: stringField(input, 'dueDate') ?? null,
     dueTime: stringField(input, 'dueTime') ?? null,
-    priority: stringField(input, 'priority') as TaskPriority | undefined
+    priority: stringField(input, 'priority') as TaskPriority | undefined,
+    recurrence: stringField(input, 'recurrence') as TaskRecurrence | undefined
   });
 });
 
@@ -28,7 +29,8 @@ export const updateTask = defineRpc('update_task', async (context, rawInput: unk
     description: stringField(input, 'description') ?? (input.description === null ? null : undefined),
     dueDate: stringField(input, 'dueDate') ?? (input.dueDate === null ? null : undefined),
     dueTime: stringField(input, 'dueTime') ?? (input.dueTime === null ? null : undefined),
-    priority: stringField(input, 'priority') as TaskPriority | undefined
+    priority: stringField(input, 'priority') as TaskPriority | undefined,
+    recurrence: stringField(input, 'recurrence') as TaskRecurrence | undefined
   });
 });
 
