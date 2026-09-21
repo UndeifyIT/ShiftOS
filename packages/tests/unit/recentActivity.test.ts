@@ -39,7 +39,7 @@ const tasks = [
   { ...BASE, id: 't1', branch_id: 'br', title: 'Check cold room temperature', description: null, due_date: '2025-05-16', due_time: '08:00:00', priority: 'high' as const, recurrence: 'daily' as const, task_status: 'completed' as const, assigned_supervisor_id: 'p2', assigned_by: 'user-sarah', assigned_at: at(16, 7, 20), completed_at: at(16, 8, 2), completed_by: 'user-sarah', completion_notes: null, verified_at: null, verified_by: null, verification_notes: null, verification_status: 'pending' as const, created_by: 'user-sarah', updated_by: null, version: 1 }
 ];
 const announcements = [
-  { ...BASE, id: 'a1', branch_id: 'br', title: 'New Promotion This Weekend', content: 'Displays up by 10 AM.', announcement_type: 'general' as const, visibility_type: 'branch' as const, is_published: true, published_at: at(16, 7, 30), expires_at: null, created_by: 'user-sarah' }
+  { ...BASE, id: 'a1', branch_id: 'br', title: 'New Promotion This Weekend', content: 'Displays up by 10 AM.', announcement_type: 'general' as const, visibility_type: 'branch' as const, is_published: true, is_pinned: false, requires_acknowledgement: false, published_at: at(16, 7, 30), expires_at: null, created_by: 'user-sarah' }
 ];
 
 const schedules = [
