@@ -48,7 +48,9 @@ The handoff's eighth fixture row, "System check completed · All systems operati
 
 ## A note on the prototype
 
-The `kindActivity` block in the handoff has a stray `</sc-if>` inside it (between Quick Actions and the closing grid), which breaks the binder: rendered, that page shows `{{ a.time }}` placeholders and an unstyled Quick Actions button outside the rail. The page here is therefore built to the **source markup's** sizes rather than to that broken render: the 244px rail with both sections in it, `repeat(auto-fit,minmax(170px,1fr))` stat tiles at 14px gap, the `76px 36px minmax(0,1fr) 168px 30px` row track at 10px gap and 13px/18px padding, the 30px icon on a 1.5px × 28px `#F2EEEA` connector, 38px search and sort controls, and 32px pager buttons.
+**Corrected 2026-09-21.** This section previously said the handoff's `kindActivity` block was malformed and that this was why the prototype rendered `{{ a.time }}` placeholders. That was wrong. The prototype loads its runtime from a CDN; when that is unreachable the page never hydrates and the whole file renders as raw template — every page's markup at once, `{{ }}` everywhere, which is what was measured. There is a stray `</sc-if>` in that block, but nothing observed here shows it breaks anything.
+
+The page is therefore built to the handoff's **literal inline styles**, which are exact because they are written in the file rather than inferred from a render: the 244px rail with both sections in it, `repeat(auto-fit,minmax(170px,1fr))` stat tiles at 14px gap, the `76px 36px minmax(0,1fr) 168px 30px` row track at 10px gap and 13px/18px padding, the 30px icon on a 1.5px × 28px `#F2EEEA` connector, 38px search and sort controls, and 32px pager buttons.
 
 The one addition: below 1100px the rail drops under the timeline instead of squeezing, since the handoff's grid is fixed at two columns and would overflow a phone.
 

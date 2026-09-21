@@ -329,6 +329,10 @@ export interface Announcement {
   announcement_type: AnnouncementType;
   visibility_type: AnnouncementVisibility;
   is_published: boolean;
+  /** Pinned posts sort above the rest and are highlighted (067). */
+  is_pinned: boolean;
+  /** Whether recipients are asked to acknowledge this one (067). */
+  requires_acknowledgement: boolean;
   published_at: string | null;
   expires_at: string | null;
   created_by: string;

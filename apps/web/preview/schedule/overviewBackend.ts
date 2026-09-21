@@ -6,7 +6,7 @@
  * waiting, 2 supervisor invitations, next week still a draft, and the
  * handoff's two announcements.
  */
-import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap, Task } from '../../src/types/domain.js';
+import type { Announcement, AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap, Task } from '../../src/types/domain.js';
 
 const ORG = 'org-abc-supermarket';
 const BRANCH = 'br-main';
@@ -523,6 +523,81 @@ export function createOverviewBackend() {
     return found;
   };
 
+  // Announcements screen: the handoff's three posts (ANNOUNCEMENTS), one
+  // pinned, with the acknowledgements that fill the receipts panel.
+  const announcement = (
+    id: string,
+    title: string,
+    content: string,
+    type: Announcement['announcement_type'],
+    publishedAt: string,
+    author: string,
+    pinned: boolean,
+    needsAck: boolean,
+    orgWide = false
+  ): Announcement => ({
+    ...stamp({ id }),
+    branch_id: orgWide ? null : BRANCH,
+    title,
+    content,
+    announcement_type: type,
+    visibility_type: orgWide ? 'organization' : 'branch',
+    is_published: true,
+    is_pinned: pinned,
+    requires_acknowledgement: needsAck,
+    published_at: publishedAt,
+    expires_at: null,
+    created_by: author
+  });
+  const announcements: Announcement[] = [
+    announcement(
+      'ann-stocktake',
+      'Stocktake weekend — we close at 6 PM Saturday',
+      "We close early on Saturday for the monthly stocktake. Supervisors should confirm their team's finish times by Friday afternoon.",
+      'operational',
+      at(15, 17, 40),
+      'user-me',
+      true,
+      true
+    ),
+    announcement(
+      'ann-promotion',
+      'New promotion display goes live Friday',
+      "Ensure all displays are updated and shelves are stocked before 10 AM. Ask Sarah if you're unsure where stock goes.",
+      'general',
+      at(16, 7, 30),
+      'user-p1',
+      false,
+      true
+    ),
+    announcement(
+      'ann-threshold',
+      'Late threshold moves to 10 minutes from 1 June',
+      'The grace period shortens from 15 to 10 minutes. Please brief your teams before the change takes effect.',
+      'policy',
+      at(12, 9, 0),
+      'user-me',
+      false,
+      false,
+      true
+    )
+  ];
+  const announcementOr = (id: unknown): Announcement => {
+    const found = announcements.find((row) => row.id === id);
+    if (!found) throw new Error('Announcement not found');
+    return found;
+  };
+  // employee id -> when they acknowledged, per announcement.
+  const ACKNOWLEDGED: Record<string, Record<string, string>> = {
+    'ann-stocktake': {
+      p1: at(15, 18, 42), p7: at(15, 19, 10), p16: at(16, 6, 55), p2: at(16, 7, 31), p12: at(16, 7, 34),
+      p3: at(16, 7, 36), p4: at(16, 7, 41), p5: at(16, 7, 44), p6: at(16, 7, 45), p9: at(16, 7, 47),
+      p11: at(16, 7, 48), p13: at(16, 7, 50), p17: at(16, 7, 52), p18: at(16, 7, 53), p19: at(16, 7, 55), p20: at(16, 7, 56)
+    },
+    'ann-promotion': { p2: at(16, 7, 33), p12: at(16, 7, 35), p1: at(16, 7, 39) },
+    'ann-threshold': { p1: at(12, 9, 2), p7: at(12, 9, 14), p16: at(12, 10, 41) }
+  };
+
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
     list_employee_imports: () => imports.slice(0, 5),
     import_employees: importEmployees,
@@ -608,32 +683,57 @@ export function createOverviewBackend() {
       leave('lv-3', 'p2', '2025-06-09', '2025-06-09', 'annual_leave', 'Graduation ceremony', 15)
     ],
     list_pending_shift_swap_approvals: () => [swap('sw-1', 'asg-p8', 'p8', 'p11'), swap('sw-2', 'asg-p9', 'p9', 'p10')],
-    list_announcements: () => [
-      {
-        ...stamp({ id: 'ann-stocktake' }),
-        branch_id: BRANCH,
-        title: 'Stocktake weekend â€” we close at 6 PM Saturday',
-        content: "We close early on Saturday for the monthly stocktake. Supervisors should confirm their team's finish times by Friday afternoon.",
-        announcement_type: 'operational',
-        visibility_type: 'branch',
-        is_published: true,
-        published_at: at(15, 17, 40),
+    list_announcements: () => announcements,
+    create_announcement: (input) => {
+      const row: Announcement = {
+        ...stamp({ id: `ann-${Date.now()}` }),
+        branch_id: (input.branchId as string) ?? null,
+        title: String(input.title),
+        content: String(input.content),
+        announcement_type: (input.announcementType as Announcement['announcement_type']) ?? 'general',
+        visibility_type: input.branchId ? 'branch' : 'organization',
+        is_published: false,
+        is_pinned: Boolean(input.isPinned),
+        requires_acknowledgement: Boolean(input.requiresAcknowledgement),
+        published_at: null,
         expires_at: null,
         created_by: 'user-me'
-      },
-      {
-        ...stamp({ id: 'ann-promotion' }),
-        branch_id: BRANCH,
-        title: 'New promotion display goes live Friday',
-        content: "Ensure all displays are updated and shelves are stocked before 10 AM. Ask Sarah if you're unsure where stock goes.",
-        announcement_type: 'general',
-        visibility_type: 'branch',
-        is_published: true,
-        published_at: at(16, 7, 30),
-        expires_at: null,
-        created_by: 'user-p1'
-      }
-    ],
+      };
+      announcements.push(row);
+      return row;
+    },
+    publish_announcement: (input) => {
+      const row = announcementOr(input.announcementId);
+      row.is_published = true;
+      row.published_at = NOW;
+      return row;
+    },
+    update_announcement: (input) => {
+      const row = announcementOr(input.announcementId);
+      if ('isPinned' in input) row.is_pinned = Boolean(input.isPinned);
+      if ('requiresAcknowledgement' in input) row.requires_acknowledgement = Boolean(input.requiresAcknowledgement);
+      if ('title' in input) row.title = String(input.title);
+      if ('content' in input) row.content = String(input.content);
+      return row;
+    },
+    // Receipts are the branch's active employees, with whoever has acknowledged carrying a timestamp.
+    list_announcement_receipts: (input) => {
+      const acknowledged = ACKNOWLEDGED[String(input.announcementId)] ?? {};
+      return employees
+        .filter((employee) => employee.is_active && employee.employment_status !== 'inactive')
+        .map((employee) => ({
+          employeeId: employee.id,
+          name: `${employee.first_name} ${employee.last_name}`.trim(),
+          departmentId: employee.department_id,
+          email: employee.email,
+          acknowledgedAt: acknowledged[employee.id] ?? null
+        }));
+    },
+    remind_announcement: (input) => {
+      const acknowledged = ACKNOWLEDGED[String(input.announcementId)] ?? {};
+      const outstanding = employees.filter((e) => e.is_active && e.employment_status !== 'inactive' && !acknowledged[e.id]);
+      return { reminded: outstanding.filter((e) => e.email).length, unreachable: outstanding.filter((e) => !e.email).length };
+    },
     // Tasks screen: creating, assigning, completing and reopening all move the
     // same rows the board reads, exactly as the real RPCs do.
     list_tasks: () => tasks,

@@ -1,292 +1,478 @@
 import React, { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { PermissionDenied } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
-import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
-import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import { AuthBanner } from '../auth/AuthInputs.js';
-import { DashHeader } from '../dashboard/dashboardWidgets.js';
-import { ObSelect } from '../onboarding/OnboardingFields.js';
-import type { Announcement, Branch } from '../../types/domain.js';
+import { HandoffModal, ModalField, ModalFields, modalControl } from '../../components/HandoffModal.js';
+import { useRpcMutation } from '../../lib/useRpc.js';
+import type { Announcement } from '../../types/domain.js';
+import { OverviewEmpty, OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
+import { useNow } from '../dashboard/manager/useManagerOverview.js';
+import { HeaderCta } from '../people/RolePeopleTable.js';
+import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
+import { avatarTone, initialsOf, TONES, type Tone } from '../scheduling/grid/scheduleFormat.js';
+import {
+  ANNOUNCEMENT_FILTERS,
+  announcementsCount,
+  announcementsSubtitle,
+  buildReceipts,
+  filterCards,
+  filterReceipts,
+  RECEIPT_FILTERS,
+  receiptSummary,
+  type AnnouncementCard,
+  type AnnouncementFilter,
+  type ReceiptFilter
+} from './announcementsModel.js';
+import { useAnnouncements } from './useAnnouncements.js';
 
-/**
- * Announcements, recreated from `ShiftOS Dashboards.dc.html`'s
- * kindAnnouncements renderer: audience-pilled cards with type, publish state
- * and per-user acknowledgement. Managers/supervisors get the composer +
- * publish controls (announcements.create/publish permissions); staff get the
- * Acknowledge button (announcements.acknowledge). The design's
- * acknowledgement-receipts aside is omitted — the backend exposes
- * per-user acknowledgement only, no per-announcement ack counts to chart.
+/*
+ * WEB-012 — the Manager's Announcements screen, built to the design handoff
+ * (`ShiftOS Dashboards.dc.html`: `PAGES["Manager/Announcements"]`, the shared
+ * toolbar at markup lines 363-376 and the `kindAnnouncements` block at
+ * 1215-1283): the posts on the left, each with its audience, acknowledgement
+ * bar and Receipts button, and the receipts panel for the selected one on the
+ * right. Sizes are the prototype's rendered ones.
  */
 
-const TYPE_LABELS: Record<string, string> = {
-  general: 'General',
-  policy: 'Policy',
-  safety: 'Safety',
-  operational: 'Operational',
-  emergency: 'Emergency'
-};
+const pillStyle = (tone: Tone): React.CSSProperties => ({ color: TONES[tone][0], backgroundColor: TONES[tone][1] });
 
-const TYPE_TONES: Record<string, string> = {
-  general: 'bg-neutral-100 text-neutral-600',
-  policy: 'bg-info-50 text-info-600',
-  safety: 'bg-error-50 text-error-600',
-  operational: 'bg-brand-soft text-brand-deep',
-  emergency: 'bg-error-50 text-error-600'
-};
-
-function timeAgo(iso: string | null): string {
-  if (!iso) return 'draft';
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 3600) return `${Math.max(1, Math.floor(seconds / 60))}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
-}
-
-export default function AnnouncementsPage(): React.ReactElement {
-  const { hasPermission } = useSession();
-  const canCreate = hasPermission('announcements.create');
-  const canPublish = hasPermission('announcements.publish');
-  const canAcknowledge = hasPermission('announcements.acknowledge');
-  const canReadBranches = hasPermission('branches.read');
-
-  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canReadBranches });
-  // A Manager only ever addresses their own branch (or everyone) — other branches aren't offered.
-  const homeBranchId = useDefaultBranchId();
-  const audienceBranches = (branches ?? []).filter((b) => !homeBranchId || b.id === homeBranchId);
-  const { data: announcements, isLoading, refetch } = useRpcQuery<Announcement[]>('list_announcements');
-
-  // `?compose=1` (the overview's Ask ShiftOS "Open announcement form") opens the composer straight away.
-  const [searchParams] = useSearchParams();
-  const [composerOpen, setComposerOpen] = useState(() => canCreate && searchParams.get('compose') === '1');
+function NewAnnouncementModal({
+  open,
+  branchName,
+  canPostOrgWide,
+  onClose,
+  onPost,
+  pending
+}: {
+  open: boolean;
+  branchName: string;
+  canPostOrgWide: boolean;
+  onClose: () => void;
+  onPost: (input: { orgWide: boolean; title: string; content: string; requiresAcknowledgement: boolean; isPinned: boolean }) => void;
+  pending: boolean;
+}): React.ReactElement {
+  const [orgWide, setOrgWide] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [audience, setAudience] = useState('organization');
-  const [type, setType] = useState('general');
+  const [requiresAcknowledgement, setRequiresAcknowledgement] = useState(true);
+  const [isPinned, setIsPinned] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createMutation = useRpcMutation<Announcement, { branchId?: string | null; title: string; content: string; announcementType?: string }>(
-    'create_announcement',
-    {
-      invalidates: ['list_announcements'],
-      onSuccess: () => {
-        setComposerOpen(false);
-        setTitle('');
-        setContent('');
-        setError(null);
-      },
-      onError: (err) => setError(err.message)
-    }
-  );
-  const publishMutation = useRpcMutation<Announcement, { announcementId: string }>('publish_announcement', {
-    invalidates: ['list_announcements'],
-    onError: (err) => setError(err.message)
-  });
-  const acknowledgeMutation = useRpcMutation<{ acknowledged: boolean }, { announcementId: string }>('acknowledge_announcement', {
-    onSuccess: () => refetch(),
-    onError: (err) => setError(err.message)
-  });
-
-  const visible = useMemo(
-    () =>
-      (announcements ?? [])
-        .filter((a) => !a.deleted_at)
-        .sort((a, b) => (b.published_at ?? b.created_at).localeCompare(a.published_at ?? a.created_at)),
-    [announcements]
-  );
-
-  const branchName = (branchId: string | null): string =>
-    branchId ? ((branches ?? []).find((b) => b.id === branchId)?.name ?? 'Branch') : 'Organization';
-
-  const submitComposer = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!title.trim() || !content.trim()) {
-      setError('A title and message are required.');
+  const submit = (): void => {
+    if (!title.trim()) {
+      setError('Give the announcement a title');
       return;
     }
-    createMutation.mutate({
-      branchId: audience === 'organization' ? null : audience,
-      title: title.trim(),
-      content: content.trim(),
-      announcementType: type
-    });
+    if (!content.trim()) {
+      setError('Write the message');
+      return;
+    }
+    setError(null);
+    onPost({ orgWide, title: title.trim(), content: content.trim(), requiresAcknowledgement, isPinned });
   };
 
   return (
-    <div className="px-4 pb-10 pt-[72px] sm:px-6 lg:px-8">
-      <DashHeader title="Announcements" subtitle="Operational communication that replaces the branch group chat." />
-
-      {error ? <AuthBanner tone="bad" title={error} /> : null}
-
-      {canCreate ? (
-        <div className="mb-4">
-          {composerOpen ? (
-            <form onSubmit={submitComposer} className="rounded-2xl border border-neutral-200 bg-white p-5">
-              <h2 className="text-[15px] font-extrabold">New announcement</h2>
-              <div className="mt-3.5 grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3.5">
-                <label className="block">
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">Audience</span>
-                  <ObSelect
-                    value={audience}
-                    onChange={(e) => setAudience(e.target.value)}
-                    options={[{ value: 'organization', label: 'Whole organization' }, ...audienceBranches.map((b) => ({ value: b.id, label: b.name }))]}
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">Type</span>
-                  <ObSelect
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    options={Object.entries(TYPE_LABELS).map(([value, label]) => ({ value, label }))}
-                  />
-                </label>
-              </div>
-              <label className="mt-3.5 block">
-                <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">Title</span>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Stocktake weekend — closes 6 PM Sat"
-                  className="h-[44px] w-full rounded-xl border border-neutral-300 px-[13px] text-[13.5px] outline-none transition-colors focus:border-brand-500"
-                />
-              </label>
-              <label className="mt-3.5 block">
-                <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">Message</span>
-                <textarea
-                  rows={4}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="What does the branch need to know?"
-                  className="w-full resize-y rounded-xl border border-neutral-300 px-[13px] py-2.5 text-[13.5px] outline-none transition-colors focus:border-brand-500"
-                />
-              </label>
-              <div className="mt-4 flex gap-2.5">
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="h-11 cursor-pointer rounded-xl bg-brand-500 px-5 text-[13.5px] font-bold text-white shadow-[0_12px_26px_-14px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600 disabled:bg-[#F5A98A]"
-                >
-                  {createMutation.isPending ? 'Saving…' : 'Save draft'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setComposerOpen(false)}
-                  className="h-11 cursor-pointer rounded-xl border border-neutral-200 bg-white px-4 text-[13.5px] font-bold text-neutral-700 transition-colors hover:border-neutral-300"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setComposerOpen(true)}
-              className="h-10 cursor-pointer rounded-[11px] bg-brand-500 px-4 text-[13px] font-bold text-white shadow-[0_10px_22px_-13px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600"
-            >
-              + New announcement
-            </button>
-          )}
-        </div>
-      ) : null}
-
-      {isLoading ? (
-        <p className="text-sm text-neutral-500">Loading announcements…</p>
-      ) : visible.length === 0 ? (
-        <div className="rounded-[20px] border border-neutral-200 bg-white px-8 py-[52px] text-center">
-          <h2 className="text-[21px] font-extrabold tracking-[-0.02em]">No announcements yet</h2>
-          <p className="mx-auto mt-2 max-w-[420px] text-[13.5px] leading-normal text-neutral-500">
-            {canCreate
-              ? 'Post the first one — branch-wide notices land here for every affected person.'
-              : 'When your manager or supervisor posts a notice, it lands here.'}
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {visible.map((announcement) => {
-            return (
-              <article key={announcement.id} className="rounded-2xl border border-neutral-200 bg-white p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center rounded-full bg-[#F1EDEA] px-2.5 py-1 text-[11px] font-bold text-neutral-600">
-                    {branchName(announcement.branch_id)}
-                  </span>
-                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${TYPE_TONES[announcement.announcement_type] ?? TYPE_TONES.general}`}>
-                    {TYPE_LABELS[announcement.announcement_type] ?? announcement.announcement_type}
-                  </span>
-                  {!announcement.is_published ? (
-                    <span className="inline-flex items-center rounded-full bg-warning-50 px-2.5 py-1 text-[11px] font-bold text-warning-600">
-                      Draft
-                    </span>
-                  ) : null}
-                  <span className="ml-auto text-[11px] text-neutral-400">{timeAgo(announcement.published_at ?? announcement.created_at)}</span>
-                </div>
-                <h2 className="mt-[11px] text-[15.5px] font-extrabold tracking-[-0.015em] text-neutral-900">{announcement.title}</h2>
-                <p className="mt-1.5 text-[13px] leading-normal text-neutral-600">{announcement.content}</p>
-                <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-neutral-100 pt-[11px]">
-                  <span className="text-[11.5px] text-neutral-500">
-                    {announcement.is_published ? `Published ${timeAgo(announcement.published_at)}` : 'Not published yet'}
-                  </span>
-                  <span className="ml-auto flex flex-wrap items-center gap-2">
-                    {canPublish && !announcement.is_published ? (
-                      <button
-                        type="button"
-                        onClick={() => publishMutation.mutate({ announcementId: announcement.id })}
-                        disabled={publishMutation.isPending}
-                        className="h-9 cursor-pointer rounded-[10px] bg-success-500 px-[15px] text-[12.5px] font-bold text-white transition-colors hover:bg-success-600 disabled:opacity-60"
-                      >
-                        Publish
-                      </button>
-                    ) : null}
-                    {canAcknowledge && announcement.is_published ? (
-                      <AcknowledgeButton announcementId={announcement.id} onDone={() => refetch()} error={setError} />
-                    ) : null}
-                  </span>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <HandoffModal
+      open={open}
+      title="New announcement"
+      subtitle="Replaces the branch WhatsApp group — with read receipts."
+      primary={pending ? 'Posting…' : 'Post announcement'}
+      primaryDisabled={pending}
+      onPrimary={submit}
+      onClose={() => {
+        setError(null);
+        onClose();
+      }}
+    >
+      <ModalFields>
+        <ModalField label="Audience" required full>
+          <select
+            value={orgWide ? 'organization' : 'branch'}
+            aria-label="Audience"
+            onChange={(event) => setOrgWide(event.target.value === 'organization')}
+            className={`${modalControl} cursor-pointer`}
+          >
+            <option value="branch">{`Whole branch · ${branchName}`}</option>
+            {canPostOrgWide ? <option value="organization">Whole organization · every branch</option> : null}
+          </select>
+        </ModalField>
+        <ModalField label="Title" required full>
+          <input value={title} aria-label="Title" placeholder="e.g. Stocktake this Saturday" onChange={(event) => setTitle(event.target.value)} className={modalControl} />
+        </ModalField>
+        <ModalField label="Message" required full>
+          <textarea
+            value={content}
+            aria-label="Message"
+            rows={4}
+            placeholder="What does the team need to know?"
+            onChange={(event) => setContent(event.target.value)}
+            className={`${modalControl} h-auto resize-y py-2.5 leading-[1.5]`}
+          />
+        </ModalField>
+        <ModalField label="Require acknowledgement">
+          <select
+            value={requiresAcknowledgement ? 'yes' : 'no'}
+            aria-label="Require acknowledgement"
+            onChange={(event) => setRequiresAcknowledgement(event.target.value === 'yes')}
+            className={`${modalControl} cursor-pointer`}
+          >
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </ModalField>
+        <ModalField label="Pin to top">
+          <select value={isPinned ? 'yes' : 'no'} aria-label="Pin to top" onChange={(event) => setIsPinned(event.target.value === 'yes')} className={`${modalControl} cursor-pointer`}>
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+        </ModalField>
+      </ModalFields>
+      <p className="mx-[22px] mb-0 mt-3.5 rounded-[13px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] p-3.5 text-[12.5px] leading-[1.55] text-[#57504A]">
+        Posting publishes it straight away. Asking for acknowledgement is what fills the receipts panel — you can see who has replied and nudge the rest.
+      </p>
+      {error ? <p className="mx-[22px] mb-0 mt-2.5 text-[12px] font-semibold text-[#C93A22]">{error}</p> : null}
+    </HandoffModal>
   );
 }
 
-/** Per-card acknowledgement state via has_acknowledged_announcement; swaps to a done pill after acknowledging. */
-function AcknowledgeButton({
-  announcementId,
-  onDone,
-  error
+/** One post (handoff markup lines 1219-1243). */
+function Card({
+  card,
+  selected,
+  showReceipts,
+  onSelect,
+  onUnpin
 }: {
-  announcementId: string;
-  onDone: () => void;
-  error: (message: string) => void;
+  card: AnnouncementCard;
+  selected: boolean;
+  showReceipts: boolean;
+  onSelect: () => void;
+  onUnpin: (() => void) | null;
 }): React.ReactElement {
-  const { data } = useRpcQuery<{ acknowledged: boolean }>('has_acknowledged_announcement', { announcementId });
+  const border = selected && showReceipts ? '#F7C9B2' : card.pinned ? '#F7DFD1' : '#EBE7E3';
+  return (
+    <article className="rounded-[16px] border border-solid px-[18px] py-[17px]" style={{ borderColor: border, background: card.pinned ? '#FEFAF7' : '#fff' }}>
+      <div className="flex flex-wrap items-center gap-[9px]">
+        <span className="inline-flex items-center gap-[5px] rounded-full px-2.5 py-1 text-[11px] font-bold" style={pillStyle(card.tone)}>
+          {card.audience}
+        </span>
+        {card.pinned ? (
+          onUnpin ? (
+            <button
+              type="button"
+              onClick={onUnpin}
+              title="Unpin this announcement"
+              aria-label={`Unpin ${card.title}`}
+              className="inline-flex cursor-pointer items-center rounded-full border-0 bg-[#FDF0E9] px-2.5 py-1 text-[10.5px] font-extrabold text-[#C6420E]"
+            >
+              Pinned
+            </button>
+          ) : (
+            <span className="inline-flex items-center rounded-full bg-[#FDF0E9] px-2.5 py-1 text-[10.5px] font-extrabold text-[#C6420E]">Pinned</span>
+          )
+        ) : null}
+        {card.published ? null : (
+          <span className="inline-flex items-center rounded-full bg-[#F4F1EE] px-2.5 py-1 text-[10.5px] font-extrabold text-[#857A72]">Draft</span>
+        )}
+        <span className="ml-auto text-[11px] text-[#A79C93]">{card.time}</span>
+      </div>
+      <h2 className="mb-0 mt-[11px] text-[15.5px] font-extrabold tracking-[-0.015em]">{card.title}</h2>
+      <p className="mb-0 mt-1.5 text-[13px] text-[#57504A] [text-wrap:pretty]">{card.body}</p>
+      <div className="mt-[13px] flex flex-wrap items-center gap-2.5 border-t border-solid border-[#F2EEEA] pt-[11px]">
+        <span className="text-[11.5px] text-[#857A72]">{card.author}</span>
+        <span className="ml-auto flex items-center gap-[9px]">
+          {card.requiresAcknowledgement ? (
+            <>
+              <span className="h-1.5 w-[104px] overflow-hidden rounded-full bg-[#F2EEEA]">
+                <span className="block h-full rounded-full" style={{ width: `${card.percent}%`, background: card.percent === 100 ? TONES.ok[0] : TONES.warn[0] }} />
+              </span>
+              <span className="text-[11px] font-bold text-[#857A72]">{card.ackLabel}</span>
+            </>
+          ) : (
+            <span className="text-[11px] font-bold text-[#A79C93]">No acknowledgement asked</span>
+          )}
+          <button
+            type="button"
+            onClick={onSelect}
+            className={[
+              'h-[30px] cursor-pointer rounded-[9px] border border-solid px-[11px] text-[11.5px] font-bold',
+              selected ? 'border-[#F04E17] bg-[#FDF0E9] text-[#C6420E]' : 'border-[#EBE7E3] bg-white text-[#857A72]'
+            ].join(' ')}
+          >
+            {selected ? 'Viewing' : 'Receipts'}
+          </button>
+        </span>
+      </div>
+    </article>
+  );
+}
 
-  const acknowledge = useRpcMutation<{ acknowledged: boolean }, { announcementId: string }>('acknowledge_announcement', {
-    // Without this, a successful acknowledge left the button showing
-    // "Acknowledge" (not the "Acknowledged" pill) until a full page
-    // reload — the mutation's own onDone only refetches the announcements
-    // list, never this card's own has_acknowledged_announcement query.
-    invalidates: ['has_acknowledged_announcement'],
-    onSuccess: onDone,
-    onError: (err) => error(err.message)
-  });
+function csvEscape(value: string): string {
+  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
 
-  if (data?.acknowledged) {
+export default function AnnouncementsPage(): React.ReactElement {
+  const now = useNow();
+  const navigate = useNavigate();
+  const { toast, show, dismiss } = useScheduleToast();
+  const { hasPermission } = useSession();
+  const canRead = hasPermission('announcements.read');
+  const canCreate = hasPermission('announcements.create') && hasPermission('announcements.publish');
+  const canUpdate = hasPermission('announcements.update');
+
+  const { loading, branchId, branchName, cards, receiptsById, departments } = useAnnouncements(now);
+
+  const [filter, setFilter] = useState<AnnouncementFilter>('All');
+  const [query, setQuery] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [receiptFilter, setReceiptFilter] = useState<ReceiptFilter>('Everyone');
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [remindOpen, setRemindOpen] = useState(false);
+
+  const create = useRpcMutation<Announcement, Record<string, unknown>>('create_announcement', { invalidates: ['list_announcements'] });
+  const publish = useRpcMutation<Announcement, { announcementId: string }>('publish_announcement', { invalidates: ['list_announcements'] });
+  const update = useRpcMutation<Announcement, Record<string, unknown>>('update_announcement', { invalidates: ['list_announcements'] });
+  const remind = useRpcMutation<{ reminded: number; unreachable: number }, { announcementId: string }>('remind_announcement', { invalidates: [] });
+
+  const shown = filterCards(cards, filter, query);
+  const selected = cards.find((card) => card.id === selectedId) ?? shown[0] ?? cards[0] ?? null;
+  const receipts = useMemo(
+    () => (selected ? buildReceipts(receiptsById.get(selected.id) ?? [], departments, now) : []),
+    [selected, receiptsById, departments, now]
+  );
+  const visibleReceipts = filterReceipts(receipts, receiptFilter);
+  const summary = receiptSummary(receipts);
+
+  if (!canRead) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-success-50 px-2.5 py-1 text-[11px] font-bold text-success-600">
-        <Check aria-hidden="true" className="size-3" /> Acknowledged
-      </span>
+      <div className="px-7 py-6">
+        <PermissionDenied />
+      </div>
     );
   }
+
+  const post = async (input: { orgWide: boolean; title: string; content: string; requiresAcknowledgement: boolean; isPinned: boolean }): Promise<void> => {
+    try {
+      const announcement = await create.mutateAsync({
+        branchId: input.orgWide ? null : branchId,
+        title: input.title,
+        content: input.content,
+        announcementType: 'operational',
+        requiresAcknowledgement: input.requiresAcknowledgement,
+        isPinned: input.isPinned
+      });
+      await publish.mutateAsync({ announcementId: announcement.id });
+      setComposeOpen(false);
+      setSelectedId(announcement.id);
+      show('Announcement posted');
+    } catch (problem) {
+      show(problem instanceof Error ? problem.message : 'Could not post the announcement');
+    }
+  };
+
+  const unpin = (card: AnnouncementCard) => () => {
+    update
+      .mutateAsync({ announcementId: card.id, isPinned: false })
+      .then(() => show(`${card.title} unpinned`))
+      .catch((problem: unknown) => show(problem instanceof Error ? problem.message : 'Could not unpin it'));
+  };
+
+  const sendReminder = (): void => {
+    if (!selected) return;
+    remind
+      .mutateAsync({ announcementId: selected.id })
+      .then((result) => {
+        setRemindOpen(false);
+        show(
+          result.unreachable
+            ? `Reminded ${result.reminded} · ${result.unreachable} had no ShiftOS login`
+            : `Reminded ${result.reminded} ${result.reminded === 1 ? 'person' : 'people'}`
+        );
+      })
+      .catch((problem: unknown) => show(problem instanceof Error ? problem.message : 'Could not send the reminder'));
+  };
+
+  const exportCsv = (): void => {
+    if (!selected) return;
+    const lines = [
+      ['Name', 'Detail', 'Status'].join(','),
+      ...receipts.map((receipt) => [receipt.name, receipt.meta, receipt.status].map(csvEscape).join(','))
+    ];
+    const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `receipts-${selected.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    show(`${receipts.length} ${receipts.length === 1 ? 'row' : 'rows'} exported`);
+  };
+
+  const body = (): React.ReactNode => {
+    if (loading) return <OverviewLoading />;
+    if (cards.length === 0) {
+      return (
+        <OverviewEmpty
+          title="No announcements yet"
+          body="Post operational updates here instead of the WhatsApp group — and see exactly who has read them."
+          cta={canCreate ? { label: 'Post announcement', onClick: () => setComposeOpen(true) } : null}
+          secondary={{ label: 'Learn more', onClick: () => navigate('/recent-activity') }}
+        />
+      );
+    }
+
+    return (
+      <>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <label className="block min-w-[190px] flex-[1_1_240px]">
+            <span className="sr-only">Search</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search announcements"
+              className="box-border h-10 w-full rounded-[11px] border border-solid border-[#E4DED9] bg-white px-[13px] text-[13px] text-[#38312B] outline-none focus:border-[#F04E17]"
+            />
+          </label>
+          {ANNOUNCEMENT_FILTERS.map((name) => (
+            <button
+              key={name}
+              type="button"
+              aria-pressed={filter === name}
+              onClick={() => setFilter(name)}
+              className={[
+                'h-10 cursor-pointer rounded-[11px] border border-solid px-[13px] text-[12.5px] font-bold',
+                filter === name ? 'border-[#F04E17] bg-[#FDF0E9] text-[#C6420E]' : 'border-[#EBE7E3] bg-white text-[#857A72]'
+              ].join(' ')}
+            >
+              {name}
+            </button>
+          ))}
+          <span className="ml-auto text-[12px] text-[#A79C93]">{announcementsCount(shown, filter)}</span>
+        </div>
+
+        <div className="flex flex-wrap items-start gap-4">
+          <div className="flex min-w-0 flex-[1.5_1_400px] flex-col gap-3">
+            {shown.map((card) => (
+              <Card
+                key={card.id}
+                card={card}
+                selected={selected?.id === card.id}
+                showReceipts
+                onSelect={() => {
+                  setSelectedId(card.id);
+                  setReceiptFilter('Everyone');
+                }}
+                onUnpin={canUpdate ? unpin(card) : null}
+              />
+            ))}
+            {shown.length === 0 ? (
+              <p className="m-0 rounded-[16px] border border-dashed border-[#E4DED9] px-[18px] py-[26px] text-center text-[12.5px] text-[#857A72]">
+                No announcements match this search.
+              </p>
+            ) : null}
+          </div>
+
+          <aside className="min-w-0 flex-[1_1_300px] overflow-hidden rounded-[16px] border border-solid border-[#EBE7E3] bg-white">
+            <div className="border-b border-solid border-[#F2EEEA] px-[18px] py-4">
+              <p className="m-0 text-[10.5px] font-extrabold uppercase tracking-[.1em] text-[#A79C93]">Acknowledgement receipts</p>
+              <h2 className="mb-0 mt-[7px] text-[14.5px] font-extrabold tracking-normal [text-wrap:pretty]">{selected?.title ?? 'Nothing selected'}</h2>
+              <div className="mt-3 flex items-center gap-2.5">
+                <span className="h-[7px] flex-auto overflow-hidden rounded-full bg-[#F2EEEA]">
+                  <span className="block h-full rounded-full" style={{ width: `${summary.percent}%`, background: summary.complete ? TONES.ok[0] : TONES.warn[0] }} />
+                </span>
+                <span className="text-[12px] font-extrabold">{summary.percentLabel}</span>
+              </div>
+              <p className="mb-0 mt-2 text-[11.5px] text-[#857A72]">{summary.summary}</p>
+              <div className="mt-3 flex flex-wrap gap-[5px]">
+                {RECEIPT_FILTERS.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    aria-pressed={receiptFilter === name}
+                    onClick={() => setReceiptFilter(name)}
+                    className={[
+                      'h-[30px] cursor-pointer rounded-[9px] border border-solid px-[13px] text-[11.5px] font-bold',
+                      receiptFilter === name ? 'border-[#F04E17] bg-[#FDF0E9] text-[#C6420E]' : 'border-[#EBE7E3] bg-white text-[#857A72]'
+                    ].join(' ')}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="max-h-[420px] overflow-y-auto">
+              {visibleReceipts.map((receipt) => (
+                <div key={receipt.employeeId} className="flex items-center gap-2.5 border-b border-solid border-[#F7F4F1] px-[18px] py-[11px]">
+                  <span className="flex size-[30px] flex-none items-center justify-center rounded-full text-[10.5px] font-extrabold" style={avatarTone(receipt.name)}>
+                    {initialsOf(receipt.name)}
+                  </span>
+                  <span className="min-w-0 flex-auto">
+                    <span className="block truncate text-[12.5px] font-bold">{receipt.name}</span>
+                    <span className="block truncate text-[11px] text-[#A79C93]">{receipt.meta}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-[5px] rounded-full px-2.5 py-1 text-[11px] font-bold" style={pillStyle(receipt.tone)}>
+                    {receipt.status}
+                  </span>
+                </div>
+              ))}
+              {visibleReceipts.length === 0 ? <p className="m-0 px-[18px] py-[26px] text-center text-[12.5px] text-[#857A72]">Nobody in this filter.</p> : null}
+            </div>
+
+            <div className="flex flex-wrap gap-2 border-t border-solid border-[#F2EEEA] px-[18px] py-[13px]">
+              <button
+                type="button"
+                onClick={() => setRemindOpen(true)}
+                disabled={!canUpdate || summary.outstanding === 0}
+                className="h-9 flex-auto cursor-pointer rounded-[10px] border-0 bg-[#F04E17] text-[12px] font-bold text-white disabled:cursor-default disabled:opacity-60"
+              >
+                {summary.outstanding === 0 ? 'Everyone has acknowledged' : summary.remindLabel}
+              </button>
+              <button type="button" onClick={exportCsv} className="h-9 cursor-pointer rounded-[10px] border border-solid border-[#EBE7E3] bg-white px-3 text-[12px] font-bold text-black">
+                Export
+              </button>
+            </div>
+          </aside>
+        </div>
+      </>
+    );
+  };
+
   return (
-    <button
-      type="button"
-      onClick={() => acknowledge.mutate({ announcementId })}
-      disabled={acknowledge.isPending}
-      className="h-9 cursor-pointer rounded-[10px] border border-neutral-200 bg-white px-3 text-[12.5px] font-bold text-neutral-900 transition-colors hover:border-brand-500 hover:text-brand-deep disabled:opacity-60"
-    >
-      {acknowledge.isPending ? 'Saving…' : 'Acknowledge'}
-    </button>
+    <div className="flex min-h-full flex-col text-[13px] text-[#38312B] [line-height:normal]">
+      <OverviewHeader
+        title="Announcements"
+        subtitle={announcementsSubtitle(cards)}
+        now={now}
+        actions={canCreate && cards.length > 0 ? <HeaderCta label="New announcement" onClick={() => setComposeOpen(true)} /> : null}
+      />
+      <div className="flex flex-auto flex-col gap-[18px] bg-[#FDFCFB] px-7 pb-10 pt-[22px] max-[859px]:gap-3.5 max-[859px]:px-3.5 max-[859px]:pb-[84px] max-[859px]:pt-4">{body()}</div>
+
+      <NewAnnouncementModal
+        open={composeOpen}
+        branchName={branchName}
+        canPostOrgWide={hasPermission('organizations.read')}
+        pending={create.isPending || publish.isPending}
+        onClose={() => setComposeOpen(false)}
+        onPost={(input) => void post(input)}
+      />
+
+      <HandoffModal
+        open={remindOpen}
+        title="Remind outstanding recipients?"
+        subtitle={selected?.title ?? ''}
+        primary={remind.isPending ? 'Sending…' : 'Send reminder'}
+        primaryDisabled={remind.isPending}
+        onPrimary={sendReminder}
+        onClose={() => setRemindOpen(false)}
+      >
+        <p className="mx-[22px] mb-0 mt-[18px] rounded-[13px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] p-3.5 text-[12.5px] leading-[1.55] text-[#57504A]">
+          Only the {summary.outstanding} {summary.outstanding === 1 ? 'person who has' : 'people who have'} not acknowledged it get a reminder. It arrives
+          in ShiftOS — anyone without a login is reported back rather than counted as reached.
+        </p>
+      </HandoffModal>
+
+      <ScheduleToast toast={toast} onDismiss={dismiss} />
+    </div>
   );
 }
