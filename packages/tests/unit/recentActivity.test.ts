@@ -42,8 +42,16 @@ const announcements = [
   { ...BASE, id: 'a1', branch_id: 'br', title: 'New Promotion This Weekend', content: 'Displays up by 10 AM.', announcement_type: 'general' as const, visibility_type: 'branch' as const, is_published: true, published_at: at(16, 7, 30), expires_at: null, created_by: 'user-sarah' }
 ];
 
+const schedules = [
+  { ...BASE, id: 'sch-w20', branch_id: 'br', name: 'Week 20', start_date: '2025-05-12', end_date: '2025-05-18', status: 'published' as const, updated_at: at(16, 6, 40) },
+  { ...BASE, id: 'sch-w21', branch_id: 'br', name: 'Week 21', start_date: '2025-05-19', end_date: '2025-05-25', status: 'draft' as const, updated_at: at(16, 6, 45) }
+];
+const leave = [
+  { ...BASE, id: 'lv-1', branch_id: 'br', employee_id: 'p1', requested_by: 'user-p1', approved_by: null, rejected_by: null, cancelled_by: null, approved_at: null, rejected_at: null, cancelled_at: null, leave_type: 'annual_leave' as const, status: 'pending' as const, start_date: '2025-06-02', end_date: '2025-06-04', total_days: 3, reason: 'Family travel', manager_notes: null, cancellation_reason: null, last_status_changed_at: at(16, 7, 5), version: 1, created_by: 'user-p1', created_at: at(16, 7, 5) }
+];
+
 const feed = (): ReturnType<typeof buildActivity> =>
-  buildActivity({ now: NOW, branchName: 'Main Branch', employees, departments, members, shifts, assignments, attendance, tasks, announcements });
+  buildActivity({ now: NOW, branchName: 'Main Branch', employees, departments, members, shifts, assignments, attendance, tasks, announcements, schedules, leave });
 
 describe('recent activity', () => {
   it('builds the handoff’s rows out of what actually happened', () => {
@@ -55,6 +63,8 @@ describe('recent activity', () => {
       '07:55 AM John Doe checked in',
       '07:30 AM Announcement posted',
       '07:20 AM Task assigned',
+      '07:05 AM Mary Johnson requested leave',
+      '06:40 AM Schedule published',
       '08:02 AM · 15 May John Doe checked in'
     ]);
   });
@@ -91,10 +101,10 @@ describe('recent activity', () => {
   it('counts each type and its share of what is in view', () => {
     const today = filterActivity(feed(), { type: 'All Types', person: 'All People', range: 'Today', query: '', sort: 'Newest first' }, NOW);
     expect(activityStats(today).map((stat) => `${stat.label} ${stat.value} ${stat.meta}`)).toEqual([
-      'Total Activities 6 In view',
-      'System Events 2 33%',
-      'Employee Actions 2 33%',
-      'Task Updates 2 33%'
+      'Total Activities 8 In view',
+      'System Events 3 38%',
+      'Employee Actions 3 38%',
+      'Task Updates 2 25%'
     ]);
   });
 
@@ -103,15 +113,26 @@ describe('recent activity', () => {
     const on = (range: 'Today' | 'Yesterday' | 'Last 7 days', extra: Partial<{ type: string; person: string; query: string }> = {}) =>
       filterActivity(events, { type: 'All Types', person: 'All People', range, query: '', sort: 'Newest first', ...extra }, NOW);
 
-    expect(on('Today')).toHaveLength(6);
+    expect(on('Today')).toHaveLength(8);
     expect(on('Yesterday')).toHaveLength(1);
-    expect(on('Last 7 days')).toHaveLength(7);
+    expect(on('Last 7 days')).toHaveLength(9);
     expect(on('Today', { type: 'Task Updates' })).toHaveLength(2);
-    expect(on('Today', { person: 'Mary Johnson' })).toHaveLength(1);
+    expect(on('Today', { person: 'Mary Johnson' })).toHaveLength(2);
     expect(on('Today', { query: 'cold room' })).toHaveLength(2); // both the assignment and the completion
 
     const oldest = filterActivity(events, { type: 'All Types', person: 'All People', range: 'Today', query: '', sort: 'Oldest first' }, NOW);
-    expect(oldest[0]?.title).toBe('Task assigned');
+    expect(oldest[0]?.title).toBe('Schedule published');
+  });
+
+  it('carries the leave requests and published schedules the overview card shows', () => {
+    const events = feed();
+    expect(events.find((event) => event.title.includes('requested leave'))).toMatchObject({
+      desc: 'Annual leave · 02 – 04 Jun',
+      person: 'Mary Johnson',
+      type: 'Employee Actions'
+    });
+    expect(events.find((event) => event.title === 'Schedule published')).toMatchObject({ desc: 'Week 20 is live for the team', type: 'System Events' });
+    expect(events.some((event) => event.desc.includes('Week 21'))).toBe(false);
   });
 
   it('offers every person in the feed to the Person filter', () => {

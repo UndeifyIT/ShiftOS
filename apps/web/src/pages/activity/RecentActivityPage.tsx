@@ -77,7 +77,7 @@ function Row({ event, last, onMenu }: { event: ActivityEvent; last: boolean; onM
         type="button"
         onClick={onMenu}
         aria-label={`Activity options for ${event.title}`}
-        className="size-[26px] cursor-pointer justify-self-end rounded-lg border-0 bg-transparent p-0 text-[14px] font-extrabold text-[#A79C93]"
+        className="size-[26px] cursor-pointer justify-self-end rounded-[8px] border-0 bg-transparent p-0 text-[14px] font-extrabold text-[#A79C93]"
       >
         ⋮
       </button>

@@ -174,13 +174,13 @@ export function createOverviewBackend() {
   const shifts: Shift[] = [];
   const assignments: ShiftAssignment[] = [];
   const attendance: AttendanceRecord[] = [];
-  const addShift = (id: string, date: string, departmentId: string, start: string, end: string): Shift => {
+  const addShift = (id: string, date: string, departmentId: string, start: string, end: string, title = 'Morning Shift'): Shift => {
     const shift: Shift = stamp({
       id,
       branch_id: BRANCH,
       template_id: null,
       department_id: departmentId,
-      title: 'Shift',
+      title,
       description: null,
       shift_date: date,
       start_time: `${start}:00`,
@@ -235,6 +235,74 @@ export function createOverviewBackend() {
       });
     }
   }
+  // Chidimma Obi was scheduled and never arrived — the no-show the Attendance
+  // screen marks and the activity feed reports.
+  attendance.push({
+    ...stamp({ id: 'att-p15-absent' }),
+    created_at: at(16, 7, 45),
+    updated_at: at(16, 7, 45),
+    branch_id: BRANCH,
+    shift_assignment_id: 'asg-p15',
+    employee_id: 'p15',
+    attendance_status: 'absent' as const,
+    clock_in_at: null,
+    clock_out_at: null,
+    break_minutes: 0,
+    worked_minutes: 0,
+    overtime_minutes: 0,
+    late_minutes: 0,
+    early_departure_minutes: 0,
+    notes: 'No call, no show',
+    recorded_by: 'user-me',
+    updated_by: null,
+    version: 1
+  });
+
+  // Yesterday, worked start to finish — so Recent Activity's date range has a
+  // day behind today, with the check-outs a finished shift leaves.
+  // [employee, clocked in at 07:xx, clocked out at 17:xx]
+  const YESTERDAY: Array<[string, number, number]> = [
+    ['p1', 22, 4], ['p2', 28, 2], ['p8', 41, 9], ['p12', 25, 1], ['p16', 18, 0], ['p17', 33, 6]
+  ];
+  for (const [id, inMinute, outMinute] of YESTERDAY) {
+    const department = PEOPLE.find(([person]) => person === id)?.[3] ?? 'dep-sales';
+    const shift = addShift(`shf-y-${id}`, '2025-05-15', department, '07:30', '17:00');
+    assignments.push(
+      stamp({
+        id: `asg-y-${id}`,
+        shift_id: shift.id,
+        employee_id: id,
+        assignment_status: 'assigned' as const,
+        assigned_at: at(15, 7, 0),
+        confirmed_at: null,
+        declined_at: null,
+        cancelled_at: null,
+        assigned_by: 'user-me',
+        notes: null
+      })
+    );
+    attendance.push({
+      ...stamp({ id: `att-y-${id}` }),
+      created_at: at(15, 7, inMinute),
+      updated_at: at(15, 17, outMinute),
+      branch_id: BRANCH,
+      shift_assignment_id: `asg-y-${id}`,
+      employee_id: id,
+      attendance_status: inMinute > 30 ? ('late' as const) : ('completed' as const),
+      clock_in_at: at(15, 7, inMinute),
+      clock_out_at: at(15, 17, outMinute),
+      break_minutes: 60,
+      worked_minutes: 510,
+      overtime_minutes: 0,
+      late_minutes: 0,
+      early_departure_minutes: 0,
+      notes: null,
+      recorded_by: 'user-me',
+      updated_by: null,
+      version: 1
+    });
+  }
+
   // Three published slots nobody is on yet â€” the week's coverage gaps.
   addShift('gap-1', '2025-05-17', 'dep-frontend', '07:30', '17:00');
   addShift('gap-2', '2025-05-17', 'dep-warehouse', '14:30', '22:30');

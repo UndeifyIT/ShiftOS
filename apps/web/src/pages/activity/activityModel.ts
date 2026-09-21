@@ -1,4 +1,4 @@
-import type { AttendanceRecord, Announcement, Department, Employee, Member, Shift, ShiftAssignment, Task } from '../../types/domain.js';
+import type { Announcement, AttendanceRecord, Department, Employee, LeaveRequest, Member, Schedule, Shift, ShiftAssignment, Task } from '../../types/domain.js';
 import { emailKey } from '../../lib/members.js';
 import type { ScheduleIconName } from '../scheduling/grid/ScheduleIcon.js';
 import type { Tone } from '../scheduling/grid/scheduleFormat.js';
@@ -51,6 +51,28 @@ const clock = (at: Date): string => {
 
 const dateOf = (at: Date): string => `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`;
 
+const LEAVE_LABEL: Record<string, string> = {
+  annual_leave: 'Annual leave',
+  sick_leave: 'Sick leave',
+  unpaid_leave: 'Unpaid leave',
+  maternity_leave: 'Maternity leave',
+  paternity_leave: 'Paternity leave',
+  compassionate_leave: 'Compassionate leave',
+  study_leave: 'Study leave'
+};
+
+/** '02 Jun', '02 – 04 Jun', or '30 May – 02 Jun' — the month is said once when it can be. */
+function dayRange(start: string, end: string): string {
+  const parse = (date: string): Date => new Date(`${date}T00:00:00`);
+  const day = (date: Date): string => date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  const [from, to] = [parse(start), parse(end)];
+  if (start === end) return day(from);
+  if (from.getMonth() === to.getMonth() && from.getFullYear() === to.getFullYear()) {
+    return `${String(from.getDate()).padStart(2, '0')} – ${day(to)}`;
+  }
+  return `${day(from)} – ${day(to)}`;
+}
+
 /** 'HH:MM:SS' on a date → a timestamp in the viewer's own timezone. */
 const atTime = (date: string, time: string): number => new Date(`${date}T${time}`).getTime();
 
@@ -76,6 +98,8 @@ export interface ActivitySources {
   attendance: AttendanceRecord[];
   tasks: Task[];
   announcements: Announcement[];
+  schedules: Schedule[];
+  leave: LeaveRequest[];
 }
 
 /** Everything that happened, newest first. The page filters and pages it. */
@@ -89,7 +113,9 @@ export function buildActivity({
   assignments,
   attendance,
   tasks,
-  announcements
+  announcements,
+  schedules,
+  leave
 }: ActivitySources): ActivityEvent[] {
   const employeeById = new Map(employees.map((employee) => [employee.id, employee]));
   const departmentById = new Map(departments.map((department) => [department.id, department.name]));
@@ -222,24 +248,72 @@ export function buildActivity({
     push({ id: `ann-${announcement.id}`, at, time, icon: 'megaphone', tone: 'primary', title: 'Announcement posted', accent: '', desc: announcement.title, ...by, type: 'System Events' });
   }
 
-  // A shift is an event once it has actually started, and only if somebody is on it.
+  for (const request of leave) {
+    if (request.deleted_at) continue;
+    const employee = employeeById.get(request.employee_id);
+    const person = nameOf(employee);
+    const { at, time } = stamp(request.created_at);
+    push({
+      id: `leave-${request.id}`,
+      at,
+      time,
+      icon: 'user',
+      tone: 'warn',
+      title: `${person} requested leave`,
+      accent: '',
+      desc: `${LEAVE_LABEL[request.leave_type] ?? 'Leave'} · ${dayRange(request.start_date, request.end_date)}`,
+      person,
+      role: roleOf(employee),
+      type: 'Employee Actions'
+    });
+  }
+
+  for (const schedule of schedules) {
+    if (schedule.status !== 'published' || schedule.deleted_at) continue;
+    const { at, time } = stamp(schedule.updated_at);
+    push({
+      id: `schedule-${schedule.id}`,
+      at,
+      time,
+      icon: 'calendar',
+      tone: 'violet',
+      title: 'Schedule published',
+      accent: '',
+      desc: `${schedule.name} is live for the team`,
+      person: branchName,
+      role: 'Schedule',
+      type: 'System Events'
+    });
+  }
+
+  // A shift is an event once it has actually started, and only if somebody is
+  // on it. A branch that runs the same hours in five departments started ONE
+  // shift, not five, so identical hours collapse into a single row — the
+  // handoff shows one "Shift started" line, not a column of them.
   const staffed = new Set(assignments.filter((assignment) => assignment.assignment_status !== 'cancelled').map((assignment) => assignment.shift_id));
+  const started = new Map<string, { at: number; end: number; title: string; departments: Set<string> }>();
   for (const shift of shifts) {
     if (shift.status !== 'published' || shift.deleted_at || !staffed.has(shift.id)) continue;
     const at = atTime(shift.shift_date, shift.start_time);
     if (!Number.isFinite(at) || at > now.getTime()) continue;
-    const { time } = stamp(new Date(at).toISOString());
+    const key = `${shift.shift_date}|${shift.start_time}|${shift.end_time}|${shift.title ?? ''}`;
+    const group = started.get(key) ?? { at, end: atTime(shift.shift_date, shift.end_time), title: shift.title ?? 'Shift', departments: new Set<string>() };
+    const department = shift.department_id ? departmentById.get(shift.department_id) : undefined;
+    if (department) group.departments.add(department);
+    started.set(key, group);
+  }
+  for (const [key, group] of started) {
     push({
-      id: `shift-${shift.id}`,
-      at,
-      time,
+      id: `shift-${key}`,
+      at: group.at,
+      time: stamp(new Date(group.at).toISOString()).time,
       icon: 'users',
       tone: 'violet',
       title: 'Shift started',
       accent: '',
-      desc: `${shift.title ?? 'Shift'} (${clock(new Date(at))} – ${clock(new Date(atTime(shift.shift_date, shift.end_time)))})`,
+      desc: `${group.title} (${clock(new Date(group.at))} – ${clock(new Date(group.end))})`,
       person: branchName,
-      role: (shift.department_id ? departmentById.get(shift.department_id) : undefined) ?? 'Schedule',
+      role: group.departments.size === 1 ? [...group.departments][0]! : 'Schedule',
       type: 'System Events'
     });
   }

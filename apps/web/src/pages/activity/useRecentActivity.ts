@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import { useRpcQueries, useRpcQuery } from '../../lib/useRpc.js';
-import type { Announcement, AttendanceRecord, Branch, Department, Employee, Member, Schedule, Shift, ShiftAssignment, Task } from '../../types/domain.js';
+import type { Announcement, AttendanceRecord, Branch, Department, Employee, LeaveRequest, Member, Schedule, Shift, ShiftAssignment, Task } from '../../types/domain.js';
 import { addDays, todayDateString } from '../scheduling/grid/scheduleFormat.js';
 import { buildActivity, type ActivityEvent } from './activityModel.js';
 
@@ -38,6 +38,7 @@ export function useRecentActivity(now: Date): RecentActivityState {
   const schedules = useRpcQuery<Schedule[]>('list_schedules', scoped, { enabled: has && hasPermission('schedules.read') });
   const tasks = useRpcQuery<Task[]>('list_tasks', scoped, { enabled: has && hasPermission('tasks.read') });
   const announcements = useRpcQuery<Announcement[]>('list_announcements', scoped, { enabled: has && hasPermission('announcements.read') });
+  const leave = useRpcQuery<LeaveRequest[]>('list_pending_leave', scoped, { enabled: has && hasPermission('leave.approve') });
   const attendance = useRpcQuery<AttendanceRecord[]>(
     'list_attendance_for_branch_and_range',
     has ? { branchId, startIso: localMidnightIso(from), endIso: localMidnightIso(addDays(today, 1)) } : undefined,
@@ -74,10 +75,12 @@ export function useRecentActivity(now: Date): RecentActivityState {
         assignments,
         attendance: attendance.data ?? [],
         tasks: tasks.data ?? [],
-        announcements: announcements.data ?? []
+        announcements: announcements.data ?? [],
+        schedules: schedules.data ?? [],
+        leave: leave.data ?? []
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [now, branchName, employees.data, departments.data, members.data, attendance.data, tasks.data, announcements.data, shifts.length, assignments.length]
+    [now, branchName, employees.data, departments.data, members.data, attendance.data, tasks.data, announcements.data, schedules.data, leave.data, shifts.length, assignments.length]
   );
 
   return {
