@@ -9,7 +9,7 @@ export const previewRole: PreviewRole = params.get('as') === 'supervisor' ? 'sup
 // `?path=/` (Manager overview), `?path=/employees…`, `?path=/supervisors`, `?path=/admins` and `?path=/attendance` run against the handoff's own morning; everything else is the schedule week.
 const path = params.get('path') ?? '';
 export const callRpc =
-  path === '/' || path.startsWith('/employees') || path.startsWith('/supervisors') || path.startsWith('/admins') || path.startsWith('/attendance')
+  path === '/' || path.startsWith('/employees') || path.startsWith('/supervisors') || path.startsWith('/admins') || path.startsWith('/attendance') || path.startsWith('/tasks')
     ? createOverviewBackend()
     : createMockBackend({
         role: previewRole,

@@ -1,797 +1,502 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
-import {
-  Badge,
-  type BadgeTone,
-  Button,
-  ConfirmationDialog,
-  DataTable,
-  FormField,
-  InlineError,
-  Input,
-  Modal,
-  PageContainer,
-  PageHeader,
-  PermissionDenied,
-  Select,
-  Textarea
-} from '@shiftos/ui';
+import { PermissionDenied } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
+import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
+import { HandoffModal, ModalField, ModalFields, modalControl } from '../../components/HandoffModal.js';
+import { emailKey } from '../../lib/members.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import type {
-  Branch,
-  Employee,
-  Task,
-  TaskHistoryEntry,
-  TaskPriority,
-  TaskStatus,
-  TaskVerificationStatus
-} from '../../types/domain.js';
+import type { Department, Employee, Task, TaskPriority } from '../../types/domain.js';
+import { OverviewEmpty, OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
+import { useNow } from '../dashboard/manager/useManagerOverview.js';
+import { HeaderCta } from '../people/RolePeopleTable.js';
+import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
+import { TONES, type Tone } from '../scheduling/grid/scheduleFormat.js';
+import {
+  buildBoard,
+  boardTotal,
+  filterBoard,
+  PRIORITY_LABEL,
+  TASK_FILTERS,
+  tasksCount,
+  tasksSubtitle,
+  todayOf,
+  yesterdayOf,
+  type TaskCard,
+  type TaskColumn,
+  type TaskFilter
+} from './tasksBoardModel.js';
 
-const STATUS_LABEL: Record<TaskStatus, string> = {
-  draft: 'Draft',
-  assigned: 'Assigned',
-  in_progress: 'In Progress',
-  completed: 'Completed',
-  verified: 'Verified',
-  cancelled: 'Cancelled'
-};
+/*
+ * WEB-010 — the Manager's Tasks board, built to the design handoff
+ * (`ShiftOS Dashboards.dc.html`: `PAGES["Manager/Tasks"]`, the shared toolbar
+ * at markup lines 363-376 and the `kindTasks` board at 900-932). Three
+ * columns of cards on the branch's real tasks; ticking a card's circle is the
+ * genuine complete/reopen RPC. Sizes are the prototype's rendered ones, not
+ * Tailwind approximations.
+ */
 
-const STATUS_TONE: Record<TaskStatus, BadgeTone> = {
-  draft: 'neutral',
-  assigned: 'info',
-  in_progress: 'pending',
-  completed: 'warning',
-  verified: 'success',
-  cancelled: 'error'
-};
+const pillStyle = (tone: Tone): React.CSSProperties => ({ color: TONES[tone][0], backgroundColor: TONES[tone][1] });
 
-const PRIORITY_LABEL: Record<TaskPriority, string> = {
-  low: 'Low',
-  normal: 'Normal',
-  high: 'High',
-  critical: 'Critical'
-};
+const PRIORITY_OPTIONS: TaskPriority[] = ['low', 'normal', 'high', 'critical'];
 
-const PRIORITY_TONE: Record<TaskPriority, BadgeTone> = {
-  low: 'neutral',
-  normal: 'info',
-  high: 'warning',
-  critical: 'error'
-};
-
-const STATUS_FILTER_OPTIONS: { value: 'all' | TaskStatus; label: string }[] = [
-  { value: 'all', label: 'All statuses' },
-  { value: 'draft', label: STATUS_LABEL.draft },
-  { value: 'assigned', label: STATUS_LABEL.assigned },
-  { value: 'in_progress', label: STATUS_LABEL.in_progress },
-  { value: 'completed', label: STATUS_LABEL.completed },
-  { value: 'verified', label: STATUS_LABEL.verified },
-  { value: 'cancelled', label: STATUS_LABEL.cancelled }
-];
-
-const PRIORITY_FILTER_OPTIONS: { value: 'all' | TaskPriority; label: string }[] = [
-  { value: 'all', label: 'All priorities' },
-  { value: 'low', label: PRIORITY_LABEL.low },
-  { value: 'normal', label: PRIORITY_LABEL.normal },
-  { value: 'high', label: PRIORITY_LABEL.high },
-  { value: 'critical', label: PRIORITY_LABEL.critical }
-];
-
-const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
-  { value: 'low', label: PRIORITY_LABEL.low },
-  { value: 'normal', label: PRIORITY_LABEL.normal },
-  { value: 'high', label: PRIORITY_LABEL.high },
-  { value: 'critical', label: PRIORITY_LABEL.critical }
-];
-
-const FINISHED_STATUSES: TaskStatus[] = ['completed', 'verified', 'cancelled'];
-
-function formatDue(task: Task): string {
-  if (!task.due_date) return '—';
-  const dateLabel = new Date(`${task.due_date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  return task.due_time ? `${dateLabel} · ${task.due_time.slice(0, 5)}` : dateLabel;
-}
-
-function canShowAssign(task: Task, canAssign: boolean): boolean {
-  return canAssign && !FINISHED_STATUSES.includes(task.task_status);
-}
-
-function canShowComplete(task: Task, canComplete: boolean, myEmployeeId: string | undefined): boolean {
-  if (!canComplete || !['assigned', 'in_progress'].includes(task.task_status)) return false;
-  // Restrict to the caller's own assigned task when we can resolve their
-  // employee record; if we can't (no employees.read), fall back to
-  // permission-only so the action is never silently hidden with no signal.
-  if (myEmployeeId) return task.assigned_supervisor_id === myEmployeeId;
-  return true;
-}
-
-function canShowVerify(task: Task, canVerify: boolean): boolean {
-  if (!canVerify) return false;
-  return task.task_status === 'completed' || (task.task_status === 'in_progress' && task.verification_status === 'rework_required');
-}
-
-function canShowCancel(task: Task, canUpdate: boolean): boolean {
-  return canUpdate && ['assigned', 'in_progress'].includes(task.task_status);
-}
-
-function canShowReopen(task: Task, canUpdate: boolean): boolean {
-  return canUpdate && task.task_status === 'completed';
-}
-
-function CreateTaskForm({
-  branches,
-  requireBranchPicker,
-  homeBranchId,
+function NewTaskModal({
+  open,
+  employees,
+  departments,
+  onClose,
   onCreate,
-  onDone
+  pending
 }: {
-  branches: Branch[];
-  requireBranchPicker: boolean;
-  /** Set for a Manager: the task always goes to their own branch and there's no branch field. */
-  homeBranchId: string | null;
-  onCreate: (input: Record<string, unknown>) => Promise<unknown>;
-  onDone: () => void;
+  open: boolean;
+  employees: Employee[];
+  departments: Department[];
+  onClose: () => void;
+  onCreate: (input: { title: string; dueTime: string; priority: TaskPriority; assigneeId: string }) => void;
+  pending: boolean;
 }): React.ReactElement {
-  const [pickedBranchId, setBranchId] = useState(branches.length === 1 ? branches[0]!.id : '');
-  const branchId = homeBranchId ?? pickedBranchId;
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [dueTime, setDueTime] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
+  const [dueTime, setDueTime] = useState('10:00');
   const [priority, setPriority] = useState<TaskPriority>('normal');
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (event: React.FormEvent): Promise<void> => {
-    event.preventDefault();
-    if (!title.trim() || !branchId) {
-      setError('Title and branch are required.');
+  const people = employees.filter((employee) => employee.is_active && (!departmentId || employee.department_id === departmentId));
+
+  const submit = (): void => {
+    if (!title.trim()) {
+      setError('Give the task a title');
       return;
     }
     setError(null);
-    setSubmitting(true);
-    try {
-      await onCreate({
-        branchId,
-        title: title.trim(),
-        description: description.trim() || undefined,
-        dueDate: dueDate || undefined,
-        dueTime: dueTime || undefined,
-        priority
-      });
-      onDone();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create task.');
-    } finally {
-      setSubmitting(false);
-    }
+    onCreate({ title: title.trim(), dueTime, priority, assigneeId });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {requireBranchPicker && !homeBranchId ? (
-        <FormField label="Branch" htmlFor="taskBranch" required>
-          {(fieldProps) => (
-            <Select
-              {...fieldProps}
-              value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-              placeholder="Select a branch"
-              options={branches.map((b) => ({ value: b.id, label: b.name }))}
-            />
-          )}
-        </FormField>
-      ) : null}
-      <FormField label="Title" htmlFor="taskTitle" required>
-        {(fieldProps) => (
-          <Input {...fieldProps} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Cold room temperature check" />
-        )}
-      </FormField>
-      <FormField label="Description" htmlFor="taskDescription">
-        {(fieldProps) => <Textarea {...fieldProps} value={description} onChange={(e) => setDescription(e.target.value)} />}
-      </FormField>
-      <div className="grid grid-cols-2 gap-4">
-        <FormField label="Due date" htmlFor="taskDueDate">
-          {(fieldProps) => <Input {...fieldProps} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />}
-        </FormField>
-        <FormField label="Due time" htmlFor="taskDueTime">
-          {(fieldProps) => <Input {...fieldProps} type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} />}
-        </FormField>
-      </div>
-      <FormField label="Priority" htmlFor="taskPriority" required>
-        {(fieldProps) => (
-          <Select {...fieldProps} value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)} options={PRIORITY_OPTIONS} />
-        )}
-      </FormField>
-      {error ? <InlineError message={error} /> : null}
-      <Button type="submit" loading={submitting} fullWidth>
-        Create task
-      </Button>
-    </form>
+    <HandoffModal
+      open={open}
+      title="New task"
+      subtitle="Tasks belong to a shift and have an owner."
+      primary={pending ? 'Creating…' : 'Create task'}
+      primaryDisabled={pending}
+      onPrimary={submit}
+      onClose={() => {
+        setError(null);
+        onClose();
+      }}
+    >
+      <ModalFields>
+        <ModalField label="Task title" required full>
+          <input
+            value={title}
+            aria-label="Task title"
+            placeholder="e.g. Check cold room temperature"
+            onChange={(event) => setTitle(event.target.value)}
+            className={modalControl}
+          />
+        </ModalField>
+        <ModalField label="Department">
+          <select
+            value={departmentId}
+            aria-label="Department"
+            onChange={(event) => {
+              setDepartmentId(event.target.value);
+              setAssigneeId('');
+            }}
+            className={`${modalControl} cursor-pointer`}
+          >
+            <option value="">Every department</option>
+            {departments.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.name}
+              </option>
+            ))}
+          </select>
+        </ModalField>
+        <ModalField label="Assign to">
+          <select value={assigneeId} aria-label="Assign to" onChange={(event) => setAssigneeId(event.target.value)} className={`${modalControl} cursor-pointer`}>
+            <option value="">Unassigned</option>
+            {people.map((employee) => (
+              <option key={employee.id} value={employee.id}>
+                {`${employee.first_name} ${employee.last_name}`.trim()}
+              </option>
+            ))}
+          </select>
+        </ModalField>
+        <ModalField label="Due time" required>
+          <input type="time" value={dueTime} aria-label="Due time" onChange={(event) => setDueTime(event.target.value)} className={`${modalControl} cursor-pointer`} />
+        </ModalField>
+        <ModalField label="Priority" required>
+          <select
+            value={priority}
+            aria-label="Priority"
+            onChange={(event) => setPriority(event.target.value as TaskPriority)}
+            className={`${modalControl} cursor-pointer`}
+          >
+            {PRIORITY_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {PRIORITY_LABEL[option]}
+              </option>
+            ))}
+          </select>
+        </ModalField>
+      </ModalFields>
+      <p className="mx-[22px] mb-0 mt-3.5 rounded-[13px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] p-3.5 text-[12.5px] leading-[1.55] text-[#57504A]">
+        The task lands on today&rsquo;s board. Whoever owns it carries their department with them — that is the department the card shows.
+      </p>
+      {error ? <p className="mx-[22px] mb-0 mt-2.5 text-[12px] font-semibold text-[#C93A22]">{error}</p> : null}
+    </HandoffModal>
   );
 }
 
-function AssignTaskForm({
-  task,
+function AssignTaskModal({
+  card,
   employees,
-  onAssign,
-  onDone
-}: {
-  task: Task;
-  employees: Employee[];
-  onAssign: (supervisorEmployeeId: string) => Promise<unknown>;
-  onDone: () => void;
-}): React.ReactElement {
-  const eligible = useMemo(() => employees.filter((e) => e.branch_id === task.branch_id && e.is_active), [employees, task.branch_id]);
-  const [supervisorEmployeeId, setSupervisorEmployeeId] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (event: React.FormEvent): Promise<void> => {
-    event.preventDefault();
-    if (!supervisorEmployeeId) {
-      setError('Choose someone to assign this task to.');
-      return;
-    }
-    setError(null);
-    setSubmitting(true);
-    try {
-      await onAssign(supervisorEmployeeId);
-      onDone();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not assign task.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (eligible.length === 0) {
-    return <p className="text-sm text-neutral-500">No active employees in this task's branch are available to assign yet.</p>;
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <FormField label="Assign to" htmlFor="assignSupervisor" required>
-        {(fieldProps) => (
-          <Select
-            {...fieldProps}
-            value={supervisorEmployeeId}
-            onChange={(e) => setSupervisorEmployeeId(e.target.value)}
-            placeholder="Select an employee"
-            options={eligible.map((e) => ({ value: e.id, label: `${e.first_name} ${e.last_name}` }))}
-          />
-        )}
-      </FormField>
-      {error ? <InlineError message={error} /> : null}
-      <Button type="submit" loading={submitting} fullWidth>
-        {task.assigned_supervisor_id ? 'Reassign task' : 'Assign task'}
-      </Button>
-    </form>
-  );
-}
-
-function CompleteTaskForm({
-  onComplete,
-  onDone
-}: {
-  onComplete: (notes: string | undefined) => Promise<unknown>;
-  onDone: () => void;
-}): React.ReactElement {
-  const [notes, setNotes] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (event: React.FormEvent): Promise<void> => {
-    event.preventDefault();
-    setError(null);
-    setSubmitting(true);
-    try {
-      await onComplete(notes.trim() || undefined);
-      onDone();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not mark this task complete.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <FormField label="Notes" htmlFor="completeNotes" hint="Optional — anything the verifier should know.">
-        {(fieldProps) => <Textarea {...fieldProps} value={notes} onChange={(e) => setNotes(e.target.value)} />}
-      </FormField>
-      {error ? <InlineError message={error} /> : null}
-      <Button type="submit" loading={submitting} fullWidth>
-        Mark complete
-      </Button>
-    </form>
-  );
-}
-
-function VerifyTaskForm({
-  onVerify,
-  onDone
-}: {
-  onVerify: (status: TaskVerificationStatus, notes: string | undefined) => Promise<unknown>;
-  onDone: () => void;
-}): React.ReactElement {
-  const [status, setStatus] = useState<TaskVerificationStatus>('verified');
-  const [notes, setNotes] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (event: React.FormEvent): Promise<void> => {
-    event.preventDefault();
-    setError(null);
-    setSubmitting(true);
-    try {
-      await onVerify(status, notes.trim() || undefined);
-      onDone();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not record this verification.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <FormField label="Decision" htmlFor="verifyStatus" required>
-        {(fieldProps) => (
-          <Select
-            {...fieldProps}
-            value={status}
-            onChange={(e) => setStatus(e.target.value as TaskVerificationStatus)}
-            options={[
-              { value: 'verified', label: 'Verified — looks good' },
-              { value: 'rework_required', label: 'Request rework' }
-            ]}
-          />
-        )}
-      </FormField>
-      <FormField
-        label="Notes"
-        htmlFor="verifyNotes"
-        hint={status === 'rework_required' ? 'Explain what needs to be redone.' : 'Optional.'}
-      >
-        {(fieldProps) => <Textarea {...fieldProps} value={notes} onChange={(e) => setNotes(e.target.value)} />}
-      </FormField>
-      {error ? <InlineError message={error} /> : null}
-      <Button type="submit" loading={submitting} fullWidth variant={status === 'rework_required' ? 'destructive' : 'primary'}>
-        {status === 'rework_required' ? 'Send back for rework' : 'Mark verified'}
-      </Button>
-    </form>
-  );
-}
-
-function CancelTaskForm({
-  onCancel,
-  onDone
-}: {
-  onCancel: (reason: string | undefined) => Promise<unknown>;
-  onDone: () => void;
-}): React.ReactElement {
-  const [reason, setReason] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (event: React.FormEvent): Promise<void> => {
-    event.preventDefault();
-    setError(null);
-    setSubmitting(true);
-    try {
-      await onCancel(reason.trim() || undefined);
-      onDone();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not cancel this task.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <FormField label="Reason" htmlFor="cancelReason" hint="Optional — visible in the task's history.">
-        {(fieldProps) => <Textarea {...fieldProps} value={reason} onChange={(e) => setReason(e.target.value)} />}
-      </FormField>
-      {error ? <InlineError message={error} /> : null}
-      <Button type="submit" loading={submitting} variant="destructive" fullWidth>
-        Cancel task
-      </Button>
-    </form>
-  );
-}
-
-function TaskDetailModal({
-  task,
-  open,
   onClose,
-  branchName,
-  assigneeName
+  onAssign,
+  pending
 }: {
-  task: Task | null;
-  open: boolean;
+  card: TaskCard | null;
+  employees: Employee[];
   onClose: () => void;
-  branchName: string;
-  assigneeName: string;
+  onAssign: (employeeId: string) => void;
+  pending: boolean;
 }): React.ReactElement {
-  const { data: history, isLoading, error, refetch } = useRpcQuery<TaskHistoryEntry[]>(
-    'get_task_history',
-    task ? { taskId: task.id } : undefined,
-    { enabled: Boolean(task) && open }
-  );
+  const [employeeId, setEmployeeId] = useState('');
+  const people = employees.filter((employee) => employee.is_active);
 
   return (
-    <Modal open={open} onClose={onClose} title={task?.title ?? 'Task'} description={branchName}>
-      {task ? (
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-neutral-500">Status</p>
-              <Badge tone={STATUS_TONE[task.task_status]}>{STATUS_LABEL[task.task_status]}</Badge>
-            </div>
-            <div>
-              <p className="text-neutral-500">Priority</p>
-              <Badge tone={PRIORITY_TONE[task.priority]}>{PRIORITY_LABEL[task.priority]}</Badge>
-            </div>
-            <div>
-              <p className="text-neutral-500">Due</p>
-              <p className="text-neutral-800">{formatDue(task)}</p>
-            </div>
-            <div>
-              <p className="text-neutral-500">Assigned to</p>
-              <p className="text-neutral-800">{assigneeName}</p>
-            </div>
+    <HandoffModal
+      open={card !== null}
+      title="Assign this task"
+      subtitle={card ? card.title : ''}
+      primary={pending ? 'Assigning…' : 'Assign task'}
+      primaryDisabled={pending || !employeeId}
+      onPrimary={() => onAssign(employeeId)}
+      onClose={() => {
+        setEmployeeId('');
+        onClose();
+      }}
+    >
+      <ModalFields>
+        <ModalField label="Owner" required full>
+          <select value={employeeId} aria-label="Owner" onChange={(event) => setEmployeeId(event.target.value)} className={`${modalControl} cursor-pointer`}>
+            <option value="">Choose someone</option>
+            {people.map((employee) => (
+              <option key={employee.id} value={employee.id}>
+                {`${employee.first_name} ${employee.last_name}`.trim()}
+              </option>
+            ))}
+          </select>
+        </ModalField>
+      </ModalFields>
+      <p className="mx-[22px] mb-0 mt-3.5 rounded-[13px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] p-3.5 text-[12.5px] leading-[1.55] text-[#57504A]">
+        One person is accountable for a task. They can tick it off, and the card moves to Completed.
+      </p>
+    </HandoffModal>
+  );
+}
+
+/** The handoff's task card (markup lines 911-925). */
+function BoardCard({
+  card,
+  onToggle,
+  onAssign
+}: {
+  card: TaskCard;
+  onToggle: (() => void) | null;
+  onAssign: (() => void) | null;
+}): React.ReactElement {
+  // 17px of circle either way: filled when it is done, otherwise a 1.5px ring
+  // outside those 17px — the handoff has no box-sizing reset, so the ring adds
+  // to the box rather than eating into it.
+  const check = `mt-px flex size-[17px] flex-none items-center justify-center rounded-full text-[10px] font-extrabold ${
+    card.done ? 'border-0 bg-[#2E9E62] text-white' : 'box-content border-[1.5px] border-solid border-[#EBE7E3] bg-transparent text-transparent'
+  }`;
+
+  return (
+    <article className="rounded-[13px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] px-[13px] py-3">
+      <div className="flex items-start gap-[9px]">
+        {onToggle ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={card.done ? `Reopen ${card.title}` : `Mark ${card.title} done`}
+            className={`${check} cursor-pointer p-0`}
+          >
+            ✓
+          </button>
+        ) : (
+          <span className={check} aria-hidden="true">
+            ✓
+          </span>
+        )}
+        <p className="m-0 flex-auto text-[12.5px] font-bold [text-wrap:pretty]">{card.title}</p>
+      </div>
+      <p className="mb-0 mt-2 text-[11.5px] text-[#857A72]">{card.meta}</p>
+      <div className="mt-[9px] flex items-center gap-[7px]">
+        <span className="inline-flex items-center gap-[5px] rounded-full px-2.5 py-1 text-[11px] font-bold" style={pillStyle(card.tone)}>
+          {card.priority}
+        </span>
+        {onAssign ? (
+          <button
+            type="button"
+            onClick={onAssign}
+            aria-label={`Assign ${card.title}`}
+            className="cursor-pointer border-0 bg-transparent p-0 text-[11px] text-[#A79C93] hover:underline"
+          >
+            {card.assignee}
+          </button>
+        ) : (
+          <span className="text-[11px] text-[#A79C93]">{card.assignee}</span>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function Board({
+  columns,
+  onToggle,
+  onAssign
+}: {
+  columns: TaskColumn[];
+  onToggle: (card: TaskCard) => (() => void) | null;
+  onAssign: (card: TaskCard) => (() => void) | null;
+}): React.ReactElement {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] items-start gap-3.5">
+      {columns.map((column) => (
+        <section key={column.title} className="rounded-[16px] border border-solid border-[#EBE7E3] bg-white p-3.5">
+          <div className="flex items-center gap-[9px]">
+            <span className="size-[9px] flex-none rounded-[3px]" style={{ background: column.dot }} />
+            <h2 className="m-0 text-[13.5px] font-extrabold tracking-normal">{column.title}</h2>
+            <span className="ml-auto text-[11px] font-extrabold text-[#A79C93]">{column.cards.length}</span>
           </div>
-          {task.description ? (
-            <div>
-              <p className="text-xs font-medium text-neutral-500">Description</p>
-              <p className="mt-1 text-sm text-neutral-800">{task.description}</p>
-            </div>
-          ) : null}
-          {task.completion_notes ? (
-            <div>
-              <p className="text-xs font-medium text-neutral-500">Completion notes</p>
-              <p className="mt-1 text-sm text-neutral-800">{task.completion_notes}</p>
-            </div>
-          ) : null}
-          {task.verification_notes ? (
-            <div>
-              <p className="text-xs font-medium text-neutral-500">Verification notes</p>
-              <p className="mt-1 text-sm text-neutral-800">{task.verification_notes}</p>
-            </div>
-          ) : null}
-          <div>
-            <p className="mb-2 text-xs font-medium text-neutral-500">History</p>
-            {isLoading ? (
-              <p className="text-sm text-neutral-500">Loading history…</p>
-            ) : error ? (
-              <InlineError message={(error as Error).message} />
-            ) : !history || history.length === 0 ? (
-              <p className="text-sm text-neutral-500">No history recorded yet.</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {history.map((entry) => (
-                  <li key={entry.id} className="rounded-lg border border-neutral-200 bg-white p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <Badge tone={STATUS_TONE[entry.status]}>{STATUS_LABEL[entry.status]}</Badge>
-                      <span className="text-xs text-neutral-500">{new Date(entry.created_at).toLocaleString()}</span>
-                    </div>
-                    {entry.notes ? <p className="mt-1 text-sm text-neutral-700">{entry.notes}</p> : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {error ? (
-              <Button variant="secondary" size="sm" className="mt-2" onClick={() => void refetch()}>
-                Retry
-              </Button>
+          <div className="mt-3 flex flex-col gap-[9px]">
+            {column.cards.map((card) => (
+              <BoardCard key={card.id} card={card} onToggle={onToggle(card)} onAssign={onAssign(card)} />
+            ))}
+            {column.cards.length === 0 ? (
+              <div className="rounded-[13px] border border-dashed border-[#E4DED9] px-3 py-[22px] text-center">
+                <p className="m-0 text-[12.5px] font-bold text-[#857A72]">Nothing here</p>
+              </div>
             ) : null}
           </div>
-        </div>
-      ) : null}
-    </Modal>
+        </section>
+      ))}
+    </div>
   );
 }
 
-/** WEB-014-equivalent — Tasks. One page for every role, gated entirely by hasPermission(...); see RoleDashboard.tsx's doc comment for why this codebase never branches UI on a role name. */
 export default function TasksPage(): React.ReactElement {
+  const now = useNow();
+  const { toast, show, dismiss } = useScheduleToast();
   const { hasPermission, profile } = useSession();
   const canRead = hasPermission('tasks.read');
   const canCreate = hasPermission('tasks.create');
   const canAssign = hasPermission('tasks.assign');
   const canComplete = hasPermission('tasks.complete');
-  const canVerify = hasPermission('tasks.verify');
-  const canArchive = hasPermission('tasks.archive');
   const canUpdate = hasPermission('tasks.update');
-  const canReadEmployees = hasPermission('employees.read');
-  const canReadBranches = hasPermission('branches.read');
-  // A Manager works in their own branch only: no branch filter, column or form field.
-  const homeBranchId = useDefaultBranchId();
 
-  const [branchId, setBranchId] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | TaskStatus>('all');
-  const [priorityFilter, setPriorityFilter] = useState<'all' | TaskPriority>('all');
-  const [search, setSearch] = useState('');
+  // A Manager works in their own branch only — no branch picker, as the handoff has none.
+  const branchId = useDefaultBranchId() ?? '';
+  const scoped = branchId ? { branchId } : undefined;
+
+  const tasksQuery = useRpcQuery<Task[]>('list_tasks', { branchId: branchId || undefined, limit: 200 }, { enabled: canRead });
+  const { data: employees } = useRpcQuery<Employee[]>('list_employees', scoped, { enabled: canRead && hasPermission('employees.read') });
+  const { data: departments } = useRpcQuery<Department[]>('list_departments', scoped, { enabled: canRead && hasPermission('departments.read') });
+  const { data: branches } = useRpcQuery<{ id: string; name: string }[]>('list_branches', undefined, { enabled: hasPermission('branches.read') });
+  const branchName = (branches ?? []).find((branch) => branch.id === branchId)?.name ?? 'Your branch';
 
   // `?compose=1` (the overview's Ask ShiftOS "Open task form") opens the form straight away.
   const [searchParams] = useSearchParams();
-  const [createOpen, setCreateOpen] = useState(() => canCreate && searchParams.get('compose') === '1');
-  const [assignTarget, setAssignTarget] = useState<Task | null>(null);
-  const [completeTarget, setCompleteTarget] = useState<Task | null>(null);
-  const [verifyTarget, setVerifyTarget] = useState<Task | null>(null);
-  const [cancelTarget, setCancelTarget] = useState<Task | null>(null);
-  const [archiveTarget, setArchiveTarget] = useState<Task | null>(null);
-  const [reopenTarget, setReopenTarget] = useState<Task | null>(null);
-  const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [createOpen, setCreateOpen] = useState(() => searchParams.get('compose') === '1');
+  const [assignTarget, setAssignTarget] = useState<TaskCard | null>(null);
+  const [filter, setFilter] = useState<TaskFilter>('All');
+  const [query, setQuery] = useState('');
 
-  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: canReadBranches });
-  const { data: employees } = useRpcQuery<Employee[]>('list_employees', homeBranchId ? { branchId: homeBranchId } : undefined, { enabled: canRead && canReadEmployees });
+  const create = useRpcMutation<Task, Record<string, unknown>>('create_task', { invalidates: ['list_tasks'] });
+  const assign = useRpcMutation<Task, { taskId: string; supervisorEmployeeId: string }>('assign_task', { invalidates: ['list_tasks'] });
+  const complete = useRpcMutation<Task, { taskId: string; notes?: string }>('complete_task', { invalidates: ['list_tasks'] });
+  const reopen = useRpcMutation<Task, { taskId: string }>('reopen_task', { invalidates: ['list_tasks'] });
 
-  const myEmployeeRecord = useMemo(
-    () => employees?.find((e) => e.email && profile?.email && e.email.toLowerCase() === profile.email.toLowerCase()),
-    [employees, profile]
+  const myEmployeeId = useMemo(() => {
+    const mine = emailKey(profile?.email);
+    if (!mine) return null;
+    return (employees ?? []).find((employee) => emailKey(employee.email) === mine)?.id ?? null;
+  }, [employees, profile]);
+
+  const board = useMemo(
+    () => buildBoard({ tasks: tasksQuery.data ?? [], employees: employees ?? [], departments: departments ?? [], now }),
+    [tasksQuery.data, employees, departments, now]
   );
-
-  const activeBranchId = homeBranchId ?? (branchId || undefined);
-  const {
-    data: tasks,
-    isLoading,
-    error,
-    refetch
-  } = useRpcQuery<Task[]>(
-    'list_tasks',
-    { branchId: activeBranchId, status: statusFilter !== 'all' ? statusFilter : undefined },
-    { enabled: canRead }
-  );
-
-  const branchNameById = useMemo(() => new Map((branches ?? []).map((b) => [b.id, b.name])), [branches]);
-  const employeeNameById = useMemo(() => new Map((employees ?? []).map((e) => [e.id, `${e.first_name} ${e.last_name}`])), [employees]);
-  const branchOptions = useMemo(() => (homeBranchId ? [] : (branches ?? []).map((b) => ({ value: b.id, label: b.name }))), [branches, homeBranchId]);
-
-  const filtered = useMemo(() => {
-    if (!tasks) return [];
-    const query = search.trim().toLowerCase();
-    return tasks.filter((t) => {
-      if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
-      if (query && !t.title.toLowerCase().includes(query)) return false;
-      return true;
-    });
-  }, [tasks, search, priorityFilter]);
-
-  const createMutation = useRpcMutation<Task, Record<string, unknown>>('create_task', { invalidates: ['list_tasks'] });
-  const assignMutation = useRpcMutation<Task, { taskId: string; supervisorEmployeeId: string }>('assign_task', {
-    invalidates: ['list_tasks']
-  });
-  const completeMutation = useRpcMutation<Task, { taskId: string; notes?: string }>('complete_task', { invalidates: ['list_tasks'] });
-  const verifyMutation = useRpcMutation<Task, { taskId: string; status: TaskVerificationStatus; notes?: string }>('verify_task', {
-    invalidates: ['list_tasks']
-  });
-  const cancelMutation = useRpcMutation<Task, { taskId: string; reason?: string }>('cancel_task', { invalidates: ['list_tasks'] });
-  const archiveMutation = useRpcMutation<Task, { taskId: string }>('archive_task', {
-    invalidates: ['list_tasks'],
-    onSuccess: () => setArchiveTarget(null)
-  });
-  const reopenMutation = useRpcMutation<Task, { taskId: string }>('reopen_task', {
-    invalidates: ['list_tasks'],
-    onSuccess: () => setReopenTarget(null)
-  });
+  const shown = filterBoard(board, filter, query, myEmployeeId);
 
   if (!canRead) {
     return (
-      <PageContainer>
+      <div className="px-7 py-6">
         <PermissionDenied />
-      </PageContainer>
+      </div>
     );
   }
 
-  const requireBranchPicker = (branches ?? []).length !== 1;
+  const createTask = async ({
+    title,
+    dueTime,
+    priority,
+    assigneeId
+  }: {
+    title: string;
+    dueTime: string;
+    priority: TaskPriority;
+    assigneeId: string;
+  }): Promise<void> => {
+    try {
+      const task = await create.mutateAsync({ branchId, title, dueDate: todayOf(now), dueTime: dueTime || null, priority });
+      if (assigneeId && canAssign) await assign.mutateAsync({ taskId: task.id, supervisorEmployeeId: assigneeId });
+      setCreateOpen(false);
+      show('Task created');
+    } catch (problem) {
+      show(problem instanceof Error ? problem.message : 'Could not create the task');
+    }
+  };
+
+  /** The empty state's second button: today's board seeded from yesterday's tasks. */
+  const copyYesterday = async (): Promise<void> => {
+    const date = yesterdayOf(now);
+    const previous = (tasksQuery.data ?? []).filter((task) => task.due_date === date && !task.deleted_at && task.task_status !== 'cancelled');
+    if (previous.length === 0) {
+      show('Nothing to copy — yesterday had no tasks');
+      return;
+    }
+    try {
+      for (const task of previous) {
+        await create.mutateAsync({
+          branchId,
+          title: task.title,
+          description: task.description,
+          dueDate: todayOf(now),
+          dueTime: task.due_time,
+          priority: task.priority
+        });
+      }
+      show(`Copied ${previous.length} task${previous.length === 1 ? '' : 's'} from yesterday`);
+    } catch (problem) {
+      show(problem instanceof Error ? problem.message : "Could not copy yesterday's tasks");
+    }
+  };
+
+  const toggle = (card: TaskCard) => {
+    if (card.done) {
+      if (!canUpdate || card.status === 'verified') return null;
+      return () => {
+        reopen
+          .mutateAsync({ taskId: card.id })
+          .then(() => show(`${card.title} reopened`))
+          .catch((problem: unknown) => show(problem instanceof Error ? problem.message : 'Could not reopen the task'));
+      };
+    }
+    if (!canComplete) return null;
+    // The schema keeps an unassigned task in 'draft', and only an assigned task can be completed.
+    if (card.status === 'draft') {
+      return canAssign ? () => setAssignTarget(card) : () => show('Assign this task before ticking it off');
+    }
+    return () => {
+      complete
+        .mutateAsync({ taskId: card.id })
+        .then(() => show(`${card.title} done`))
+        .catch((problem: unknown) => show(problem instanceof Error ? problem.message : 'Could not complete the task'));
+    };
+  };
+
+  const assignOf = (card: TaskCard) => (canAssign && !card.done ? () => setAssignTarget(card) : null);
+
+  const body = (): React.ReactNode => {
+    if (tasksQuery.isLoading) return <OverviewLoading />;
+    if (boardTotal(board) === 0) {
+      return (
+        <OverviewEmpty
+          title="No tasks today"
+          body="Add the recurring checks that keep the branch running — cold room, floor walk, restocks."
+          cta={canCreate ? { label: 'Create task', onClick: () => setCreateOpen(true) } : null}
+          secondary={canCreate ? { label: 'Copy yesterday', onClick: () => void copyYesterday() } : null}
+        />
+      );
+    }
+    return (
+      <>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <label className="block min-w-[190px] flex-[1_1_240px]">
+            <span className="sr-only">Search</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search tasks"
+              className="box-border h-10 w-full rounded-[11px] border border-solid border-[#E4DED9] bg-white px-[13px] text-[13px] text-[#38312B] outline-none focus:border-[#F04E17]"
+            />
+          </label>
+          {TASK_FILTERS.map((name) => (
+            <button
+              key={name}
+              type="button"
+              aria-pressed={filter === name}
+              onClick={() => setFilter(name)}
+              className={[
+                'h-10 cursor-pointer rounded-[11px] border border-solid px-[13px] text-[12.5px] font-bold',
+                filter === name ? 'border-[#F04E17] bg-[#FDF0E9] text-[#C6420E]' : 'border-[#EBE7E3] bg-white text-[#857A72]'
+              ].join(' ')}
+            >
+              {name}
+            </button>
+          ))}
+          <span className="ml-auto text-[12px] text-[#A79C93]">{tasksCount(shown, filter)}</span>
+        </div>
+
+        <Board columns={shown} onToggle={toggle} onAssign={assignOf} />
+      </>
+    );
+  };
 
   return (
-    <PageContainer>
-      <PageHeader
+    <div className="flex min-h-full flex-col text-[13px] text-[#38312B] [line-height:normal]">
+      <OverviewHeader
         title="Tasks"
-        description={homeBranchId ? 'Recurring checks and one-off jobs for your branch.' : 'Recurring checks and one-off jobs for the branches you can access.'}
-        actions={canCreate ? <Button onClick={() => setCreateOpen(true)}>New task</Button> : undefined}
+        subtitle={tasksSubtitle(branchName)}
+        now={now}
+        actions={canCreate && boardTotal(board) > 0 ? <HeaderCta label="New task" onClick={() => setCreateOpen(true)} /> : null}
       />
+      <div className="flex flex-auto flex-col gap-[18px] bg-[#FDFCFB] px-7 pb-10 pt-[22px] max-[859px]:gap-3.5 max-[859px]:px-3.5 max-[859px]:pb-[84px] max-[859px]:pt-4">{body()}</div>
 
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        {branchOptions.length > 1 ? (
-          <div className="max-w-xs">
-            <Select
-              aria-label="Branch"
-              value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-              options={[{ value: '', label: 'All branches' }, ...branchOptions]}
-            />
-          </div>
-        ) : null}
-        <div className="max-w-xs">
-          <Select
-            aria-label="Status"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as 'all' | TaskStatus)}
-            options={STATUS_FILTER_OPTIONS}
-          />
-        </div>
-        <div className="max-w-xs">
-          <Select
-            aria-label="Priority"
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value as 'all' | TaskPriority)}
-            options={PRIORITY_FILTER_OPTIONS}
-          />
-        </div>
-        <div className="max-w-xs flex-1">
-          <Input placeholder="Search by title" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search tasks" />
-        </div>
-      </div>
-
-      <DataTable<Task>
-        columns={[
-          {
-            key: 'title',
-            header: 'Task',
-            primary: true,
-            render: (t) => (
-              <button type="button" onClick={() => setDetailTask(t)} className="text-left font-medium text-neutral-900 hover:underline">
-                {t.title}
-              </button>
-            )
-          },
-          ...(branchOptions.length > 1
-            ? [{ key: 'branch', header: 'Branch', render: (t: Task) => branchNameById.get(t.branch_id) ?? '—' }]
-            : []),
-          { key: 'priority', header: 'Priority', render: (t) => <Badge tone={PRIORITY_TONE[t.priority]}>{PRIORITY_LABEL[t.priority]}</Badge> },
-          { key: 'status', header: 'Status', render: (t) => <Badge tone={STATUS_TONE[t.task_status]}>{STATUS_LABEL[t.task_status]}</Badge> },
-          { key: 'due', header: 'Due', render: (t) => formatDue(t) },
-          {
-            key: 'assignee',
-            header: 'Assigned to',
-            render: (t) => (t.assigned_supervisor_id ? employeeNameById.get(t.assigned_supervisor_id) ?? 'Assigned' : 'Unassigned')
-          },
-          {
-            key: 'actions',
-            header: '',
-            render: (t) => (
-              <div className="flex flex-wrap items-center justify-end gap-3">
-                {canShowAssign(t, canAssign) ? (
-                  <button type="button" className="text-sm font-medium text-brand-700 hover:underline" onClick={() => setAssignTarget(t)}>
-                    {t.assigned_supervisor_id ? 'Reassign' : 'Assign'}
-                  </button>
-                ) : null}
-                {canShowComplete(t, canComplete, myEmployeeRecord?.id) ? (
-                  <button type="button" className="text-sm font-medium text-brand-700 hover:underline" onClick={() => setCompleteTarget(t)}>
-                    Complete
-                  </button>
-                ) : null}
-                {canShowVerify(t, canVerify) ? (
-                  <button type="button" className="text-sm font-medium text-brand-700 hover:underline" onClick={() => setVerifyTarget(t)}>
-                    Verify
-                  </button>
-                ) : null}
-                {canShowReopen(t, canUpdate) ? (
-                  <button type="button" className="text-sm font-medium text-neutral-600 hover:underline" onClick={() => setReopenTarget(t)}>
-                    Reopen
-                  </button>
-                ) : null}
-                {canShowCancel(t, canUpdate) ? (
-                  <button type="button" className="text-sm font-medium text-error-600 hover:underline" onClick={() => setCancelTarget(t)}>
-                    Cancel
-                  </button>
-                ) : null}
-                {canArchive ? (
-                  <button type="button" className="text-sm font-medium text-error-600 hover:underline" onClick={() => setArchiveTarget(t)}>
-                    Archive
-                  </button>
-                ) : null}
-              </div>
-            )
-          }
-        ]}
-        rows={filtered}
-        rowKey={(t) => t.id}
-        loading={isLoading}
-        error={error ? (error as Error).message : undefined}
-        onRetry={() => void refetch()}
-        emptyTitle={search || statusFilter !== 'all' || priorityFilter !== 'all' ? 'No tasks match these filters' : 'No tasks yet'}
-        emptyDescription={
-          search || statusFilter !== 'all' || priorityFilter !== 'all'
-            ? 'Try clearing a filter or search term.'
-            : 'Add the recurring checks that keep the branch running — cold room, floor walk, restocks.'
-        }
-        emptyAction={
-          !search && statusFilter === 'all' && priorityFilter === 'all' && canCreate
-            ? { label: 'Create task', onClick: () => setCreateOpen(true) }
-            : undefined
-        }
+      <NewTaskModal
+        open={createOpen}
+        employees={employees ?? []}
+        departments={departments ?? []}
+        pending={create.isPending || assign.isPending}
+        onClose={() => setCreateOpen(false)}
+        onCreate={(input) => void createTask(input)}
       />
-
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="New task" description="Add a job for your team to complete.">
-        <CreateTaskForm
-          branches={branches ?? []}
-          requireBranchPicker={requireBranchPicker}
-          homeBranchId={homeBranchId}
-          onCreate={(input) => createMutation.mutateAsync(input)}
-          onDone={() => setCreateOpen(false)}
-        />
-      </Modal>
-
-      <Modal
-        open={Boolean(assignTarget)}
+      <AssignTaskModal
+        key={assignTarget?.id ?? "none"}
+        card={assignTarget}
+        employees={employees ?? []}
+        pending={assign.isPending}
         onClose={() => setAssignTarget(null)}
-        title={assignTarget?.assigned_supervisor_id ? 'Reassign task' : 'Assign task'}
-        description={assignTarget?.title}
-      >
-        {assignTarget ? (
-          <AssignTaskForm
-            task={assignTarget}
-            employees={employees ?? []}
-            onAssign={(supervisorEmployeeId) => assignMutation.mutateAsync({ taskId: assignTarget.id, supervisorEmployeeId })}
-            onDone={() => setAssignTarget(null)}
-          />
-        ) : null}
-      </Modal>
-
-      <Modal open={Boolean(completeTarget)} onClose={() => setCompleteTarget(null)} title="Mark task complete" description={completeTarget?.title}>
-        {completeTarget ? (
-          <CompleteTaskForm
-            onComplete={(notes) => completeMutation.mutateAsync({ taskId: completeTarget.id, notes })}
-            onDone={() => setCompleteTarget(null)}
-          />
-        ) : null}
-      </Modal>
-
-      <Modal open={Boolean(verifyTarget)} onClose={() => setVerifyTarget(null)} title="Verify task" description={verifyTarget?.title}>
-        {verifyTarget ? (
-          <VerifyTaskForm
-            onVerify={(status, notes) => verifyMutation.mutateAsync({ taskId: verifyTarget.id, status, notes })}
-            onDone={() => setVerifyTarget(null)}
-          />
-        ) : null}
-      </Modal>
-
-      <Modal open={Boolean(cancelTarget)} onClose={() => setCancelTarget(null)} title="Cancel task" description={cancelTarget?.title}>
-        {cancelTarget ? (
-          <CancelTaskForm
-            onCancel={(reason) => cancelMutation.mutateAsync({ taskId: cancelTarget.id, reason })}
-            onDone={() => setCancelTarget(null)}
-          />
-        ) : null}
-      </Modal>
-
-      <ConfirmationDialog
-        open={Boolean(archiveTarget)}
-        onClose={() => setArchiveTarget(null)}
-        onConfirm={() => archiveTarget && archiveMutation.mutate({ taskId: archiveTarget.id })}
-        title="Archive task"
-        description={archiveTarget ? `"${archiveTarget.title}" will be removed from this list. This can't be undone from here.` : undefined}
-        confirmLabel="Archive"
-        destructive
-        loading={archiveMutation.isPending}
+        onAssign={(employeeId) => {
+          const card = assignTarget;
+          if (!card || !employeeId) return;
+          assign
+            .mutateAsync({ taskId: card.id, supervisorEmployeeId: employeeId })
+            .then(() => {
+              setAssignTarget(null);
+              show(`${card.title} assigned`);
+            })
+            .catch((problem: unknown) => show(problem instanceof Error ? problem.message : 'Could not assign the task'));
+        }}
       />
-
-      <ConfirmationDialog
-        open={Boolean(reopenTarget)}
-        onClose={() => setReopenTarget(null)}
-        onConfirm={() => reopenTarget && reopenMutation.mutate({ taskId: reopenTarget.id })}
-        title="Reopen task"
-        description={reopenTarget ? `"${reopenTarget.title}" will go back to In Progress, clearing its completion record.` : undefined}
-        confirmLabel="Reopen"
-        loading={reopenMutation.isPending}
-      />
-
-      <TaskDetailModal
-        task={detailTask}
-        open={Boolean(detailTask)}
-        onClose={() => setDetailTask(null)}
-        branchName={detailTask ? branchNameById.get(detailTask.branch_id) ?? '' : ''}
-        assigneeName={
-          detailTask?.assigned_supervisor_id ? employeeNameById.get(detailTask.assigned_supervisor_id) ?? 'Assigned' : 'Unassigned'
-        }
-      />
-    </PageContainer>
+      <ScheduleToast toast={toast} onDismiss={dismiss} />
+    </div>
   );
 }

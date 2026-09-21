@@ -1,12 +1,12 @@
-/**
+﻿/**
  * In-memory backend for the Manager overview preview (`?path=/`), seeded to
- * reproduce the design handoff's HOME.Manager morning — Friday May 16, 2025
+ * reproduce the design handoff's HOME.Manager morning â€” Friday May 16, 2025
  * at 07:58 (see mockClock.ts): 20 people, 17 checked in, Sales Floor / Front
  * End / Warehouse / Bakery coverage, 3 coverage gaps, 2 swaps + 3 leave
  * waiting, 2 supervisor invitations, next week still a draft, and the
  * handoff's two announcements.
  */
-import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap } from '../../src/types/domain.js';
+import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap, Task } from '../../src/types/domain.js';
 
 const ORG = 'org-abc-supermarket';
 const BRANCH = 'br-main';
@@ -51,15 +51,15 @@ const emailOf = (first: string, last: string): string => `${first}.${last}@abc.e
 
 /**
  * `?data=edge` serves the same screens with the shapes real databases
- * actually contain — a member whose user row has no email, an employee with
- * no department, phone, email or hire date, attendance with no shift joined —
+ * actually contain â€” a member whose user row has no email, an employee with
+ * no department, phone, email or hire date, attendance with no shift joined â€”
  * so a page that only survives tidy fixtures fails here instead of in front
  * of someone.
  */
 const MESSY = new URLSearchParams(window.location.search).get('data') === 'edge';
 
 export function createOverviewBackend() {
-  // Employees page preview: handoff-style phone numbers, one person on leave and two inactive (EMP_STATS 17 active · 1 on leave).
+  // Employees page preview: handoff-style phone numbers, one person on leave and two inactive (EMP_STATS 17 active Â· 1 on leave).
   const STATUS_OF: Record<string, Employee['employment_status']> = { p10: 'on_leave', p14: 'inactive', p15: 'inactive' };
   const employees: Employee[] = PEOPLE.map(([id, first, last, departmentId], index) => ({
     ...stamp({
@@ -84,7 +84,7 @@ export function createOverviewBackend() {
     created_at: at(index % 2 ? 12 : 28 - (index % 5) * 3, 9, 0)
   }));
 
-  // Employee Profile preview: John Doe's month so far — the handoff's HISTORY_DAYS marks with its HISTORY_ROWS times — and the first half of April to compare with.
+  // Employee Profile preview: John Doe's month so far â€” the handoff's HISTORY_DAYS marks with its HISTORY_ROWS times â€” and the first half of April to compare with.
   // [month, day, clock in 'HH:MM' | null (absent), clock out, late minutes, notes]
   const HISTORY: Array<[number, number, string | null, string | null, number, string | null]> = [
     [5, 1, '09:00', '17:00', 0, null], [5, 2, '09:00', '17:00', 0, null], [5, 5, '09:00', '17:00', 0, null], [5, 6, '09:10', '17:00', 10, null],
@@ -235,7 +235,7 @@ export function createOverviewBackend() {
       });
     }
   }
-  // Three published slots nobody is on yet — the week's coverage gaps.
+  // Three published slots nobody is on yet â€” the week's coverage gaps.
   addShift('gap-1', '2025-05-17', 'dep-frontend', '07:30', '17:00');
   addShift('gap-2', '2025-05-17', 'dep-warehouse', '14:30', '22:30');
   addShift('gap-3', '2025-05-18', 'dep-bakery', '07:30', '17:00');
@@ -394,12 +394,61 @@ export function createOverviewBackend() {
     });
   }
 
+  // Tasks board: the handoff's own six tasks (TASKS_BRANCH), owned by people
+  // from this branch â€” a card's department is its owner's, so it reads from
+  // the same employee rows the rest of the preview uses.
+  const NOW = at(16, 7, 58);
+  const task = (
+    id: string,
+    title: string,
+    priority: Task['priority'],
+    status: Task['task_status'],
+    ownerId: string | null,
+    dueTime: string | null,
+    when: string | null
+  ): Task => ({
+    ...stamp({ id }),
+    branch_id: BRANCH,
+    title,
+    description: null,
+    due_date: '2025-05-16',
+    due_time: dueTime,
+    priority,
+    task_status: status,
+    assigned_supervisor_id: ownerId,
+    assigned_by: ownerId ? 'user-me' : null,
+    assigned_at: ownerId ? when ?? at(16, 7, 30) : null,
+    completed_at: status === 'completed' ? when : null,
+    completed_by: status === 'completed' ? ownerId : null,
+    completion_notes: null,
+    verified_at: null,
+    verified_by: null,
+    verification_notes: null,
+    verification_status: 'pending',
+    created_by: 'user-me',
+    updated_by: null,
+    version: 1
+  });
+  const tasks: Task[] = [
+    task('t1', 'Restock beverages in aisle 4', 'normal', 'assigned', 'p16', '10:00:00', null),
+    task('t2', 'Bakery preparation check', 'low', 'draft', null, '11:00:00', null),
+    task('t3', 'Floor cleanliness check', 'low', 'assigned', 'p20', '14:00:00', null),
+    task('t4', 'Weekly stock count', 'high', 'in_progress', 'p12', null, at(16, 9, 10)),
+    task('t5', 'Check cold room temperature', 'high', 'completed', 'p12', '08:00:00', at(16, 8, 15)),
+    task('t6', 'Morning store walkthrough', 'normal', 'completed', 'p1', '08:00:00', at(16, 8, 25))
+  ];
+  const taskOr = (id: unknown): Task => {
+    const found = tasks.find((row) => row.id === id);
+    if (!found) throw new Error('Task not found');
+    return found;
+  };
+
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
     list_employee_imports: () => imports.slice(0, 5),
     import_employees: importEmployees,
     invite_member: () => ({}),
     // Supervisors page: the org's roles (org-wide ones are Admins, the rest are supervisors) and what each role may do.
-    // [id, name, org-wide?] — Admin is branch-scoped on purpose (048), so it can be invited.
+    // [id, name, org-wide?] â€” Admin is branch-scoped on purpose (048), so it can be invited.
     list_roles: () =>
       [
         ['role-manager', 'Manager', true],
@@ -483,7 +532,7 @@ export function createOverviewBackend() {
       {
         ...stamp({ id: 'ann-stocktake' }),
         branch_id: BRANCH,
-        title: 'Stocktake weekend — we close at 6 PM Saturday',
+        title: 'Stocktake weekend â€” we close at 6 PM Saturday',
         content: "We close early on Saturday for the monthly stocktake. Supervisors should confirm their team's finish times by Friday afternoon.",
         announcement_type: 'operational',
         visibility_type: 'branch',
@@ -505,7 +554,48 @@ export function createOverviewBackend() {
         created_by: 'user-p1'
       }
     ],
-    list_tasks: () => []
+    // Tasks screen: creating, assigning, completing and reopening all move the
+    // same rows the board reads, exactly as the real RPCs do.
+    list_tasks: () => tasks,
+    create_task: (input) => {
+      const row = task(
+        `task-${Date.now()}`,
+        String(input.title),
+        (input.priority as Task['priority']) ?? 'normal',
+        'draft',
+        null,
+        (input.dueTime as string) ?? null,
+        null
+      );
+      row.due_date = (input.dueDate as string) ?? row.due_date;
+      row.description = (input.description as string) ?? null;
+      tasks.push(row);
+      return row;
+    },
+    assign_task: (input) => {
+      const row = taskOr(input.taskId);
+      row.task_status = 'assigned';
+      row.assigned_supervisor_id = String(input.supervisorEmployeeId);
+      row.assigned_by = 'user-me';
+      row.assigned_at = NOW;
+      return row;
+    },
+    complete_task: (input) => {
+      const row = taskOr(input.taskId);
+      row.task_status = 'completed';
+      row.completed_at = NOW;
+      row.completed_by = 'user-me';
+      row.completion_notes = (input.notes as string) ?? null;
+      return row;
+    },
+    reopen_task: (input) => {
+      const row = taskOr(input.taskId);
+      row.task_status = 'in_progress';
+      row.completed_at = null;
+      row.completed_by = null;
+      row.completion_notes = null;
+      return row;
+    }
   };
 
   return async function callRpc<TOutput>(operation: string, _organizationId?: string, input?: unknown): Promise<TOutput> {
