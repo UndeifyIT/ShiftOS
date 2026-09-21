@@ -676,6 +676,12 @@ export function createOverviewBackend() {
       }
       return row;
     },
+    // Deleting a task archives it, exactly as the service does — the row stays, it leaves the board.
+    archive_task: (input) => {
+      const row = taskOr(input.taskId);
+      row.deleted_at = NOW;
+      return row;
+    },
     reopen_task: (input) => {
       const row = taskOr(input.taskId);
       row.task_status = 'in_progress';

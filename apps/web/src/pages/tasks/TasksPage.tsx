@@ -10,6 +10,7 @@ import type { Department, Employee, Task, TaskPriority, TaskRecurrence } from '.
 import { OverviewEmpty, OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
 import { HeaderCta } from '../people/RolePeopleTable.js';
+import { ScheduleIcon } from '../scheduling/grid/ScheduleIcon.js';
 import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
 import { TONES, type Tone } from '../scheduling/grid/scheduleFormat.js';
 import {
@@ -216,15 +217,47 @@ function AssignTaskModal({
   );
 }
 
-/** The handoff's task card (markup lines 911-925). */
+function DeleteTaskModal({
+  card,
+  onClose,
+  onDelete,
+  pending
+}: {
+  card: TaskCard | null;
+  onClose: () => void;
+  onDelete: () => void;
+  pending: boolean;
+}): React.ReactElement {
+  return (
+    <HandoffModal
+      open={card !== null}
+      title="Delete this task?"
+      subtitle={card ? card.title : ''}
+      primary={pending ? 'Deleting…' : 'Delete task'}
+      primaryDisabled={pending}
+      onPrimary={onDelete}
+      onClose={onClose}
+    >
+      <p className="mx-[22px] mb-0 mt-[18px] rounded-[13px] border border-solid border-[#F7E4DF] bg-[#FDF6F4] p-3.5 text-[12.5px] leading-[1.55] text-[#8E5A2E]">
+        It leaves the board for everyone. The record is kept — deleting a task archives it, so what was done, by whom and when stays in the history and
+        in the audit trail.
+        {card?.repeats ? ' A repeating task stops here: no further occurrence is created.' : ''}
+      </p>
+    </HandoffModal>
+  );
+}
+
+/** The handoff's task card (markup lines 911-925), plus a way to remove one. */
 function BoardCard({
   card,
   onToggle,
-  onAssign
+  onAssign,
+  onDelete
 }: {
   card: TaskCard;
   onToggle: (() => void) | null;
   onAssign: (() => void) | null;
+  onDelete: (() => void) | null;
 }): React.ReactElement {
   // 17px of circle either way: filled when it is done, otherwise a 1.5px ring
   // outside those 17px — the handoff has no box-sizing reset, so the ring adds
@@ -251,6 +284,17 @@ function BoardCard({
           </span>
         )}
         <p className="m-0 flex-auto text-[12.5px] font-bold [text-wrap:pretty]">{card.title}</p>
+        {onDelete ? (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label={`Delete ${card.title}`}
+            title="Delete task"
+            className="-mr-0.5 mt-px flex size-[18px] flex-none cursor-pointer items-center justify-center rounded-[6px] border-0 bg-transparent p-0 text-[#C0B6AE] hover:text-[#C93A22]"
+          >
+            <ScheduleIcon name="trash" size={14} />
+          </button>
+        ) : null}
       </div>
       <p className="mb-0 mt-2 text-[11.5px] text-[#857A72]">{card.meta}</p>
       <div className="mt-[9px] flex items-center gap-[7px]">
@@ -277,14 +321,21 @@ function BoardCard({
 function Board({
   columns,
   onToggle,
-  onAssign
+  onAssign,
+  onDelete
 }: {
   columns: TaskColumn[];
   onToggle: (card: TaskCard) => (() => void) | null;
   onAssign: (card: TaskCard) => (() => void) | null;
+  onDelete: (card: TaskCard) => (() => void) | null;
 }): React.ReactElement {
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] items-start gap-3.5">
+    // Three columns side by side, always — the handoff's own auto-fit track
+    // folds them into one another on a narrow window (or at browser zoom),
+    // and a board that stacks is no longer a board. Below ~790px it scrolls
+    // sideways instead, the way the handoff's wide tables do.
+    <div className="overflow-x-auto">
+      <div className="grid min-w-[790px] grid-cols-3 items-start gap-3.5">
       {columns.map((column) => (
         <section key={column.title} className="rounded-[16px] border border-solid border-[#EBE7E3] bg-white p-3.5">
           <div className="flex items-center gap-[9px]">
@@ -294,7 +345,7 @@ function Board({
           </div>
           <div className="mt-3 flex flex-col gap-[9px]">
             {column.cards.map((card) => (
-              <BoardCard key={card.id} card={card} onToggle={onToggle(card)} onAssign={onAssign(card)} />
+              <BoardCard key={card.id} card={card} onToggle={onToggle(card)} onAssign={onAssign(card)} onDelete={onDelete(card)} />
             ))}
             {column.cards.length === 0 ? (
               <div className="rounded-[13px] border border-dashed border-[#E4DED9] px-3 py-[22px] text-center">
@@ -302,8 +353,9 @@ function Board({
               </div>
             ) : null}
           </div>
-        </section>
-      ))}
+          </section>
+        ))}
+      </div>
     </div>
   );
 }
@@ -317,6 +369,7 @@ export default function TasksPage(): React.ReactElement {
   const canAssign = hasPermission('tasks.assign');
   const canComplete = hasPermission('tasks.complete');
   const canUpdate = hasPermission('tasks.update');
+  const canArchive = hasPermission('tasks.archive');
 
   // A Manager works in their own branch only — no branch picker, as the handoff has none.
   const branchId = useDefaultBranchId() ?? '';
@@ -332,6 +385,7 @@ export default function TasksPage(): React.ReactElement {
   const [searchParams] = useSearchParams();
   const [createOpen, setCreateOpen] = useState(() => searchParams.get('compose') === '1');
   const [assignTarget, setAssignTarget] = useState<TaskCard | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TaskCard | null>(null);
   const [filter, setFilter] = useState<TaskFilter>('All');
   const [query, setQuery] = useState('');
 
@@ -339,6 +393,7 @@ export default function TasksPage(): React.ReactElement {
   const assign = useRpcMutation<Task, { taskId: string; supervisorEmployeeId: string }>('assign_task', { invalidates: ['list_tasks'] });
   const complete = useRpcMutation<Task, { taskId: string; notes?: string }>('complete_task', { invalidates: ['list_tasks'] });
   const reopen = useRpcMutation<Task, { taskId: string }>('reopen_task', { invalidates: ['list_tasks'] });
+  const archive = useRpcMutation<Task, { taskId: string }>('archive_task', { invalidates: ['list_tasks'] });
 
   const myEmployeeId = useMemo(() => {
     const mine = emailKey(profile?.email);
@@ -433,6 +488,19 @@ export default function TasksPage(): React.ReactElement {
   };
 
   const assignOf = (card: TaskCard) => (canAssign && !card.done ? () => setAssignTarget(card) : null);
+  const deleteOf = (card: TaskCard) => (canArchive ? () => setDeleteTarget(card) : null);
+
+  const deleteTask = (): void => {
+    const card = deleteTarget;
+    if (!card) return;
+    archive
+      .mutateAsync({ taskId: card.id })
+      .then(() => {
+        setDeleteTarget(null);
+        show(`${card.title} deleted`);
+      })
+      .catch((problem: unknown) => show(problem instanceof Error ? problem.message : 'Could not delete the task'));
+  };
 
   const body = (): React.ReactNode => {
     if (tasksQuery.isLoading) return <OverviewLoading />;
@@ -476,7 +544,7 @@ export default function TasksPage(): React.ReactElement {
           <span className="ml-auto text-[12px] text-[#A79C93]">{tasksCount(shown, filter)}</span>
         </div>
 
-        <Board columns={shown} onToggle={toggle} onAssign={assignOf} />
+        <Board columns={shown} onToggle={toggle} onAssign={assignOf} onDelete={deleteOf} />
       </>
     );
   };
@@ -517,6 +585,7 @@ export default function TasksPage(): React.ReactElement {
             .catch((problem: unknown) => show(problem instanceof Error ? problem.message : 'Could not assign the task'));
         }}
       />
+      <DeleteTaskModal card={deleteTarget} pending={archive.isPending} onClose={() => setDeleteTarget(null)} onDelete={deleteTask} />
       <ScheduleToast toast={toast} onDismiss={dismiss} />
     </div>
   );
