@@ -34,9 +34,12 @@ const OnboardingWizardShell = lazy(() =>
 );
 
 const RoleDashboard = lazy(() => import('./pages/dashboard/RoleDashboard.js'));
+const ManagerDashboardPreviewPage = lazy(() => import('./pages/dashboard/ManagerDashboardPreviewPage.js'));
 const AdminConsolePage = lazy(() => import('./pages/admin/AdminConsolePage.js'));
 const AnnouncementsPage = lazy(() => import('./pages/announcements/AnnouncementsPage.js'));
 const RequestsPage = lazy(() => import('./pages/requests/RequestsPage.js'));
+const ReportsPage = lazy(() => import('./pages/reports/ReportsPage.js'));
+const SettingsPage = lazy(() => import('./pages/settings/SettingsPage.js'));
 const OrganizationSettingsPage = lazy(() => import('./pages/organization/OrganizationSettingsPage.js'));
 const BranchListPage = lazy(() => import('./pages/branches/BranchListPage.js'));
 const BranchDetailPage = lazy(() => import('./pages/branches/BranchDetailPage.js'));
@@ -133,6 +136,14 @@ function OnboardingGate(): React.ReactElement {
 export function App(): React.ReactElement {
   const { status, errorMessage, refresh, activeOrganization, myContext } = useSession();
 
+  if (window.location.pathname === '/manager-demo') {
+    return (
+      <SuspenseRoute>
+        <ManagerDashboardPreviewPage />
+      </SuspenseRoute>
+    );
+  }
+
   if (status === 'loading') {
     return <FullPageSpinner />;
   }
@@ -157,6 +168,7 @@ export function App(): React.ReactElement {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/request-demo" element={<DemoPage />} />
           <Route path="/demo" element={<Navigate to="/request-demo" replace />} />
+          <Route path="/manager-demo" element={<ManagerDashboardPreviewPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/sign-in" element={<SignInPage />} />
@@ -242,6 +254,8 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/admin" element={<AdminConsolePage />} />
         <Route path="/announcements" element={<AnnouncementsPage />} />
         <Route path="/requests" element={<RequestsPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/organization" element={<OrganizationSettingsPage />} />
         <Route path="/branches" element={<BranchListPage />} />
         <Route path="/branches/new" element={<BranchDetailPage />} />

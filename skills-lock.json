@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "skills": {
+    "hyperframes": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes/SKILL.md",
+      "computedHash": "ff3823b79cd3fdac5bc9e24c7c015edfcc2aaccc9712e1f6f47a55e6f6175b73"
+    },
+    "hyperframes-animation": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-animation/SKILL.md",
+      "computedHash": "dfb8ab4e6349db907290383b2787b537b985f262fc3f7239ba713a3b211a1b32"
+    },
+    "hyperframes-audio": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-audio/SKILL.md",
+      "computedHash": "9684eabea97c07f59757a5ea3e1f6516ede7ff12d30b34475ae6da47b0eb380c"
+    },
+    "hyperframes-cli": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-cli/SKILL.md",
+      "computedHash": "98e89e8789a8996fbd2b0e438f6f620be0dda9d6f2f62fc74eb805b75e094a34"
+    },
+    "hyperframes-core": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-core/SKILL.md",
+      "computedHash": "07f229ab3ca4afcf76ed6603140ba9de587fe3093dd441df0bbb1b7b8e72d665"
+    },
+    "hyperframes-creative": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-creative/SKILL.md",
+      "computedHash": "cbba5ebffe2a613f1d44d1e2a7caab0b93e0a8a7755fa6854f3a40976fea034d"
+    },
+    "motion-graphics": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/motion-graphics/SKILL.md",
+      "computedHash": "4628827f936a5c34b6dd620c86dc8b05ca5af36c3a405da974957e16339a8802"
+    },
+    "product-launch-video": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/product-launch-video/SKILL.md",
+      "computedHash": "bfff578c77b664483c114b0517bb973010fb0489fa30b640311cf3b612b919b9"
+    }
+  }
+}

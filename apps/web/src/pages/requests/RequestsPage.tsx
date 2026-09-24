@@ -4,7 +4,7 @@ import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import { AuthBanner } from '../auth/AuthInputs.js';
 import { DashHeader, InitialsAvatar, StatusPill } from '../dashboard/dashboardWidgets.js';
 import { ObSelect } from '../onboarding/OnboardingFields.js';
-import type { Branch, Employee, LeaveRequest, Schedule, Shift, ShiftAssignment, ShiftSwap } from '../../types/domain.js';
+import type { Employee, LeaveRequest, Schedule, Shift, ShiftAssignment, ShiftSwap } from '../../types/domain.js';
 
 /**
  * Requests, recreated from `ShiftOS Dashboards.dc.html`'s kindRequests
@@ -59,10 +59,8 @@ export default function RequestsPage(): React.ReactElement {
   const canReadEmployees = hasPermission('employees.read');
 
   const [tab, setTab] = useState<'swaps' | 'leave'>('swaps');
+  const [requestFilter, setRequestFilter] = useState<'Pending' | 'Resolved' | 'All'>('Pending');
 
-  // Also used below to resolve requester/target employee names on the swap
-  // and leave lists — without this, an approver sees only a truncated
-  // employee_id ("Employee cd7523ef…") with no way to tell who's asking.
   const { data: employees } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canReadEmployees });
   const myEmployee = useMemo(
     () =>
@@ -72,12 +70,14 @@ export default function RequestsPage(): React.ReactElement {
     [employees, profile]
   );
 
+  const requestCountLabel = tab === 'swaps' ? `${requestFilter === 'All' ? 'All' : requestFilter} swap requests` : `${requestFilter === 'All' ? 'All' : requestFilter} leave requests`;
+
   return (
     <div className="px-4 pb-10 pt-[72px] sm:px-6 lg:px-8">
       <DashHeader title="Requests" subtitle="Swap requests and time off, in one approval path." />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2.5">
-        <div className="inline-flex gap-0.5 rounded-xl bg-[#F6F3F0] p-1">
+      <div className="mb-4 flex flex-wrap items-center gap-[10px]">
+        <div className="inline-flex gap-[2px] rounded-[11px] bg-[#F6F3F0] p-[3px]">
           {(
             [
               { id: 'swaps', label: 'Swap requests' },
@@ -89,18 +89,40 @@ export default function RequestsPage(): React.ReactElement {
               type="button"
               onClick={() => setTab(t.id)}
               className={[
-                'cursor-pointer rounded-lg px-[11px] py-1.5 text-[11.5px] font-bold transition-colors',
-                tab === t.id ? 'bg-white text-neutral-900 shadow-[0_1px_3px_rgba(56,49,43,0.16)]' : 'text-neutral-400 hover:text-neutral-600'
+                'cursor-pointer rounded-[9px] px-[11px] py-[6px] text-[11.5px] font-bold leading-none transition-all',
+                tab === t.id ? 'bg-white text-[#2B241F] shadow-[0_1px_3px_rgba(56,49,43,0.16)]' : 'text-[#A79C93] hover:text-[#57504A]'
               ].join(' ')}
             >
               {t.label}
             </button>
           ))}
         </div>
+        <div className="flex flex-wrap gap-[6px]">
+          {(['Pending', 'Resolved', 'All'] as const).map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              onClick={() => setRequestFilter(filter)}
+              className={[
+                'h-[34px] cursor-pointer rounded-[9px] border px-3 text-[11.5px] font-bold leading-none transition-colors',
+                requestFilter === filter ? 'border-[#F2B69A] bg-[#FFF6F1] text-[#C6420E]' : 'border-[#E7E1DD] bg-white text-[#857A72] hover:border-[#D7D0CA]'
+              ].join(' ')}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+        <span className="ml-auto text-[12px] font-medium text-[#A79C93]">{requestCountLabel}</span>
       </div>
 
       {tab === 'swaps' ? (
-        <SwapsTab canApprove={canApproveSwaps} canRespond={canRespondSwaps} canRequest={canRequestSwaps} employees={employees ?? []} />
+        <SwapsTab
+          canApprove={canApproveSwaps}
+          canRespond={canRespondSwaps}
+          canRequest={canRequestSwaps}
+          employees={employees ?? []}
+          requestFilter={requestFilter}
+        />
       ) : (
         <LeaveTab
           canApprove={canApproveLeave}
@@ -108,6 +130,7 @@ export default function RequestsPage(): React.ReactElement {
           myEmployeeId={myEmployee?.id ?? null}
           contextKey={myContext?.organizationId ?? 'none'}
           employees={employees ?? []}
+          requestFilter={requestFilter}
         />
       )}
     </div>
@@ -120,16 +143,17 @@ function SwapsTab({
   canApprove,
   canRespond,
   canRequest,
-  employees
+  employees,
+  requestFilter
 }: {
   canApprove: boolean;
   canRespond: boolean;
   canRequest: boolean;
   employees: Employee[];
+  requestFilter: 'Pending' | 'Resolved' | 'All';
 }): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
 
-  // Approvers work the pending queue; everyone else sees their own + open swaps.
   const approvalsQuery = useRpcQuery<ShiftSwap[]>('list_pending_shift_swap_approvals', undefined, { enabled: canApprove });
   const mineQuery = useRpcQuery<ShiftSwap[]>('list_my_shift_swaps', undefined, { enabled: !canApprove });
   const openQuery = useRpcQuery<ShiftSwap[]>('list_open_shift_swaps', undefined, { enabled: !canApprove });
@@ -150,15 +174,13 @@ function SwapsTab({
     onError: (err) => setError(err.message)
   });
 
-  // An open swap the caller created themselves is a genuine member of both
-  // list_my_shift_swaps and list_open_shift_swaps (it's simultaneously
-  // "mine" and "unassigned") -- deduping by id rather than filtering one
-  // list out entirely, since a non-open swap someone else opened should
-  // still only ever come from openQuery.
-  const queue =
-    canApprove
-      ? (approvalsQuery.data ?? [])
-      : Array.from(new Map([...(mineQuery.data ?? []), ...(openQuery.data ?? [])].map((swap) => [swap.id, swap])).values());
+  const allQueue = canApprove ? (approvalsQuery.data ?? []) : [...(mineQuery.data ?? []), ...(openQuery.data ?? [])];
+  const queue = Array.from(new Map(allQueue.map((swap) => [swap.id, swap])).values()).filter((swap) => {
+    if (requestFilter === 'All') return true;
+    return requestFilter === 'Pending'
+      ? ['pending', 'accepted'].includes(swap.status)
+      : ['approved', 'rejected', 'declined', 'cancelled'].includes(swap.status);
+  });
 
   return (
     <div>
@@ -166,9 +188,9 @@ function SwapsTab({
       {(canApprove ? approvalsQuery.isLoading : mineQuery.isLoading || openQuery.isLoading) ? (
         <p className="text-sm text-neutral-500">Loading swap requests…</p>
       ) : queue.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-neutral-300 bg-white px-6 py-10 text-center">
-          <p className="text-[15px] font-extrabold text-neutral-900">No swap requests in this view</p>
-          <p className="mx-auto mt-1.5 max-w-[400px] text-[12.5px] text-neutral-500">
+        <div className="rounded-[16px] border border-dashed border-[#E4DED9] bg-white px-6 py-10 text-center">
+          <p className="text-[15px] font-extrabold text-[#38312B]">No swap requests in this filter</p>
+          <p className="mx-auto mt-1.5 max-w-[400px] text-[12.5px] text-[#857A72]">
             Swaps only exist against published shifts. When someone requests one, it lands here for approval.
           </p>
         </div>
@@ -217,23 +239,20 @@ function SwapCard({
     mode === 'approve'
       ? swap.status === 'pending' || swap.status === 'accepted'
       : canRespond && (swap.status === 'pending' || swap.status === 'accepted');
-  const closed = !actionable;
+  const stage = ['approved', 'rejected', 'declined', 'cancelled'].includes(swap.status) ? 3 : swap.status === 'accepted' ? 2 : 1;
 
-  // Falls back to a truncated id only if the employee record can't be
-  // found (e.g. archived) — the common case resolves a real name so an
-  // approver can actually tell who they're approving a swap for.
   const employeeName = (employeeId: string): string => {
     const employee = employees.find((e) => e.id === employeeId);
     return employee ? `${employee.first_name} ${employee.last_name}` : `Employee ${employeeId.slice(0, 8)}…`;
   };
 
   return (
-    <article className="rounded-2xl border border-neutral-200 bg-white p-4">
-      <div className="flex flex-wrap items-center gap-2.5">
+    <article className="rounded-[16px] border border-[#EBE7E3] bg-white p-[18px]">
+      <div className="flex flex-wrap items-center gap-[10px]">
         <StatusPill tone={SWAP_TONES[swap.status] ?? 'neutral'}>{STATUS_LABEL[swap.status] ?? swap.status}</StatusPill>
-        <span className="text-[11.5px] text-neutral-400">Swap request</span>
-        <span className="ml-auto text-[11.5px] text-neutral-400">
-          {new Date(swap.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+        <span className="text-[11.5px] text-[#A79C93]">SWP-{swap.id.slice(0, 8).toUpperCase()}</span>
+        <span className="ml-auto text-[11.5px] text-[#A79C93]">
+          Raised {new Date(swap.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
         </span>
       </div>
 
@@ -246,16 +265,18 @@ function SwapCard({
               <span className="block truncate text-[12.5px] font-extrabold text-neutral-900">
                 {swap.requested_by_employee_id === swap.target_employee_id ? '—' : employeeName(swap.requested_by_employee_id)}
               </span>
-              <span className="block text-[11px] text-neutral-400">Assignment {swap.shift_assignment_id.slice(0, 8)}…</span>
+              <span className="block text-[11px] text-[#A79C93]">Assignment {swap.shift_assignment_id.slice(0, 8)}…</span>
             </span>
           </div>
+          <p className="mt-[10px] text-[12.5px] font-bold text-[#57504A]">{swap.shift_assignment_id ? 'Assigned shift' : 'Open shift'}</p>
+          <p className="mt-[3px] text-[11.5px] text-[#857A72]">{swap.responded_at ? `Responded ${new Date(swap.responded_at).toLocaleDateString()}` : 'Awaiting response'}</p>
         </div>
 
         <span
           aria-hidden="true"
-          className="flex size-[30px] shrink-0 items-center justify-center self-center rounded-full bg-brand-soft text-[13px] font-extrabold text-brand-deep"
+          className="flex size-[30px] shrink-0 items-center justify-center self-center rounded-full bg-[#FDF0E9] text-[13px] font-extrabold text-[#C6420E]"
         >
-          →
+          ⇄
         </span>
 
         <div className="min-w-[200px] flex-[1_1_220px] rounded-[13px] border border-neutral-100 p-3.5">
@@ -266,19 +287,31 @@ function SwapCard({
               <span className="block truncate text-[12.5px] font-extrabold text-neutral-900">
                 {swap.target_employee_id ? employeeName(swap.target_employee_id) : 'Open — anyone can take it'}
               </span>
-              <span className="block text-[11px] text-neutral-400">{swap.responded_at ? `Responded ${new Date(swap.responded_at).toLocaleDateString()}` : 'Awaiting response'}</span>
+              <span className="block text-[11px] text-[#A79C93]">{swap.responded_at ? `Responded ${new Date(swap.responded_at).toLocaleDateString()}` : 'Awaiting response'}</span>
             </span>
           </div>
+          <p className="mt-[10px] text-[12.5px] font-bold text-[#57504A]">{swap.target_employee_id ? 'Shift handoff' : 'Open to any available employee'}</p>
+          <p className="mt-[3px] text-[11.5px] text-[#857A72]">{swap.target_employee_id ? `Target ${swap.target_employee_id.slice(0, 8)}` : 'No specific target chosen yet'}</p>
         </div>
       </div>
 
       {swap.notes ? (
-        <p className="mt-3 text-[12.5px] text-neutral-600">
+        <p className="mt-[12px] text-[12.5px] text-[#57504A]">
           <strong className="font-extrabold">Reason:</strong> {swap.notes}
         </p>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-neutral-100 pt-[11px]">
+      <div className="mt-[12px] flex flex-wrap items-center gap-[9px] border-t border-[#F2EEEA] pt-[11px]">
+        <ol className="m-0 flex flex-1 flex-wrap list-none gap-[8px] p-0">
+          {['Requested', 'Counterparty accepted', 'Supervisor approved'].map((label, index) => (
+            <li key={label} className="flex items-center gap-[6px] text-[11px] font-bold text-[#857A72]">
+              <span className={`flex size-[18px] items-center justify-center rounded-full text-[10px] ${index < stage ? 'bg-[#FDF0E9] text-[#C6420E]' : 'bg-[#F1F0EE] text-[#A79C93]'}`}>
+                {index < stage ? '✓' : index + 1}
+              </span>
+              {label}
+            </li>
+          ))}
+        </ol>
         {actionable ? (
           <span className="ml-auto flex flex-wrap gap-[7px]">
             {mode === 'approve' ? (
@@ -287,7 +320,7 @@ function SwapCard({
                   type="button"
                   onClick={onApprove}
                   disabled={busy}
-                  className="h-9 cursor-pointer rounded-[10px] bg-success-500 px-[15px] text-[12.5px] font-bold text-white transition-colors hover:bg-success-600 disabled:opacity-60"
+                  className="h-[36px] cursor-pointer rounded-[10px] bg-[#2E9E62] px-[15px] text-[12.5px] font-bold text-white transition-colors hover:bg-[#248652] disabled:opacity-60"
                 >
                   Approve
                 </button>
@@ -295,9 +328,9 @@ function SwapCard({
                   type="button"
                   onClick={onReject}
                   disabled={busy}
-                  className="h-9 cursor-pointer rounded-[10px] border border-[#F3C6BD] bg-white px-3.5 text-[12.5px] font-bold text-error-600 transition-colors hover:bg-error-50 disabled:opacity-60"
+                  className="h-[36px] cursor-pointer rounded-[10px] border border-[#F3C6BD] bg-white px-[14px] text-[12.5px] font-bold text-[#C93A22] transition-colors hover:bg-[#FFF5F2] disabled:opacity-60"
                 >
-                  Reject
+                  Decline
                 </button>
               </>
             ) : (
@@ -306,7 +339,7 @@ function SwapCard({
                   type="button"
                   onClick={() => onRespond(true)}
                   disabled={busy}
-                  className="h-9 cursor-pointer rounded-[10px] bg-success-500 px-[15px] text-[12.5px] font-bold text-white transition-colors hover:bg-success-600 disabled:opacity-60"
+                  className="h-[36px] cursor-pointer rounded-[10px] bg-[#2E9E62] px-[15px] text-[12.5px] font-bold text-white transition-colors hover:bg-[#248652] disabled:opacity-60"
                 >
                   Accept
                 </button>
@@ -314,7 +347,7 @@ function SwapCard({
                   type="button"
                   onClick={() => onRespond(false)}
                   disabled={busy}
-                  className="h-9 cursor-pointer rounded-[10px] border border-[#F3C6BD] bg-white px-3.5 text-[12.5px] font-bold text-error-600 transition-colors hover:bg-error-50 disabled:opacity-60"
+                  className="h-[36px] cursor-pointer rounded-[10px] border border-[#F3C6BD] bg-white px-[14px] text-[12.5px] font-bold text-[#C93A22] transition-colors hover:bg-[#FFF5F2] disabled:opacity-60"
                 >
                   Decline
                 </button>
@@ -322,7 +355,7 @@ function SwapCard({
             )}
           </span>
         ) : (
-          <span className="ml-auto text-[11.5px] font-bold text-neutral-400">
+          <span className="ml-auto text-[11.5px] font-bold text-[#A79C93]">
             {swap.decision_at ? `Decided ${new Date(swap.decision_at).toLocaleDateString()}` : STATUS_LABEL[swap.status] ?? swap.status}
           </span>
         )}
@@ -357,12 +390,6 @@ function RequestSwapComposer({ onError }: { onError: (message: string) => void }
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = (myShifts ?? []).filter((s) => s.shift_date >= today).slice(0, 8);
 
-  // Resolve this employee's own assignment per shift — clock-in endpoints
-  // key off the assignment id, and so does request_shift_swap, not the
-  // shift id the dropdown lists shifts by. Batched in one call (the same
-  // listForShifts() query listShiftsForEmployeeInSchedule already runs
-  // server-side, just not discarded before it reaches the client this
-  // time) rather than one list_assignments_for_shift call per shift.
   const { data: myAssignments } = useRpcQuery<ShiftAssignment[]>(
     'list_my_shift_assignments_in_schedule',
     currentSchedule ? { scheduleId: currentSchedule.id } : undefined,
@@ -435,14 +462,14 @@ function RequestSwapComposer({ onError }: { onError: (message: string) => void }
             <button
               type="submit"
               disabled={requestMutation.isPending}
-              className="h-10 cursor-pointer rounded-[11px] bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:bg-[#F5A98A]"
+              className="h-[36px] cursor-pointer rounded-[10px] bg-[#F04E17] px-[15px] text-[12.5px] font-bold text-white transition-colors hover:bg-[#DC4611] disabled:bg-[#F5A98A]"
             >
               {requestMutation.isPending ? 'Sending…' : 'Send request'}
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="h-10 cursor-pointer rounded-[11px] border border-neutral-200 bg-white px-4 text-[13px] font-bold text-neutral-700 transition-colors hover:border-neutral-300"
+              className="h-[36px] cursor-pointer rounded-[10px] border border-neutral-200 bg-white px-[15px] text-[12.5px] font-bold text-neutral-700 transition-colors hover:border-neutral-300"
             >
               Cancel
             </button>
@@ -452,7 +479,7 @@ function RequestSwapComposer({ onError }: { onError: (message: string) => void }
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="h-10 cursor-pointer rounded-[11px] border border-neutral-200 bg-white px-4 text-[13px] font-bold text-neutral-700 transition-colors hover:border-brand-300"
+          className="h-[36px] cursor-pointer rounded-[10px] border border-neutral-200 bg-white px-[15px] text-[12.5px] font-bold text-neutral-700 transition-colors hover:border-brand-300"
         >
           + Request a swap
         </button>
@@ -468,13 +495,15 @@ function LeaveTab({
   canCreate,
   myEmployeeId,
   contextKey,
-  employees
+  employees,
+  requestFilter
 }: {
   canApprove: boolean;
   canCreate: boolean;
   myEmployeeId: string | null;
   contextKey: string;
   employees: Employee[];
+  requestFilter: 'Pending' | 'Resolved' | 'All';
 }): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -509,12 +538,13 @@ function LeaveTab({
     onError: (err) => setError(err.message)
   });
 
-  const rows = canApprove ? (pendingQuery.data ?? []) : (mineQuery.data ?? []);
+  const allRows = canApprove ? (pendingQuery.data ?? []) : (mineQuery.data ?? []);
+  const rows = allRows.filter((request) => {
+    if (requestFilter === 'All') return true;
+    return requestFilter === 'Pending' ? request.status === 'pending' : ['approved', 'rejected', 'cancelled'].includes(request.status);
+  });
   void contextKey;
 
-  // Falls back to a truncated id only if the employee record can't be
-  // found (e.g. archived) — the common case resolves a real name so an
-  // approver can actually tell who's requesting time off.
   const employeeName = (employeeId: string): string => {
     const employee = employees.find((e) => e.id === employeeId);
     return employee ? `${employee.first_name} ${employee.last_name}` : `Employee ${employeeId.slice(0, 8)}…`;
@@ -585,14 +615,14 @@ function LeaveTab({
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="h-10 cursor-pointer rounded-[11px] bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:bg-[#F5A98A]"
+                  className="h-[36px] cursor-pointer rounded-[10px] bg-[#F04E17] px-[15px] text-[12.5px] font-bold text-white transition-colors hover:bg-[#DC4611] disabled:bg-[#F5A98A]"
                 >
                   {createMutation.isPending ? 'Sending…' : 'Send request'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setFormOpen(false)}
-                  className="h-10 cursor-pointer rounded-[11px] border border-neutral-200 bg-white px-4 text-[13px] font-bold text-neutral-700 transition-colors hover:border-neutral-300"
+                  className="h-[36px] cursor-pointer rounded-[10px] border border-neutral-200 bg-white px-[15px] text-[12.5px] font-bold text-neutral-700 transition-colors hover:border-neutral-300"
                 >
                   Cancel
                 </button>
@@ -602,7 +632,7 @@ function LeaveTab({
             <button
               type="button"
               onClick={() => setFormOpen(true)}
-              className="h-10 cursor-pointer rounded-[11px] bg-brand-500 px-4 text-[13px] font-bold text-white shadow-[0_10px_22px_-13px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600"
+              className="h-[36px] cursor-pointer rounded-[10px] bg-[#F04E17] px-[15px] text-[12.5px] font-bold text-white shadow-[0_10px_22px_-13px_rgba(240,78,23,0.75)] transition-colors hover:bg-[#DC4611]"
             >
               + Request time off
             </button>
@@ -613,17 +643,17 @@ function LeaveTab({
       {(canApprove ? pendingQuery.isLoading : mineQuery.isLoading) ? (
         <p className="text-sm text-neutral-500">Loading leave requests…</p>
       ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-neutral-300 bg-white px-6 py-10 text-center">
-          <p className="text-[15px] font-extrabold text-neutral-900">No leave requests here</p>
-          <p className="mx-auto mt-1.5 max-w-[400px] text-[12.5px] text-neutral-500">
+        <div className="rounded-[16px] border border-dashed border-[#E4DED9] bg-white px-6 py-10 text-center">
+          <p className="text-[15px] font-extrabold text-[#38312B]">No leave requests here</p>
+          <p className="mx-auto mt-1.5 max-w-[400px] text-[12.5px] text-[#857A72]">
             {canApprove ? 'Nothing is waiting on your approval.' : 'Time off you request will show up here with its approval state.'}
           </p>
         </div>
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-          <div className="flex gap-3 border-b border-neutral-100 px-[18px] py-[11px] text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-neutral-400">
+        <section className="overflow-hidden rounded-[16px] border border-[#EBE7E3] bg-white">
+          <div className="flex gap-3 border-b border-[#F2EEEA] px-[18px] py-[11px] text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-[#A79C93]">
             <span className="min-w-0 flex-[1_1_170px]">Employee</span>
-            <span className="flex-[0_0_150px]">Dates</span>
+            <span className="flex-[0_0_130px]">Dates</span>
             <span className="min-w-0 flex-[1_1_150px]">Type &amp; reason</span>
             <span className="flex-[0_0_96px]">Status</span>
             {canApprove ? <span className="flex-[0_0_104px] text-right">Action</span> : null}
@@ -631,7 +661,7 @@ function LeaveTab({
           {rows.map((request) => (
             <div
               key={request.id}
-              className="flex flex-wrap items-center gap-x-3 gap-y-2.5 border-b border-neutral-50 px-[18px] py-3 last:border-b-0"
+              className="flex flex-wrap items-center gap-x-[12px] gap-y-[10px] border-b border-[#F7F4F1] px-[18px] py-[12px] last:border-b-0"
             >
               <span className="flex min-w-0 flex-[1_1_170px] items-center gap-[11px]">
                 <InitialsAvatar name={canApprove ? employeeName(request.employee_id) : 'You'} size={28} />
@@ -639,20 +669,20 @@ function LeaveTab({
                   <span className="block truncate text-[12.5px] font-bold text-neutral-900">
                     {canApprove ? employeeName(request.employee_id) : 'You'}
                   </span>
-                  <span className="block truncate text-[11px] text-neutral-400">#{request.employee_id.slice(0, 8)}</span>
+                  <span className="block truncate text-[11px] text-[#A79C93]">#{request.employee_id.slice(0, 8)}</span>
                 </span>
               </span>
-              <span className="flex-[0_0_150px]">
-                <span className="block text-[12.5px] font-bold text-neutral-900">
+              <span className="flex-[0_0_130px]">
+                <span className="block text-[12.5px] font-bold text-[#38312B]">
                   {new Date(request.start_date).toLocaleDateString()} – {new Date(request.end_date).toLocaleDateString()}
                 </span>
-                <span className="block text-[11px] text-neutral-400">{request.total_days} day{request.total_days === 1 ? '' : 's'}</span>
+                <span className="block text-[11px] text-[#A79C93]">{request.total_days} day{request.total_days === 1 ? '' : 's'}</span>
               </span>
               <span className="min-w-0 flex-[1_1_150px]">
-                <span className="block text-[12.5px] font-bold text-neutral-900">
+                <span className="block text-[12.5px] font-bold text-[#38312B]">
                   {LEAVE_TYPES.find((t) => t.value === request.leave_type)?.label ?? request.leave_type}
                 </span>
-                <span className="block truncate text-[11px] text-neutral-500">{request.reason}</span>
+                <span className="block truncate text-[11px] text-[#857A72]">{request.reason}</span>
               </span>
               <span className="flex-[0_0_96px]">
                 <StatusPill tone={LEAVE_TONES[request.status] ?? 'neutral'}>{STATUS_LABEL[request.status] ?? request.status}</StatusPill>
@@ -665,7 +695,7 @@ function LeaveTab({
                         type="button"
                         onClick={() => approveMutation.mutate({ leaveRequestId: request.id })}
                         disabled={approveMutation.isPending || rejectMutation.isPending}
-                        className="h-8 cursor-pointer rounded-[9px] bg-success-500 px-3 text-[11.5px] font-bold text-white transition-colors hover:bg-success-600 disabled:opacity-60"
+                        className="h-[30px] cursor-pointer rounded-[9px] bg-[#2E9E62] px-[12px] text-[11.5px] font-bold text-white transition-colors hover:bg-[#248652] disabled:opacity-60"
                       >
                         Approve
                       </button>
@@ -673,18 +703,32 @@ function LeaveTab({
                         type="button"
                         onClick={() => rejectMutation.mutate({ leaveRequestId: request.id, reason: 'Not approved this time' })}
                         disabled={approveMutation.isPending || rejectMutation.isPending}
-                        className="h-8 cursor-pointer rounded-[9px] border border-[#F3C6BD] bg-white px-2.5 text-[11.5px] font-bold text-error-600 transition-colors hover:bg-error-50 disabled:opacity-60"
+                        className="h-[30px] cursor-pointer rounded-[9px] border border-[#F3C6BD] bg-white px-[11px] text-[11.5px] font-bold text-[#C93A22] transition-colors hover:bg-[#FFF5F2] disabled:opacity-60"
                       >
                         Reject
                       </button>
                     </>
                   ) : (
-                    <span className="text-[11px] text-neutral-400">—</span>
+                    <span className="text-[11px] text-[#A79C93]">—</span>
                   )}
                 </span>
               ) : null}
             </div>
           ))}
+          <div className="flex flex-wrap items-center gap-[12px] px-[18px] py-[12px]">
+            <p className="m-0 flex-1 min-w-[220px] text-[11.5px] text-[#A79C93]">
+              {canApprove ? 'Pending approvals are reviewed in the order they were raised.' : 'Time off stays visible here until the request is resolved.'}
+            </p>
+            {canCreate && !canApprove ? (
+              <button
+                type="button"
+                onClick={() => setFormOpen(true)}
+                className="h-[36px] cursor-pointer rounded-[10px] bg-[#F04E17] px-[15px] text-[12.5px] font-bold text-white transition-colors hover:bg-[#DC4611]"
+              >
+                Request time off
+              </button>
+            ) : null}
+          </div>
         </section>
       )}
     </div>

@@ -3,7 +3,7 @@ import { APP_ROUTES } from '@shiftos/constants';
 
 describe('APP_ROUTES', () => {
   it('includes the known dashboard/operational routes', () => {
-    for (const path of ['/', '/schedules', '/employees', '/tasks', '/attendance', '/announcements', '/requests']) {
+    for (const path of ['/', '/schedules', '/employees', '/tasks', '/attendance', '/announcements', '/requests', '/reports', '/settings']) {
       expect(APP_ROUTES).toContain(path);
     }
   });

@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #fff; -webkit-font-smoothing: antialiased; }
+  a { color: #C6420E; text-decoration: none; }
+  a:hover { color: #F04E17; }
+  *:focus-visible { outline: 2px solid #F04E17; outline-offset: 2px; }
+  @keyframes admin-pulse { 0%,100% { opacity: .5 } 50% { opacity: .85 } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } }
+</style>
+</helmet>
+
+<div style="{{ pageWrapStyle }}">
+  <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; justify-content:space-between; padding:10px 18px; border-bottom:1px solid #EBE7E3; background:#fff">
+    <div style="display:inline-flex; padding:3px; background:#F6F3F0; border-radius:11px; gap:2px">
+      <sc-for list="{{ screenTabs }}" as="t" hint-placeholder-count="5">
+        <button type="button" onClick="{{ t.select }}" style="{{ t.style }}">{{ t.label }}</button>
+      </sc-for>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:6px">
+      <div style="display:inline-flex; padding:3px; background:#F6F3F0; border-radius:11px; gap:2px">
+        <sc-for list="{{ deviceTabs }}" as="t" hint-placeholder-count="2">
+          <button type="button" onClick="{{ t.select }}" style="{{ t.style }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+      <div style="display:inline-flex; padding:3px; background:#F6F3F0; border-radius:11px; gap:2px">
+        <sc-for list="{{ dataTabs }}" as="t" hint-placeholder-count="3">
+          <button type="button" onClick="{{ t.select }}" style="{{ t.style }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="{{ stageStyle }}">
+    <div style="{{ shellStyle }}">
+
+      <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+        <aside style="width:216px; flex:0 0 216px; border-right:1px solid #EBE7E3; display:flex; flex-direction:column">
+          <div style="display:flex; align-items:center; gap:9px; padding:22px 20px 18px">
+            <img src="assets/logo-shiftos.png" alt="ShiftOS" style="height:32px; width:auto; display:block" />
+          </div>
+          <p style="margin:0; padding:0 20px 10px; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:#A79C93">Admin · {{ orgName }}</p>
+          <nav style="display:flex; flex-direction:column; gap:2px; padding:0 12px; flex:1 1 auto">
+            <sc-for list="{{ sidebarNav }}" as="n" hint-placeholder-count="4">
+              <button type="button" onClick="{{ n.go }}" style="{{ n.style }}">
+                <span style="{{ n.iconTile }}">{{ n.icon }}</span>{{ n.label }}
+              </button>
+            </sc-for>
+          </nav>
+          <div style="padding:12px; border-top:1px solid #EBE7E3">
+            <button type="button" style="display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:1px solid #EBE7E3; background:#fff; border-radius:12px; padding:9px 11px; font-family:inherit; cursor:pointer">
+              <span style="display:flex; width:30px; height:30px; flex:0 0 auto; border-radius:999px; background:#FDF0E9; color:#C6420E; align-items:center; justify-content:center; font-size:11px; font-weight:800">{{ adminInitials }}</span>
+              <span style="min-width:0; flex:1 1 auto">
+                <span style="display:block; font-size:12.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ adminName }}</span>
+                <span style="display:block; font-size:11px; color:#A79C93">Admin</span>
+              </span>
+            </button>
+          </div>
+        </aside>
+      </sc-if>
+
+      <div style="flex:1 1 auto; min-width:0; display:flex; flex-direction:column">
+
+        <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+          <header style="display:flex; flex-wrap:wrap; align-items:flex-start; gap:14px; padding:22px 26px 18px; border-bottom:1px solid #F2EEEA">
+            <div style="min-width:0; flex:1 1 280px">
+              <h1 style="margin:0; font-size:24px; font-weight:800; letter-spacing:-0.025em">{{ greeting }}</h1>
+              <p style="margin:5px 0 0; font-size:13px; color:#857A72">{{ headerSubtitle }}</p>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-left:auto">
+              <button type="button" aria-label="Help" style="width:38px; height:38px; border:1px solid #EBE7E3; border-radius:11px; background:#fff; color:#857A72; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer">?</button>
+              <button type="button" aria-label="Notifications" style="position:relative; width:38px; height:38px; border:1px solid #EBE7E3; border-radius:11px; background:#fff; color:#857A72; display:flex; align-items:center; justify-content:center; cursor:pointer">
+                {{ bellIcon }}
+                <sc-if value="{{ hasAttention }}" hint-placeholder-val="{{ false }}">
+                  <span style="position:absolute; top:7px; right:7px; width:8px; height:8px; border-radius:999px; background:#F04E17; border:2px solid #fff"></span>
+                </sc-if>
+              </button>
+              <span style="display:flex; width:38px; height:38px; border-radius:999px; background:#FDF0E9; color:#C6420E; align-items:center; justify-content:center; font-size:12px; font-weight:800">{{ adminInitials }}</span>
+            </div>
+          </header>
+        </sc-if>
+
+        <sc-if value="{{ isMobileDevice }}" hint-placeholder-val="{{ false }}">
+          <header style="padding:14px 16px 12px; border-bottom:1px solid #F2EEEA">
+            <div style="display:flex; align-items:center; gap:10px">
+              <img src="assets/logo-shiftos.png" alt="ShiftOS" style="height:20px; width:auto; display:block" />
+              <span style="font-size:11.5px; font-weight:700; color:#857A72; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ orgName }}</span>
+              <button type="button" aria-label="Notifications" style="position:relative; margin-left:auto; width:32px; height:32px; border:1px solid #EBE7E3; border-radius:10px; background:#fff; color:#857A72; display:flex; align-items:center; justify-content:center; cursor:pointer">
+                {{ bellIcon }}
+                <sc-if value="{{ hasAttention }}" hint-placeholder-val="{{ false }}">
+                  <span style="position:absolute; top:6px; right:6px; width:7px; height:7px; border-radius:999px; background:#F04E17; border:2px solid #fff"></span>
+                </sc-if>
+              </button>
+              <span style="display:flex; width:32px; height:32px; border-radius:999px; background:#FDF0E9; color:#C6420E; align-items:center; justify-content:center; font-size:11px; font-weight:800">{{ adminInitials }}</span>
+            </div>
+            <h1 style="margin:12px 0 0; font-size:19px; font-weight:800; letter-spacing:-0.02em">{{ greeting }}</h1>
+            <p style="margin:4px 0 0; font-size:12px; color:#857A72">{{ headerSubtitle }}</p>
+          </header>
+        </sc-if>
+
+        <main style="{{ mainStyle }}">
+
+          <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px">
+              <sc-for list="{{ four }}" as="n" hint-placeholder-count="4">
+                <div style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:18px">
+                  <div style="width:34px; height:34px; border-radius:11px; background:#F2EEEA; animation:admin-pulse 1.6s ease-in-out infinite"></div>
+                  <div style="margin-top:14px; width:60%; height:26px; border-radius:7px; background:#F2EEEA; animation:admin-pulse 1.6s ease-in-out infinite"></div>
+                  <div style="margin-top:9px; width:80%; height:11px; border-radius:6px; background:#F5F2EF; animation:admin-pulse 1.6s ease-in-out infinite"></div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:18px; border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:20px">
+              <div style="width:160px; height:14px; border-radius:6px; background:#F2EEEA; animation:admin-pulse 1.6s ease-in-out infinite"></div>
+              <div style="margin-top:18px; display:flex; flex-direction:column; gap:14px">
+                <sc-for list="{{ three }}" as="n" hint-placeholder-count="3">
+                  <div style="display:flex; align-items:center; gap:14px">
+                    <div style="width:34px; height:34px; border-radius:12px; background:#F5F2EF; animation:admin-pulse 1.6s ease-in-out infinite"></div>
+                    <div style="flex:1 1 auto; height:11px; border-radius:6px; background:#F5F2EF; animation:admin-pulse 1.6s ease-in-out infinite"></div>
+                    <div style="width:64px; height:11px; border-radius:6px; background:#F5F2EF; animation:admin-pulse 1.6s ease-in-out infinite"></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <p style="margin:14px 0 0; font-size:12px; color:#A79C93" aria-live="polite">Loading your organization…</p>
+          </sc-if>
+
+          <sc-if value="{{ isReady }}" hint-placeholder-val="{{ true }}">
+
+            <!-- OVERVIEW -->
+            <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex; flex-direction:column; gap:18px">
+
+                <section style="border-radius:20px; background:#231E1A; color:#fff; padding:20px 22px 17px; box-shadow:0 26px 54px -32px rgba(35,30,26,.75)">
+                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:11px">
+                    <span style="display:flex; width:36px; height:36px; flex:0 0 auto; border-radius:12px; background:#fff; align-items:center; justify-content:center; overflow:hidden">
+                      <img src="assets/logo-mark.png" alt="" style="height:21px; width:auto; display:block" />
+                    </span>
+                    <div style="min-width:0">
+                      <p style="margin:0; font-size:15.5px; font-weight:800; letter-spacing:-0.015em">Ask ShiftOS</p>
+                      <p style="margin:2px 0 0; font-size:11.5px; color:#B4A8A0">Ask about your organization, or say "open Victoria Island" / "open billing".</p>
+                    </div>
+                    <span style="margin-left:auto; display:inline-flex; align-items:center; gap:6px; border-radius:999px; background:rgba(240,78,23,.2); color:#FFB08C; padding:5px 10px; font-size:9.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase">Read-only</span>
+                  </div>
+
+                  <div style="position:relative; margin-top:15px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; border:1px solid #3B322C; border-radius:14px; background:#1A1613; padding:7px 8px 7px 15px">
+                    <input value="{{ askQuery }}" onChange="{{ setAskQuery }}" onKeyDown="{{ askKey }}" placeholder="Ask a question or give a command…" aria-label="Ask ShiftOS" style="flex:1 1 240px; min-width:0; height:40px; border:0; background:transparent; font-family:inherit; font-size:14px; color:#fff; outline:none" />
+                    <button type="button" onClick="{{ askSubmit }}" style="height:40px; padding:0 19px; border:0; border-radius:11px; background:#F04E17; color:#fff; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer">Ask</button>
+                  </div>
+
+                  <div style="margin-top:11px; display:flex; flex-wrap:wrap; gap:7px">
+                    <sc-for list="{{ askChips }}" as="c" hint-placeholder-count="4">
+                      <button type="button" onClick="{{ c.run }}" style="height:32px; padding:0 13px; border:1px solid #3B322C; border-radius:999px; background:transparent; color:#DED5CF; font-family:inherit; font-size:11.5px; font-weight:700; cursor:pointer" style-hover="border-color:#F04E17; color:#fff">{{ c.label }}</button>
+                    </sc-for>
+                  </div>
+
+                  <sc-if value="{{ askHasResult }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:14px; border-radius:16px; background:#fff; color:#38312B; padding:14px 16px">
+                      <p style="margin:0; font-size:12.5px; line-height:1.5">{{ askResult }}</p>
+                    </div>
+                  </sc-if>
+                </section>
+
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px">
+                  <sc-for list="{{ orgStats }}" as="s" hint-placeholder-count="4">
+                    <div style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:18px">
+                      <span style="{{ s.tile }}">{{ s.icon }}</span>
+                      <p style="margin:14px 0 0; font-size:26px; font-weight:800; letter-spacing:-0.02em">{{ s.value }}</p>
+                      <p style="margin:4px 0 0; font-size:12px; color:#857A72">{{ s.label }}</p>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <section style="border:1px solid #F7DFD1; background:#FEFAF7; border-radius:16px; padding:20px">
+                  <div style="display:flex; flex-wrap:wrap; align-items:flex-start; gap:14px">
+                    <div style="min-width:0; flex:1 1 220px">
+                      <p style="margin:0; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#A79C93">Subscription</p>
+                      <p style="margin:8px 0 0; font-size:22px; font-weight:800; letter-spacing:-0.02em">{{ subPlan }} <span style="font-size:13px; font-weight:700; color:#857A72">{{ subPrice }}</span></p>
+                      <p style="margin:6px 0 0; font-size:12.5px; color:#857A72">{{ subSeatsLabel }}</p>
+                    </div>
+                    <div style="flex:1 1 220px; min-width:180px">
+                      <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px">
+                        <span style="font-size:12px; font-weight:700; color:#857A72">Usage</span>
+                        <span style="font-size:12px; font-weight:700; color:#857A72">{{ subPct }}%</span>
+                      </div>
+                      <div style="margin-top:6px; height:8px; border-radius:999px; background:#F3EEE9; overflow:hidden">
+                        <div style="{{ subBarStyle }}"></div>
+                      </div>
+                      <p style="margin:8px 0 0; font-size:11.5px; color:#A79C93">Renews {{ subRenews }}</p>
+                    </div>
+                    <button type="button" onClick="{{ goSubscription }}" style="height:40px; padding:0 16px; border:0; border-radius:11px; background:#F04E17; color:#fff; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer; align-self:center">Manage Subscription</button>
+                  </div>
+                  <sc-if value="{{ subShowWarn }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:14px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; border-top:1px solid #F2EEEA; padding-top:12px">
+                      <p style="margin:0; font-size:12.5px; color:#C6420E; font-weight:700">You're using {{ subPct }}% of your employee capacity.</p>
+                      <button type="button" onClick="{{ goSubscription }}" style="margin-left:auto; height:34px; padding:0 13px; border:1px solid #F7D9C8; border-radius:10px; background:#FEF7F2; color:#C6420E; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer">Upgrade Plan</button>
+                    </div>
+                  </sc-if>
+                </section>
+
+                <sc-if value="{{ hasAttention }}" hint-placeholder-val="{{ false }}">
+                  <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; overflow:hidden">
+                    <h2 style="margin:0; padding:15px 18px; border-bottom:1px solid #F2EEEA; font-size:14.5px; font-weight:800">Needs Attention</h2>
+                    <sc-for list="{{ attentionItems }}" as="a" hint-placeholder-count="3">
+                      <div style="display:flex; align-items:flex-start; gap:12px; padding:13px 18px; border-bottom:1px solid #F7F4F1">
+                        <span style="display:flex; width:30px; height:30px; flex:0 0 auto; border-radius:10px; background:#FDF4E6; color:#B77714; align-items:center; justify-content:center">{{ a.icon }}</span>
+                        <span style="min-width:0; flex:1 1 auto">
+                          <span style="display:block; font-size:13px; font-weight:800">{{ a.title }}</span>
+                          <span style="display:block; margin-top:2px; font-size:12px; color:#857A72">{{ a.body }}</span>
+                        </span>
+                        <button type="button" onClick="{{ a.act }}" style="flex:0 0 auto; height:32px; padding:0 12px; border:1px solid #EBE7E3; border-radius:9px; background:#fff; font-family:inherit; font-size:11.5px; font-weight:700; cursor:pointer">{{ a.cta }}</button>
+                      </div>
+                    </sc-for>
+                  </section>
+                </sc-if>
+
+                <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:18px 20px">
+                  <div style="display:flex; align-items:center; gap:12px">
+                    <h2 style="margin:0; font-size:14.5px; font-weight:800">Your Branches</h2>
+                    <span style="font-size:11.5px; color:#A79C93">{{ branchCountLabel }}</span>
+                    <button type="button" onClick="{{ goBranches }}" style="margin-left:auto; height:36px; padding:0 15px; border:1px solid #EBE7E3; border-radius:10px; background:#fff; color:#38312B; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer" style-hover="border-color:#DDD6D0; background:#FDFCFB">View all branches →</button>
+                  </div>
+                  <div style="margin-top:14px; display:flex; flex-direction:column; gap:9px">
+                    <sc-for list="{{ previewBranches }}" as="b" hint-placeholder-count="3">
+                      <button type="button" onClick="{{ b.open }}" style="display:flex; align-items:center; gap:12px; width:100%; text-align:left; border:1px solid #F2EEEA; border-radius:13px; background:#FDFCFB; padding:12px 14px; font-family:inherit; cursor:pointer">
+                        <span style="{{ b.tile }}">{{ b.icon }}</span>
+                        <span style="min-width:0; flex:1 1 auto">
+                          <span style="display:block; font-size:13px; font-weight:700">{{ b.name }}</span>
+                          <span style="display:block; margin-top:2px; font-size:11.5px; color:#857A72">{{ b.location }} · {{ b.employees }} employees</span>
+                        </span>
+                        <span style="{{ b.healthPill }}">{{ b.healthLabel }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </section>
+              </div>
+            </sc-if>
+
+            <!-- BRANCHES -->
+            <sc-if value="{{ isBranches }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; flex-direction:column; gap:16px">
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px">
+                  <h1 style="margin:0; font-size:20px; font-weight:800; letter-spacing:-0.02em">Your Branches</h1>
+                  <span style="font-size:12.5px; color:#857A72">{{ branchCountLabel }}</span>
+                  <div style="margin-left:auto; display:flex; flex-wrap:wrap; gap:8px">
+                    <sc-for list="{{ branchFilters }}" as="f" hint-placeholder-count="4">
+                      <button type="button" onClick="{{ f.select }}" style="{{ f.style }}">{{ f.label }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="border:1px solid #EBE7E3; border-radius:20px; background:#fff; padding:52px 32px; display:flex; flex-direction:column; align-items:center; text-align:center">
+                    <div style="width:64px; height:64px; border-radius:20px; background:#FDF0E9; display:flex; align-items:center; justify-content:center">{{ storeIconLg }}</div>
+                    <h2 style="margin:20px 0 0; font-size:21px; font-weight:800; letter-spacing:-0.02em">No branches yet</h2>
+                    <p style="margin:8px 0 0; max-width:420px; font-size:13.5px; line-height:1.55; color:#857A72">Your organization hasn't added any branches yet. Branches are created by your Manager and will appear here once set up.</p>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isPopulatedBranches }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px">
+                    <sc-for list="{{ branchCards }}" as="b" hint-placeholder-count="6">
+                      <button type="button" onClick="{{ b.open }}" style="{{ b.card }}">
+                        <div style="display:flex; align-items:center; gap:12px">
+                          <span style="{{ b.tile }}">{{ b.icon }}</span>
+                          <span style="min-width:0; flex:1 1 auto">
+                            <span style="display:block; font-size:14px; font-weight:800">{{ b.name }}</span>
+                            <span style="display:block; margin-top:2px; font-size:11.5px; color:#857A72">{{ b.location }}</span>
+                          </span>
+                          <span style="{{ b.statusPill }}">{{ b.status }}</span>
+                        </div>
+                        <div style="margin-top:14px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; text-align:left">
+                          <span><span style="display:block; font-size:15px; font-weight:800">{{ b.employees }}</span><span style="display:block; font-size:10.5px; color:#A79C93">Employees</span></span>
+                          <span><span style="display:block; font-size:15px; font-weight:800">{{ b.managers }}</span><span style="display:block; font-size:10.5px; color:#A79C93">Managers</span></span>
+                          <span><span style="display:block; font-size:15px; font-weight:800">{{ b.supervisors }}</span><span style="display:block; font-size:10.5px; color:#A79C93">Supervisors</span></span>
+                        </div>
+                        <p style="{{ b.healthStyle }}">{{ b.healthText }}</p>
+                      </button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+
+            <!-- BRANCH DETAIL -->
+            <sc-if value="{{ isBranchDetail }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; flex-direction:column; gap:16px">
+                <button type="button" onClick="{{ goBranches }}" style="align-self:flex-start; display:flex; align-items:center; gap:6px; border:0; background:transparent; color:#857A72; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer">← Back to branches</button>
+
+                <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:20px">
+                  <div style="display:flex; flex-wrap:wrap; align-items:flex-start; gap:14px">
+                    <span style="{{ detailTile }}">{{ detailIcon }}</span>
+                    <div style="min-width:0; flex:1 1 260px">
+                      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:9px">
+                        <h1 style="margin:0; font-size:21px; font-weight:800; letter-spacing:-0.02em">{{ detail.name }}</h1>
+                        <span style="{{ detail.statusPill }}">{{ detail.status }}</span>
+                      </div>
+                      <p style="margin:6px 0 0; font-size:12.5px; color:#857A72">{{ detail.address }}</p>
+                      <p style="margin:4px 0 0; font-size:12.5px; color:#A79C93">{{ orgName }} · Branch Manager: {{ detail.managerSummary }}</p>
+                    </div>
+                  </div>
+                  <div style="margin-top:16px; padding-top:14px; border-top:1px solid #F2EEEA; display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px">
+                    <div><p style="margin:0; font-size:10.5px; color:#A79C93">Workforce</p><p style="margin:4px 0 0; font-size:14px; font-weight:800">{{ detail.employees }} employees</p></div>
+                    <div><p style="margin:0; font-size:10.5px; color:#A79C93">Management</p><p style="margin:4px 0 0; font-size:14px; font-weight:800">{{ detail.managers }} managers · {{ detail.supervisors }} supervisors</p></div>
+                    <div><p style="margin:0; font-size:10.5px; color:#A79C93">Operating Hours</p><p style="margin:4px 0 0; font-size:14px; font-weight:800">{{ detail.hours }}</p></div>
+                    <div><p style="margin:0; font-size:10.5px; color:#A79C93">Branch Since</p><p style="margin:4px 0 0; font-size:14px; font-weight:800">{{ detail.created }}</p></div>
+                  </div>
+                </section>
+
+                <sc-if value="{{ detail.hasAttention }}" hint-placeholder-val="{{ false }}">
+                  <section style="display:flex; align-items:flex-start; gap:12px; border:1px solid #F3DFB8; background:#FDF8EC; border-radius:14px; padding:14px 16px">
+                    <span style="display:flex; width:28px; height:28px; flex:0 0 auto; border-radius:999px; background:#B77714; color:#fff; align-items:center; justify-content:center; font-size:12px; font-weight:800">!</span>
+                    <span><span style="display:block; font-size:13px; font-weight:800; color:#7A5410">Needs attention</span><span style="display:block; margin-top:2px; font-size:12.5px; color:#7A5410">{{ detail.attentionNote }}</span></span>
+                  </section>
+                </sc-if>
+
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px">
+                  <div style="display:inline-flex; flex-wrap:wrap; padding:3px; background:#F6F3F0; border-radius:11px; gap:2px">
+                    <sc-for list="{{ branchTabs }}" as="t" hint-placeholder-count="6">
+                      <button type="button" onClick="{{ t.select }}" style="{{ t.style }}">{{ t.label }}</button>
+                    </sc-for>
+                  </div>
+                  <span style="display:inline-flex; align-items:center; gap:6px; margin-left:auto; border-radius:999px; background:#F1EDEA; color:#57504A; padding:5px 11px; font-size:11px; font-weight:700">{{ lockIcon }} Read-only for Admins</span>
+                </div>
+
+                <sc-if value="{{ branchTabIsLeadership }}" hint-placeholder-val="{{ true }}">
+                <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:20px">
+                  <h2 style="margin:0 0 4px; font-size:14.5px; font-weight:800">Branch Leadership</h2>
+                  <p style="margin:0 0 14px; font-size:12px; color:#857A72">Managers and supervisors responsible for this branch.</p>
+
+                  <p style="margin:0 0 9px; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#A79C93">Branch Managers</p>
+                  <sc-if value="{{ detail.noManagers }}" hint-placeholder-val="{{ false }}">
+                    <div style="border:1px dashed #E4DED9; border-radius:13px; padding:16px; text-align:center; margin-bottom:16px">
+                      <p style="margin:0; font-size:12.5px; font-weight:700">No managers assigned</p>
+                      <p style="margin:4px 0 0; font-size:11.5px; color:#857A72">This branch currently has no assigned branch manager.</p>
+                    </div>
+                  </sc-if>
+                  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; margin-bottom:16px">
+                    <sc-for list="{{ detail.managerCards }}" as="p" hint-placeholder-count="2">
+                      <div style="display:flex; align-items:center; gap:11px; border:1px solid #F2EEEA; border-radius:13px; background:#FDFCFB; padding:12px 13px">
+                        <span style="{{ p.avatar }}">{{ p.initials }}</span>
+                        <span style="min-width:0; flex:1 1 auto">
+                          <span style="display:block; font-size:12.5px; font-weight:700">{{ p.name }}</span>
+                          <span style="display:block; font-size:11px; color:#A79C93">{{ p.role }}</span>
+                          <span style="display:block; margin-top:3px; font-size:11px; color:#857A72; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ p.email }}</span>
+                        </span>
+                      </div>
+                    </sc-for>
+                  </div>
+
+                  <p style="margin:0 0 9px; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#A79C93">Supervisors</p>
+                  <sc-if value="{{ detail.noSupervisors }}" hint-placeholder-val="{{ false }}">
+                    <div style="border:1px dashed #E4DED9; border-radius:13px; padding:16px; text-align:center">
+                      <p style="margin:0; font-size:12.5px; font-weight:700">No supervisors assigned</p>
+                      <p style="margin:4px 0 0; font-size:11.5px; color:#857A72">Supervisors assigned to this branch will appear here.</p>
+                    </div>
+                  </sc-if>
+                  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px">
+                    <sc-for list="{{ detail.supervisorCards }}" as="p" hint-placeholder-count="4">
+                      <div style="display:flex; align-items:center; gap:11px; border:1px solid #F2EEEA; border-radius:13px; background:#FDFCFB; padding:12px 13px">
+                        <span style="{{ p.avatar }}">{{ p.initials }}</span>
+                        <span style="min-width:0; flex:1 1 auto">
+                          <span style="display:block; font-size:12.5px; font-weight:700">{{ p.name }}</span>
+                          <span style="display:block; font-size:11px; color:#A79C93">{{ p.role }}</span>
+                          <span style="display:block; margin-top:3px; font-size:11px; color:#857A72; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ p.email }}</span>
+                        </span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </section>
+                </sc-if>
+
+                <sc-if value="{{ branchTabIsEmployees }}" hint-placeholder-val="{{ false }}">
+                <div style="display:grid; grid-template-columns:minmax(0,1fr) 244px; gap:16px; align-items:start">
+                  <div style="display:flex; flex-direction:column; gap:16px; min-width:0">
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px">
+                      <sc-for list="{{ empStats }}" as="s" hint-placeholder-count="4">
+                        <div style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:16px">
+                          <div style="display:flex; align-items:center; gap:11px">
+                            <span style="{{ s.tile }}">{{ s.icon }}</span>
+                            <p style="margin:0; font-size:12px; font-weight:700; color:#857A72">{{ s.label }}</p>
+                          </div>
+                          <p style="margin:11px 0 0; font-size:26px; font-weight:800; letter-spacing:-0.03em; line-height:1">{{ s.value }}</p>
+                          <p style="margin:5px 0 0; font-size:11.5px; color:#A79C93">{{ s.meta }}</p>
+                        </div>
+                      </sc-for>
+                    </div>
+
+                    <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff">
+                      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:4px 18px 0">
+                        <div style="display:flex; flex-wrap:wrap; gap:4px; flex:1 1 260px">
+                          <sc-for list="{{ empTabsBranch }}" as="t" hint-placeholder-count="4">
+                            <button type="button" onClick="{{ t.select }}" style="{{ t.style }}">{{ t.label }}</button>
+                          </sc-for>
+                        </div>
+                        <label style="flex:0 1 200px; min-width:140px; margin:10px 0">
+                          <span style="position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0)">Search employees</span>
+                          <input type="search" placeholder="Search employees…" style="width:100%; box-sizing:border-box; height:38px; border:1px solid #E4DED9; border-radius:10px; padding:0 12px; font-family:inherit; font-size:12.5px; outline:none" style-focus="border-color:#F04E17" />
+                        </label>
+                        <span style="margin:10px 0; height:38px; padding:0 13px; border:1px solid #E4DED9; border-radius:10px; background:#fff; font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:7px; color:#38312B">Filter <span style="color:#A79C93">⌄</span></span>
+                      </div>
+                      <div style="overflow-x:auto">
+                        <div style="min-width:760px">
+                          <div style="display:grid; grid-template-columns:minmax(0,1.3fr) 132px minmax(0,1fr) 108px minmax(0,1fr) 108px; gap:10px; padding:11px 18px; border-bottom:1px solid #F2EEEA; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#A79C93">
+                            <span>Employee</span><span>Role</span><span>Department</span><span>Status</span><span>Phone</span><span>Date Added</span>
+                          </div>
+                          <sc-for list="{{ empRowsBranch }}" as="e" hint-placeholder-count="8">
+                            <div style="display:grid; grid-template-columns:minmax(0,1.3fr) 132px minmax(0,1fr) 108px minmax(0,1fr) 108px; gap:10px; align-items:center; padding:11px 18px; border-bottom:1px solid #F7F4F1">
+                              <span style="display:flex; align-items:center; gap:10px; min-width:0">
+                                <span style="{{ e.avatar }}">{{ e.initials }}</span>
+                                <span style="min-width:0"><span style="display:block; font-size:12.5px; font-weight:700; color:#38312B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ e.name }}</span><span style="display:block; font-size:11px; color:#A79C93">{{ e.id }}</span></span>
+                              </span>
+                              <span style="min-width:0"><span style="{{ e.rolePill }}">{{ e.role }}</span></span>
+                              <span style="min-width:0; font-size:12.5px; color:#57504A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ e.dept }}</span>
+                              <span style="min-width:0"><span style="{{ e.statusPill }}"><span style="{{ e.statusDot }}"></span>{{ e.status }}</span></span>
+                              <span style="min-width:0; font-size:12px; color:#57504A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ e.phone }}</span>
+                              <span style="min-width:0; font-size:12px; color:#857A72">{{ e.added }}</span>
+                            </div>
+                          </sc-for>
+                        </div>
+                      </div>
+                      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:13px 18px">
+                        <p style="margin:0; font-size:11.5px; color:#A79C93">Showing 1 to 8 of {{ detail.employees }} employees</p>
+                        <span style="margin-left:auto; display:flex; gap:5px">
+                          <sc-for list="{{ empPagerBranch }}" as="p" hint-placeholder-count="4">
+                            <span style="{{ p.style }}">{{ p.label }}</span>
+                          </sc-for>
+                        </span>
+                      </div>
+                    </section>
+                  </div>
+
+                  <div style="display:flex; flex-direction:column; gap:16px; min-width:0">
+                    <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:16px">
+                      <h2 style="margin:0; font-size:14px; font-weight:800">Filters</h2>
+                      <div style="margin-top:12px; display:flex; flex-direction:column; gap:12px">
+                        <sc-for list="{{ empFiltersBranch }}" as="f" hint-placeholder-count="4">
+                          <label style="display:block">
+                            <span style="display:block; font-size:11.5px; font-weight:700; color:#857A72; margin-bottom:5px">{{ f.label }}</span>
+                            <span style="display:flex; align-items:center; gap:8px; width:100%; box-sizing:border-box; height:40px; border:1px solid #E4DED9; border-radius:10px; background:#fff; padding:0 12px; font-size:12.5px; font-weight:600; color:#38312B">
+                              <span style="flex:1 1 auto">{{ f.value }}</span><span style="color:#A79C93">⌄</span>
+                            </span>
+                          </label>
+                        </sc-for>
+                      </div>
+                    </section>
+
+                    <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:16px">
+                      <h2 style="margin:0 0 14px; font-size:14px; font-weight:800">Department Breakdown</h2>
+                      <div style="display:flex; align-items:center; gap:14px">
+                        <span style="position:relative; flex:0 0 auto; width:82px; height:82px">
+                          <span style="{{ donutStyleBranch }}"></span>
+                          <span style="position:absolute; inset:19px; border-radius:999px; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center">
+                            <span style="font-size:16px; font-weight:800; line-height:1">{{ detail.employees }}</span>
+                            <span style="font-size:9px; color:#A79C93">Total</span>
+                          </span>
+                        </span>
+                        <ul style="margin:0; padding:0; list-style:none; flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:6px">
+                          <sc-for list="{{ deptLegendBranch }}" as="d" hint-placeholder-count="5">
+                            <li style="display:flex; align-items:center; gap:7px; font-size:10.5px; min-width:0">
+                              <span style="{{ d.dot }}"></span>
+                              <span style="flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#57504A">{{ d.name }}</span>
+                              <span style="flex:0 0 auto; font-weight:700; color:#38312B">{{ d.count }}</span>
+                            </li>
+                          </sc-for>
+                        </ul>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+                </sc-if>
+
+                <sc-if value="{{ branchTabIsSchedule }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px">
+                  <div style="display:flex; align-items:center; gap:4px; border:1px solid #EBE7E3; border-radius:14px; background:#fff; padding:5px">
+                    <button type="button" disabled="" style="width:32px; height:32px; border:1px solid #EBE7E3; border-radius:10px; background:#fff; color:#DDD6D0; font-family:inherit; font-size:14px; cursor:not-allowed">‹</button>
+                    <span style="display:flex; align-items:center; gap:9px; padding:0 12px">
+                      <span style="line-height:1.25">
+                        <span style="display:block; font-size:13.5px; font-weight:800">Aug 18 – Aug 24, 2026</span>
+                        <span style="display:block; font-size:11px; color:#A79C93">Week 34</span>
+                      </span>
+                    </span>
+                    <button type="button" disabled="" style="width:32px; height:32px; border:1px solid #EBE7E3; border-radius:10px; background:#fff; color:#DDD6D0; font-family:inherit; font-size:14px; cursor:not-allowed">›</button>
+                  </div>
+                  <span style="{{ readOnlyPill }}">{{ lockIcon }}Read-only</span>
+                </div>
+
+                <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff">
+                  <div style="overflow-x:auto; overflow-y:visible">
+                    <div style="min-width:860px">
+                      <div style="display:grid; grid-template-columns:184px repeat(7,minmax(94px,1fr)); border-bottom:1px solid #F2EEEA">
+                        <span style="padding:13px 16px; font-size:11px; font-weight:800; letter-spacing:.02em; color:#38312B">Employee</span>
+                        <sc-for list="{{ weekDays }}" as="d" hint-placeholder-count="7">
+                          <span style="padding:11px 8px; text-align:center; line-height:1.3">
+                            <span style="display:block; font-size:11.5px; font-weight:800; color:#38312B">{{ d.label }}</span>
+                            <span style="display:block; font-size:11px; color:#A79C93">{{ d.date }}</span>
+                          </span>
+                        </sc-for>
+                      </div>
+                      <sc-for list="{{ scheduleRows }}" as="r" hint-placeholder-count="6">
+                        <div style="display:grid; grid-template-columns:184px repeat(7,minmax(94px,1fr)); border-bottom:1px solid #F7F4F1">
+                          <span style="display:flex; align-items:center; gap:10px; padding:10px 14px 10px 16px; min-width:0">
+                            <span style="{{ r.avatar }}">{{ r.initials }}</span>
+                            <span style="min-width:0; flex:1 1 auto">
+                              <span style="display:block; font-size:12.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ r.name }}</span>
+                              <span style="display:block; font-size:11px; color:#A79C93">{{ r.role }}</span>
+                            </span>
+                          </span>
+                          <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="7">
+                            <div style="display:flex; align-items:center; justify-content:center; padding:8px 6px; min-height:56px">
+                              <sc-if value="{{ c.hasShift }}" hint-placeholder-val="{{ false }}">
+                                <div style="{{ c.style }}">
+                                  <span style="display:block; font-size:11px; font-weight:800; line-height:1.25">{{ c.top }}</span>
+                                  <span style="display:block; font-size:9.5px; font-weight:700; opacity:.8; line-height:1.25">{{ c.bottom }}</span>
+                                </div>
+                              </sc-if>
+                              <sc-if value="{{ c.isOff }}" hint-placeholder-val="{{ true }}">
+                                <span style="font-size:11px; color:#C4BBB3">Off</span>
+                              </sc-if>
+                            </div>
+                          </sc-for>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </section>
+
+                <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:13px 18px; display:flex; flex-wrap:wrap; gap:14px 20px; align-items:center">
+                  <span style="margin-left:0; display:flex; flex-wrap:wrap; gap:8px 18px">
+                    <sc-for list="{{ scheduleLegend }}" as="l" hint-placeholder-count="3">
+                      <span style="display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:700; color:#57504A"><span style="{{ l.dot }}"></span>{{ l.label }}</span>
+                    </sc-for>
+                  </span>
+                </section>
+                </sc-if>
+
+                <sc-if value="{{ branchTabIsTasks }}" hint-placeholder-val="{{ false }}">
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; align-items:start">
+                  <sc-for list="{{ taskColumns }}" as="col" hint-placeholder-count="3">
+                    <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:14px">
+                      <div style="display:flex; align-items:center; gap:9px">
+                        <span style="{{ col.dot }}"></span>
+                        <h2 style="margin:0; font-size:13.5px; font-weight:800">{{ col.title }}</h2>
+                        <span style="margin-left:auto; font-size:11px; font-weight:800; color:#A79C93">{{ col.count }}</span>
+                      </div>
+                      <div style="margin-top:12px; display:flex; flex-direction:column; gap:9px">
+                        <sc-for list="{{ col.tasks }}" as="t" hint-placeholder-count="3">
+                          <article style="border:1px solid #F2EEEA; border-radius:13px; background:#FDFCFB; padding:12px 13px">
+                            <div style="display:flex; align-items:flex-start; gap:9px">
+                              <span style="{{ t.check }}">{{ t.checkGlyph }}</span>
+                              <p style="margin:0; flex:1 1 auto; font-size:12.5px; font-weight:700; text-wrap:pretty">{{ t.title }}</p>
+                            </div>
+                            <p style="margin:8px 0 0; font-size:11.5px; color:#857A72">{{ t.meta }}</p>
+                            <div style="margin-top:9px; display:flex; align-items:center; gap:7px">
+                              <span style="{{ t.pill }}">{{ t.priority }}</span>
+                              <span style="font-size:11px; color:#A79C93">{{ t.assignee }}</span>
+                            </div>
+                          </article>
+                        </sc-for>
+                      </div>
+                    </section>
+                  </sc-for>
+                </div>
+                </sc-if>
+
+                <sc-if value="{{ branchTabIsAnnouncements }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; flex-direction:column; gap:12px">
+                  <sc-for list="{{ announcementRows }}" as="a" hint-placeholder-count="4">
+                    <article style="{{ a.card }}">
+                      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:9px">
+                        <span style="{{ a.pill }}">{{ a.audience }}</span>
+                        <sc-if value="{{ a.pinned }}" hint-placeholder-val="{{ false }}">
+                          <span style="display:inline-flex; align-items:center; gap:5px; border-radius:999px; background:#FDF0E9; color:#C6420E; padding:4px 10px; font-size:10.5px; font-weight:800">Pinned</span>
+                        </sc-if>
+                        <span style="margin-left:auto; font-size:11px; color:#A79C93">{{ a.time }}</span>
+                      </div>
+                      <h2 style="margin:11px 0 0; font-size:15.5px; font-weight:800; letter-spacing:-0.015em">{{ a.title }}</h2>
+                      <p style="margin:6px 0 0; font-size:13px; color:#57504A; text-wrap:pretty">{{ a.body }}</p>
+                      <div style="margin-top:13px; padding-top:11px; border-top:1px solid #F2EEEA; display:flex; flex-wrap:wrap; align-items:center; gap:10px">
+                        <span style="font-size:11.5px; color:#857A72">{{ a.author }}</span>
+                        <span style="margin-left:auto; display:flex; align-items:center; gap:9px">
+                          <span style="width:104px; height:6px; border-radius:999px; background:#F2EEEA; overflow:hidden"><span style="{{ a.bar }}"></span></span>
+                          <span style="font-size:11px; font-weight:700; color:#857A72">{{ a.ack }}</span>
+                        </span>
+                      </div>
+                    </article>
+                  </sc-for>
+                </div>
+                </sc-if>
+
+                <sc-if value="{{ branchTabIsAttendance }}" hint-placeholder-val="{{ false }}">
+                <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:16px 18px">
+                  <div style="display:flex; align-items:center; gap:9px">
+                    <h2 style="margin:0; font-size:14.5px; font-weight:800">Attendance Overview</h2>
+                    <span style="{{ readOnlyPill }}">{{ lockIcon }}Read-only</span>
+                  </div>
+                  <div style="margin-top:12px; display:flex; flex-wrap:wrap; align-items:center; gap:0">
+                    <sc-for list="{{ attendanceStatsBranch }}" as="s" hint-placeholder-count="4">
+                      <span style="{{ s.wrap }}">
+                        <span style="{{ s.valueStyle }}">{{ s.value }}</span>
+                        <span style="display:block; margin-top:3px; font-size:11.5px; color:#857A72">{{ s.label }}</span>
+                      </span>
+                    </sc-for>
+                  </div>
+                </section>
+
+                <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; overflow:hidden">
+                  <div style="display:grid; grid-template-columns:minmax(0,1.5fr) 140px 130px minmax(0,1fr); gap:10px; padding:11px 18px; border-bottom:1px solid #F2EEEA; font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#A79C93">
+                    <span>Employee</span><span>Status</span><span>Check-in Time</span><span>Notes</span>
+                  </div>
+                  <sc-for list="{{ attendanceRowsBranch }}" as="r" hint-placeholder-count="6">
+                    <div style="display:grid; grid-template-columns:minmax(0,1.5fr) 140px 130px minmax(0,1fr); gap:10px; align-items:center; padding:12px 18px; border-bottom:1px solid #F7F4F1">
+                      <span style="display:flex; align-items:center; gap:11px; min-width:0">
+                        <span style="{{ r.avatar }}">{{ r.initials }}</span>
+                        <span style="min-width:0"><span style="display:block; font-size:12.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ r.name }}</span><span style="display:block; font-size:11px; color:#A79C93">{{ r.role }}</span></span>
+                      </span>
+                      <span style="{{ r.statusWrap }}"><span style="flex:0 0 auto">{{ r.statusIcon }}</span>{{ r.status }}</span>
+                      <span style="min-width:0; line-height:1.3">
+                        <span style="{{ r.timeStyle }}">{{ r.clockIn }}</span>
+                        <span style="display:block; font-size:10.5px; color:#A79C93">{{ r.scheduled }}</span>
+                      </span>
+                      <span style="font-size:11.5px; color:#857A72">{{ r.note }}</span>
+                    </div>
+                  </sc-for>
+                </section>
+                </sc-if>
+
+                <sc-if value="{{ branchTabIsRequests }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+                  <div style="display:inline-flex; padding:3px; background:#F6F3F0; border-radius:11px; gap:2px">
+                    <sc-for list="{{ reqTabs }}" as="t" hint-placeholder-count="2">
+                      <button type="button" onClick="{{ t.select }}" style="{{ t.style }}">{{ t.label }}</button>
+                    </sc-for>
+                  </div>
+                  <div style="display:flex; flex-wrap:wrap; gap:6px">
+                    <sc-for list="{{ reqFilters }}" as="f" hint-placeholder-count="3">
+                      <button type="button" onClick="{{ f.select }}" style="{{ f.style }}">{{ f.label }}</button>
+                    </sc-for>
+                  </div>
+                  <span style="margin-left:auto; font-size:12px; color:#A79C93">{{ reqCount }}</span>
+                </div>
+
+                <sc-if value="{{ reqIsSwaps }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex; flex-direction:column; gap:12px">
+                    <sc-for list="{{ swapCards }}" as="s" hint-placeholder-count="2">
+                      <article style="{{ s.card }}">
+                        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px">
+                          <span style="{{ s.pill }}">{{ s.status }}</span>
+                          <span style="font-size:11.5px; color:#A79C93">{{ s.ref }}</span>
+                          <span style="margin-left:auto; font-size:11.5px; color:#A79C93">{{ s.age }}</span>
+                        </div>
+                        <div style="display:flex; flex-wrap:wrap; gap:14px; margin-top:14px">
+                          <div style="flex:1 1 220px; min-width:200px; border:1px solid #F2EEEA; border-radius:13px; padding:13px 14px">
+                            <p style="margin:0; font-size:10.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:#A79C93">Gives up</p>
+                            <div style="margin-top:9px; display:flex; align-items:center; gap:10px">
+                              <span style="{{ s.fromAvatar }}">{{ s.fromInitials }}</span>
+                              <span style="min-width:0"><span style="display:block; font-size:12.5px; font-weight:800">{{ s.fromName }}</span><span style="display:block; font-size:11px; color:#A79C93">{{ s.fromRole }}</span></span>
+                            </div>
+                            <p style="margin:10px 0 0; font-size:12.5px; font-weight:700">{{ s.fromShift }}</p>
+                            <p style="margin:3px 0 0; font-size:11.5px; color:#857A72">{{ s.fromMeta }}</p>
+                          </div>
+                          <span aria-hidden="true" style="flex:0 0 30px; align-self:center; display:flex; width:30px; height:30px; border-radius:999px; background:#FDF0E9; color:#C6420E; align-items:center; justify-content:center; font-size:13px; font-weight:800">⇄</span>
+                          <div style="flex:1 1 220px; min-width:200px; border:1px solid #F2EEEA; border-radius:13px; padding:13px 14px">
+                            <p style="margin:0; font-size:10.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:#A79C93">Takes over</p>
+                            <div style="margin-top:9px; display:flex; align-items:center; gap:10px">
+                              <span style="{{ s.toAvatar }}">{{ s.toInitials }}</span>
+                              <span style="min-width:0"><span style="display:block; font-size:12.5px; font-weight:800">{{ s.toName }}</span><span style="display:block; font-size:11px; color:#A79C93">{{ s.toRole }}</span></span>
+                            </div>
+                            <p style="margin:10px 0 0; font-size:12.5px; font-weight:700">{{ s.toShift }}</p>
+                            <p style="margin:3px 0 0; font-size:11.5px; color:#857A72">{{ s.toMeta }}</p>
+                          </div>
+                        </div>
+                        <p style="margin:12px 0 0; font-size:12.5px; color:#57504A; text-wrap:pretty"><strong style="font-weight:800">Reason:</strong> {{ s.reason }}</p>
+                        <div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:9px; align-items:center; padding-top:11px; border-top:1px solid #F2EEEA">
+                          <ol style="margin:0; padding:0; list-style:none; display:flex; flex-wrap:wrap; gap:8px; flex:1 1 260px">
+                            <sc-for list="{{ s.steps }}" as="st" hint-placeholder-count="3">
+                              <li style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#857A72"><span style="{{ st.dot }}">{{ st.glyph }}</span>{{ st.label }}</li>
+                            </sc-for>
+                          </ol>
+                          <span style="margin-left:auto; font-size:11.5px; font-weight:700; color:#A79C93">{{ s.outcome }}</span>
+                        </div>
+                      </article>
+                    </sc-for>
+                    <sc-if value="{{ swapsEmptyBranch }}" hint-placeholder-val="{{ false }}">
+                      <div style="border:1px dashed #E4DED9; border-radius:16px; background:#fff; padding:40px 24px; text-align:center">
+                        <p style="margin:0; font-size:15px; font-weight:800">No swap requests in this filter</p>
+                        <p style="margin:7px auto 0; max-width:400px; font-size:12.5px; color:#857A72">Swaps only exist against published shifts.</p>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ reqIsLeave }}" hint-placeholder-val="{{ false }}">
+                  <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; overflow:hidden">
+                    <div style="display:flex; gap:12px; padding:11px 18px; border-bottom:1px solid #F2EEEA; font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#A79C93">
+                      <span style="flex:1 1 170px; min-width:0">Employee</span><span style="flex:0 0 130px">Dates</span><span style="flex:1 1 150px; min-width:0">Type &amp; reason</span><span style="flex:0 0 96px; text-align:right">Status</span>
+                    </div>
+                    <sc-for list="{{ leaveRowsBranch }}" as="l" hint-placeholder-count="3">
+                      <div style="display:flex; flex-wrap:wrap; gap:10px 12px; align-items:center; padding:12px 18px; border-bottom:1px solid #F7F4F1">
+                        <span style="flex:1 1 170px; display:flex; align-items:center; gap:11px; min-width:0">
+                          <span style="{{ l.avatar }}">{{ l.initials }}</span>
+                          <span style="min-width:0"><span style="display:block; font-size:12.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ l.name }}</span><span style="display:block; font-size:11px; color:#A79C93">{{ l.dept }}</span></span>
+                        </span>
+                        <span style="flex:0 0 130px; min-width:0"><span style="display:block; font-size:12.5px; font-weight:700">{{ l.dates }}</span><span style="display:block; font-size:11px; color:#A79C93">{{ l.days }}</span></span>
+                        <span style="flex:1 1 150px; min-width:0"><span style="display:block; font-size:12.5px; font-weight:700">{{ l.type }}</span><span style="display:block; font-size:11px; color:#857A72">{{ l.reason }}</span></span>
+                        <span style="flex:0 0 96px; text-align:right"><span style="{{ l.pill }}">{{ l.status }}</span></span>
+                      </div>
+                    </sc-for>
+                  </section>
+                </sc-if>
+                </sc-if>
+              </div>
+            </sc-if>
+
+            <!-- SUBSCRIPTION -->
+            <sc-if value="{{ isSubscription }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; flex-direction:column; gap:16px; max-width:820px">
+                <section style="border:1px solid #F7DFD1; border-radius:16px; background:#FEFAF7; padding:20px">
+                  <div style="display:flex; flex-wrap:wrap; align-items:flex-start; gap:14px">
+                    <div style="min-width:0; flex:1 1 260px">
+                      <span style="display:inline-flex; align-items:center; border-radius:999px; background:#F04E17; color:#fff; padding:4px 11px; font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase">{{ subPlan }}</span>
+                      <h2 style="margin:12px 0 0; font-size:22px; font-weight:800; letter-spacing:-0.025em">{{ subPrice }} <span style="font-size:13px; font-weight:600; color:#857A72">/ month</span></h2>
+                      <p style="margin:6px 0 0; font-size:12.5px; color:#857A72">{{ subSeatsLabel }} · renews {{ subRenews }}</p>
+                    </div>
+                    <div style="display:flex; flex-wrap:wrap; gap:9px; margin-left:auto">
+                      <button type="button" style="height:40px; padding:0 16px; border:0; border-radius:11px; background:#F04E17; color:#fff; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer">Change plan</button>
+                      <button type="button" style="height:40px; padding:0 15px; border:1px solid #EBE7E3; border-radius:11px; background:#fff; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer">Update payment method</button>
+                    </div>
+                  </div>
+                  <div style="margin-top:16px; padding-top:14px; border-top:1px solid #F7E3D6">
+                    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px">
+                      <span style="font-size:12px; font-weight:700; color:#857A72">Employee capacity used</span>
+                      <span style="font-size:12px; font-weight:700; color:#857A72">{{ subPct }}%</span>
+                    </div>
+                    <div style="margin-top:6px; height:8px; border-radius:999px; background:#F3EEE9; overflow:hidden"><div style="{{ subBarStyle }}"></div></div>
+                  </div>
+                  <sc-if value="{{ subShowWarn }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:14px; display:flex; flex-wrap:wrap; align-items:center; gap:10px">
+                      <p style="margin:0; font-size:12.5px; color:#C6420E; font-weight:700">You're using {{ subPct }}% of your employee capacity.</p>
+                      <button type="button" style="margin-left:auto; height:34px; padding:0 13px; border:1px solid #F7D9C8; border-radius:10px; background:#fff; color:#C6420E; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer">Upgrade Plan</button>
+                    </div>
+                  </sc-if>
+                </section>
+
+                <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; overflow:hidden">
+                  <h2 style="margin:0; padding:15px 18px; border-bottom:1px solid #F2EEEA; font-size:14.5px; font-weight:800">Invoices</h2>
+                  <sc-for list="{{ invoices }}" as="i" hint-placeholder-count="4">
+                    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:13px 18px; border-bottom:1px solid #F7F4F1">
+                      <span style="min-width:0; flex:1 1 180px">
+                        <span style="display:block; font-size:12.5px; font-weight:700">{{ i.period }}</span>
+                        <span style="display:block; font-size:11.5px; color:#A79C93">{{ i.ref }}</span>
+                      </span>
+                      <span style="font-size:12.5px; font-weight:700">{{ i.amount }}</span>
+                      <span style="{{ i.pill }}">{{ i.status }}</span>
+                      <a href="#" style="font-size:12px; font-weight:700">Download</a>
+                    </div>
+                  </sc-for>
+                </section>
+              </div>
+            </sc-if>
+
+            <!-- SETTINGS -->
+            <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; flex-direction:column; gap:16px; max-width:900px">
+                <div style="display:inline-flex; padding:3px; background:#F6F3F0; border-radius:11px; gap:2px">
+                  <sc-for list="{{ settingsTabs }}" as="t" hint-placeholder-count="4">
+                    <button type="button" onClick="{{ t.select }}" style="{{ t.style }}">{{ t.label }}</button>
+                  </sc-for>
+                </div>
+
+                <!-- PROFILE -->
+                <sc-if value="{{ isSettingsProfile }}" hint-placeholder-val="{{ true }}">
+                  <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:20px">
+                    <h2 style="margin:0; font-size:15px; font-weight:800">Profile photo</h2>
+                    <p style="margin:5px 0 14px; font-size:12.5px; color:#857A72">Optional. Without a photo, ShiftOS shows your initials everywhere your name appears.</p>
+                    <div style="display:flex; align-items:center; gap:16px">
+                      <span style="display:flex; width:64px; height:64px; border-radius:999px; background:#FDF0E9; color:#C6420E; align-items:center; justify-content:center; font-size:20px; font-weight:800">{{ adminInitials }}</span>
+                      <div>
+                        <p style="margin:0; font-size:14px; font-weight:800">{{ adminName }}</p>
+                        <p style="margin:4px 0 0; font-size:12.5px; color:#857A72">ngozi.adeyemi@abcsupermarket.com · Admin</p>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:20px">
+                    <h2 style="margin:0 0 14px; font-size:15px; font-weight:800">Personal details</h2>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px">
+                      <sc-for list="{{ profileFields }}" as="f" hint-placeholder-count="6">
+                        <label style="{{ f.wrap }}">
+                          <span style="display:block; font-size:12px; font-weight:700; margin-bottom:6px">{{ f.label }}</span>
+                          <input type="text" value="{{ f.value }}" disabled="{{ f.disabled }}" style="{{ f.input }}" style-focus="border-color:#F04E17" />
+                          <span style="{{ f.noteStyle }}">{{ f.note }}</span>
+                        </label>
+                      </sc-for>
+                    </div>
+                  </section>
+
+                  <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:20px">
+                    <h2 style="margin:0; font-size:15px; font-weight:800">Your role and access</h2>
+                    <p style="margin:5px 0 14px; font-size:12.5px; color:#857A72">Admins oversee the organization and subscription — day-to-day operations stay with Managers and Supervisors.</p>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px">
+                      <sc-for list="{{ grantedPerms }}" as="p" hint-placeholder-count="4">
+                        <span style="display:inline-flex; align-items:center; gap:8px; border:1px solid #BFE6CF; border-radius:999px; padding:8px 13px; font-size:12px; font-weight:700; background:#E9F7EF; color:#1E6B45">
+                          <span style="display:flex; width:16px; height:16px; border-radius:999px; background:#2E9E62; color:#fff; align-items:center; justify-content:center; font-size:9px; font-weight:800">✓</span>{{ p }}
+                        </span>
+                      </sc-for>
+                    </div>
+                    <p style="margin:16px 0 8px; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#A79C93">Not included</p>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px">
+                      <sc-for list="{{ deniedPerms }}" as="p" hint-placeholder-count="4">
+                        <span style="display:inline-flex; align-items:center; gap:8px; border:1px solid #F3C6BD; border-radius:999px; padding:8px 13px; font-size:12px; font-weight:700; background:#FCEDEA; color:#8E2A17">
+                          <span style="display:flex; width:16px; height:16px; border-radius:999px; background:#C93A22; color:#fff; align-items:center; justify-content:center; font-size:9px; font-weight:800">✕</span>{{ p }}
+                        </span>
+                      </sc-for>
+                    </div>
+                  </section>
+                </sc-if>
+
+                <!-- ORGANIZATION -->
+                <sc-if value="{{ isSettingsOrg }}" hint-placeholder-val="{{ false }}">
+                  <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:20px">
+                    <h2 style="margin:0 0 14px; font-size:15px; font-weight:800">Organization details</h2>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px">
+                      <sc-for list="{{ orgFields }}" as="f" hint-placeholder-count="6">
+                        <label style="{{ f.wrap }}">
+                          <span style="display:block; font-size:12px; font-weight:700; margin-bottom:6px">{{ f.label }}</span>
+                          <input type="text" value="{{ f.value }}" disabled="{{ f.disabled }}" style="{{ f.input }}" style-focus="border-color:#F04E17" />
+                          <span style="{{ f.noteStyle }}">{{ f.note }}</span>
+                        </label>
+                      </sc-for>
+                    </div>
+                  </section>
+
+                  <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:20px">
+                    <h2 style="margin:0; font-size:15px; font-weight:800">Attendance rules</h2>
+                    <p style="margin:5px 0 14px; font-size:12.5px; color:#857A72">These thresholds decide when ShiftOS marks someone late or absent. Changes apply to future shifts only.</p>
+                    <div style="display:flex; flex-direction:column; gap:11px">
+                      <sc-for list="{{ rules }}" as="r" hint-placeholder-count="4">
+                        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px; border:1px solid #F2EEEA; border-radius:13px; background:#FDFCFB; padding:13px 14px">
+                          <span style="min-width:0; flex:1 1 240px">
+                            <span style="display:block; font-size:12.5px; font-weight:800">{{ r.label }}</span>
+                            <span style="display:block; font-size:11.5px; color:#857A72">{{ r.body }}</span>
+                          </span>
+                          <span style="{{ r.valueStyle }}">{{ r.value }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </section>
+
+                  <section style="border:1px solid #F3C6BD; border-radius:16px; background:#FEF8F6; padding:20px">
+                    <h2 style="margin:0; font-size:15px; font-weight:800; color:#8E2A17">Danger zone</h2>
+                    <p style="margin:5px 0 14px; font-size:12.5px; color:#8E2A17">These actions cannot be undone from inside ShiftOS.</p>
+                    <div style="display:flex; flex-direction:column; gap:10px">
+                      <sc-for list="{{ dangers }}" as="d" hint-placeholder-count="2">
+                        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px; border:1px solid #F3C6BD; border-radius:13px; background:#fff; padding:13px 14px">
+                          <span style="min-width:0; flex:1 1 240px">
+                            <span style="display:block; font-size:12.5px; font-weight:800">{{ d.title }}</span>
+                            <span style="display:block; font-size:11.5px; color:#857A72">{{ d.body }}</span>
+                          </span>
+                          <button type="button" style="height:36px; padding:0 14px; border:1px solid #C93A22; border-radius:10px; background:#fff; color:#C93A22; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer">{{ d.cta }}</button>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </section>
+                </sc-if>
+
+                <!-- SECURITY -->
+                <sc-if value="{{ isSettingsSecurity }}" hint-placeholder-val="{{ false }}">
+                  <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; padding:20px">
+                    <h2 style="margin:0 0 14px; font-size:15px; font-weight:800">Change password</h2>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px">
+                      <sc-for list="{{ securityFields }}" as="f" hint-placeholder-count="3">
+                        <label style="{{ f.wrap }}">
+                          <span style="display:block; font-size:12px; font-weight:700; margin-bottom:6px">{{ f.label }}</span>
+                          <input type="password" placeholder="{{ f.placeholder }}" style="{{ f.input }}" style-focus="border-color:#F04E17" />
+                        </label>
+                      </sc-for>
+                    </div>
+                    <button type="button" style="margin-top:14px; height:42px; padding:0 18px; border:0; border-radius:11px; background:#F04E17; color:#fff; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer">Update password</button>
+                  </section>
+
+                  <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; overflow:hidden">
+                    <div style="display:flex; align-items:center; gap:12px; padding:15px 18px; border-bottom:1px solid #F2EEEA">
+                      <h2 style="margin:0; font-size:15px; font-weight:800">Active sessions</h2>
+                      <button type="button" style="margin-left:auto; height:34px; padding:0 13px; border:1px solid #F3C6BD; border-radius:10px; background:#fff; color:#C93A22; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer">Sign out all others</button>
+                    </div>
+                    <sc-for list="{{ sessions }}" as="s" hint-placeholder-count="3">
+                      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:13px 18px; border-bottom:1px solid #F7F4F1">
+                        <span style="min-width:0; flex:1 1 220px">
+                          <span style="display:block; font-size:12.5px; font-weight:700">{{ s.device }}</span>
+                          <span style="display:block; font-size:11.5px; color:#857A72">{{ s.meta }}</span>
+                        </span>
+                        <span style="{{ s.pill }}">{{ s.status }}</span>
+                      </div>
+                    </sc-for>
+                  </section>
+                </sc-if>
+
+                <!-- BILLING -->
+                <sc-if value="{{ isSettingsBilling }}" hint-placeholder-val="{{ false }}">
+                  <section style="border:1px solid #F7DFD1; border-radius:16px; background:#FEFAF7; padding:20px">
+                    <div style="display:flex; flex-wrap:wrap; align-items:flex-start; gap:14px">
+                      <div style="min-width:0; flex:1 1 260px">
+                        <span style="display:inline-flex; align-items:center; border-radius:999px; background:#F04E17; color:#fff; padding:4px 11px; font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase">{{ subPlan }}</span>
+                        <h2 style="margin:12px 0 0; font-size:22px; font-weight:800; letter-spacing:-0.025em">{{ subPrice }} <span style="font-size:13px; font-weight:600; color:#857A72">/ month</span></h2>
+                        <p style="margin:6px 0 0; font-size:12.5px; color:#857A72">{{ subSeatsLabel }} · renews {{ subRenews }}</p>
+                      </div>
+                      <div style="display:flex; flex-wrap:wrap; gap:9px; margin-left:auto">
+                        <button type="button" style="height:40px; padding:0 16px; border:0; border-radius:11px; background:#F04E17; color:#fff; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer">Change plan</button>
+                        <button type="button" style="height:40px; padding:0 15px; border:1px solid #EBE7E3; border-radius:11px; background:#fff; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer">Cancel subscription</button>
+                      </div>
+                    </div>
+                    <div style="margin-top:16px; padding-top:14px; border-top:1px solid #F7E3D6; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px">
+                      <sc-for list="{{ billingStats }}" as="b" hint-placeholder-count="3">
+                        <div>
+                          <p style="margin:0; font-size:10.5px; color:#A79C93">{{ b.label }}</p>
+                          <p style="margin:3px 0 0; font-size:15px; font-weight:800">{{ b.value }}</p>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </section>
+
+                  <section style="border:1px solid #EBE7E3; border-radius:16px; background:#fff; overflow:hidden">
+                    <h2 style="margin:0; padding:15px 18px; border-bottom:1px solid #F2EEEA; font-size:15px; font-weight:800">Invoices</h2>
+                    <sc-for list="{{ invoices }}" as="i" hint-placeholder-count="4">
+                      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:13px 18px; border-bottom:1px solid #F7F4F1">
+                        <span style="min-width:0; flex:1 1 180px">
+                          <span style="display:block; font-size:12.5px; font-weight:700">{{ i.period }}</span>
+                          <span style="display:block; font-size:11.5px; color:#A79C93">{{ i.ref }}</span>
+                        </span>
+                        <span style="font-size:12.5px; font-weight:700">{{ i.amount }}</span>
+                        <span style="{{ i.pill }}">{{ i.status }}</span>
+                        <a href="#" style="font-size:12px; font-weight:700">Download</a>
+                      </div>
+                    </sc-for>
+                  </section>
+                </sc-if>
+              </div>
+            </sc-if>
+
+          </sc-if>
+        </main>
+
+        <sc-if value="{{ isMobileDevice }}" hint-placeholder-val="{{ false }}">
+          <nav style="display:flex; border-top:1px solid #EBE7E3; background:#fff">
+            <sc-for list="{{ bottomNav }}" as="n" hint-placeholder-count="4">
+              <button type="button" onClick="{{ n.go }}" style="{{ n.style }}">
+                <span style="{{ n.iconStyle }}">{{ n.icon }}</span>
+                <span style="{{ n.labelStyle }}">{{ n.label }}</span>
+              </button>
+            </sc-for>
+          </nav>
+        </sc-if>
+
+      </div>
+
+      <sc-if value="{{ showFloatingAssistant }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; right:16px; bottom:16px; z-index:40; display:flex; flex-direction:column; align-items:flex-end">
+
+          <sc-if value="{{ assistantExpanded }}" hint-placeholder-val="{{ false }}">
+            <div style="width:290px; max-width:calc(100vw - 32px); margin-bottom:10px; border-radius:18px; background:#231E1A; color:#fff; padding:14px 15px 13px; box-shadow:0 26px 54px -26px rgba(35,30,26,.6)">
+              <div style="display:flex; align-items:center; gap:9px">
+                <span style="display:flex; width:26px; height:26px; flex:0 0 auto; border-radius:999px; overflow:hidden; background:#fff; align-items:flex-end; justify-content:center">
+                  <img src="assets/shifty-guide.png" alt="Shifty" style="width:110%; height:auto; display:block" />
+                </span>
+                <p style="margin:0; font-size:12.5px; font-weight:800; flex:1 1 auto">Ask ShiftOS <span style="font-weight:600; color:#B4A8A0">· Read-only</span></p>
+                <button type="button" onClick="{{ collapseAssistant }}" aria-label="Minimize" style="border:0; background:transparent; color:#B4A8A0; font-size:14px; cursor:pointer; padding:2px 4px">–</button>
+              </div>
+
+              <sc-if value="{{ askHasResult }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:11px; border-radius:12px; background:#fff; color:#38312B; padding:10px 12px">
+                  <p style="margin:0; font-size:12px; line-height:1.5">{{ askResult }}</p>
+                </div>
+              </sc-if>
+
+              <div style="position:relative; margin-top:11px; display:flex; gap:7px; align-items:center; border:1px solid #3B322C; border-radius:12px; background:#1A1613; padding:5px 5px 5px 12px">
+                <input value="{{ askQuery }}" onChange="{{ setAskQuery }}" onKeyDown="{{ askKey }}" placeholder="Ask or command…" aria-label="Ask ShiftOS" style="flex:1 1 auto; min-width:0; height:32px; border:0; background:transparent; font-family:inherit; font-size:12.5px; color:#fff; outline:none" />
+                <button type="button" onClick="{{ askSubmit }}" style="height:32px; padding:0 13px; border:0; border-radius:9px; background:#F04E17; color:#fff; font-family:inherit; font-size:11.5px; font-weight:700; cursor:pointer">Ask</button>
+              </div>
+              <div style="margin-top:9px; display:flex; flex-wrap:wrap; gap:6px">
+                <sc-for list="{{ askChipsSmall }}" as="c" hint-placeholder-count="2">
+                  <button type="button" onClick="{{ c.run }}" style="height:27px; padding:0 10px; border:1px solid #3B322C; border-radius:999px; background:transparent; color:#DED5CF; font-family:inherit; font-size:10.5px; font-weight:700; cursor:pointer">{{ c.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <button type="button" onClick="{{ toggleAssistant }}" aria-label="Ask ShiftOS" style="width:52px; height:52px; border-radius:999px; border:0; background:#231E1A; box-shadow:0 16px 30px -14px rgba(35,30,26,.6); display:flex; align-items:center; justify-content:center; overflow:hidden; cursor:pointer">
+            <img src="assets/shifty-guide.png" alt="Shifty" style="width:112%; height:auto; display:block" />
+          </button>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Overview&quot;,&quot;Branches&quot;,&quot;Branch Detail&quot;,&quot;Subscription&quot;,&quot;Settings&quot;],&quot;default&quot;:&quot;Overview&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Preview&quot;},&quot;device&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Desktop&quot;,&quot;Mobile&quot;],&quot;default&quot;:&quot;Desktop&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Preview&quot;},&quot;data&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Populated&quot;,&quot;Loading&quot;,&quot;Empty&quot;],&quot;default&quot;:&quot;Populated&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Preview&quot;}}">
+const C = {
+  ink: "#38312B", body: "#57504A", mute: "#857A72", faint: "#A79C93", line: "#EBE7E3",
+  primary: "#F04E17", deep: "#C6420E", soft: "#FDF0E9",
+  ok: "#2E9E62", okSoft: "#E9F7EF", warn: "#B77714", warnSoft: "#FDF4E6",
+  bad: "#C93A22", badSoft: "#FCEDEA", info: "#2563EB", infoSoft: "#EFF4FE",
+};
+const h = React.createElement;
+const P = {
+  store: [["path", { d: "M4 9.5 6 4h12l2 5.5" }], ["rect", { x: 4, y: 9.5, width: 16, height: 11, rx: 2.5 }], ["path", { d: "M9.5 20.5v-6h5v6" }]],
+  users: [["circle", { cx: 9, cy: 8, r: 3.2 }], ["path", { d: "M3 20c0-3.3 2.7-5.6 6-5.6s6 2.3 6 5.6" }], ["path", { d: "M16.4 14.6c2.6.4 4.6 2.5 4.6 5.4" }]],
+  building: [["rect", { x: 4, y: 3, width: 16, height: 18, rx: 3 }], ["path", { d: "M4 9h16M12 9v12" }]],
+  card: [["rect", { x: 2.5, y: 5, width: 19, height: 14, rx: 3 }], ["path", { d: "M2.5 10h19" }]],
+  bell: [["path", { d: "M12 3.6c-3 0-4.7 2.3-4.7 5.3v3l-1.6 2.7h12.6L16.7 12v-3c0-3-1.7-5.4-4.7-5.4z" }], ["path", { d: "M10 18.4a2 2 0 0 0 4 0" }]],
+  overview: [["rect", { x: 3.5, y: 3.5, width: 7, height: 7, rx: 2 }], ["rect", { x: 13.5, y: 3.5, width: 7, height: 7, rx: 2 }], ["rect", { x: 3.5, y: 13.5, width: 7, height: 7, rx: 2 }], ["rect", { x: 13.5, y: 13.5, width: 7, height: 7, rx: 2 }]],
+  gear: [["circle", { cx: 12, cy: 12, r: 3 }], ["path", { d: "M19 12a7 7 0 0 0-.15-1.45l1.85-1.4-1.5-2.6-2.2.75a7 7 0 0 0-2.5-1.45L14 3.5h-4l-.5 2.35a7 7 0 0 0-2.5 1.45l-2.2-.75-1.5 2.6 1.85 1.4A7 7 0 0 0 5 12c0 .5.05.98.15 1.45l-1.85 1.4 1.5 2.6 2.2-.75a7 7 0 0 0 2.5 1.45L10 20.5h4l.5-2.35a7 7 0 0 0 2.5-1.45l2.2.75 1.5-2.6-1.85-1.4c.1-.47.15-.95.15-1.45z" }]],
+  lock: [["rect", { x: 5, y: 11, width: 14, height: 9, rx: 2.4 }], ["path", { d: "M8 11V8a4 4 0 0 1 8 0v3" }]],
+  check: [["path", { d: "M5 12.5l4.5 4.5L19 7" }]],
+  x: [["path", { d: "M6 6l12 12M18 6L6 18" }]],
+  clock: [["circle", { cx: 12, cy: 12, r: 8.2 }], ["path", { d: "M12 7.5V12l3 2" }]],
+  checkCircle: [["circle", { cx: 12, cy: 12, r: 8.5 }], ["path", { d: "M8.3 12.3l2.6 2.6 4.8-5.4" }]],
+  user: [["circle", { cx: 12, cy: 8.5, r: 3.4 }], ["path", { d: "M5.5 20c0-3.6 2.9-6.2 6.5-6.2s6.5 2.6 6.5 6.2" }]],
+  calendar: [["rect", { x: 3.5, y: 4.5, width: 17, height: 16, rx: 2.6 }], ["path", { d: "M3.5 9.5h17M8 3v3M16 3v3" }]],
+};
+const icon = (n, s) =>
+  h("svg", { viewBox: "0 0 24 24", width: s || 18, height: s || 18, fill: "none", stroke: "currentColor",
+    strokeWidth: 1.85, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", style: { display: "block" } },
+    (P[n] || P.store).map((p, i) => h(p[0], { key: i, ...p[1] })));
+
+const pill = (fg, bg) => `display:inline-flex; align-items:center; border-radius:999px; padding:4px 10px; font-size:10.5px; font-weight:700; color:${fg}; background:${bg}`;
+const seg = (active) =>
+  `border:0; border-radius:9px; padding:6px 11px; font-family:inherit; font-size:11.5px; font-weight:700; cursor:pointer; ` +
+  (active ? `background:#fff; color:${C.ink}; box-shadow:0 1px 3px rgba(56,49,43,.15)` : `background:transparent; color:${C.faint}`);
+const initialsOf = (n) => n.split(" ").slice(0, 2).map((p) => p[0]).join("");
+const input = (disabled) =>
+  `width:100%; box-sizing:border-box; height:44px; border:1px solid #E4DED9; border-radius:12px; padding:0 13px; font-family:inherit; font-size:13.5px; outline:none; ` +
+  (disabled ? `background:#F7F4F1; color:${C.mute}` : `background:#fff; color:${C.ink}`);
+const avatarStyle = (size) => `display:flex; width:${size}px; height:${size}px; flex:0 0 auto; border-radius:999px; background:#F1EDEA; color:#57504A; align-items:center; justify-content:center; font-size:${Math.round(size * 0.36)}px; font-weight:800`;
+
+const ORG_NAME = "ABC Supermarket Ltd.";
+const ADMIN_NAME = "Ngozi Adeyemi";
+
+const SETTINGS_TABS = ["Profile", "Organization", "Security", "Billing"];
+const PROFILE_FIELDS = [
+  { label: "First name", value: "Ngozi" },
+  { label: "Last name", value: "Adeyemi" },
+  { label: "Work email", value: "ngozi.adeyemi@abcsupermarket.com", disabled: true, note: "Contact support to change the email on your account." },
+  { label: "Phone number", value: "+234 802 116 3390" },
+  { label: "Job title", value: "Administrator" },
+  { label: "Role", value: "Admin", disabled: true, note: "Granted when the organization was created." },
+];
+const ORG_FIELDS = [
+  { label: "Organization name", value: "ABC Supermarket Ltd." },
+  { label: "Business type", value: "Supermarket" },
+  { label: "Workspace URL", value: "abc-supermarket.shiftos.app", disabled: true, note: "Changing this breaks existing links for your team." },
+  { label: "Country", value: "Nigeria" },
+  { label: "Time zone", value: "Africa/Lagos (UTC +1)" },
+  { label: "Week starts on", value: "Monday" },
+];
+const RULES = [
+  { label: "Late threshold", body: "How long after the shift start a clock-in counts as late.", value: "10 minutes", tone: "warn" },
+  { label: "Absent threshold", body: "After this, an un-clocked employee is marked absent.", value: "60 minutes", tone: "bad" },
+  { label: "Early clock-in window", body: "How early staff may clock in before their shift.", value: "15 minutes", tone: "info" },
+  { label: "Supervisor corrections", body: "Supervisors may correct attendance for their department.", value: "Allowed", tone: "ok" },
+];
+const DANGERS = [
+  { title: "Transfer organization ownership", body: "Hand the Manager role to another member. You keep your account.", cta: "Transfer" },
+  { title: "Delete organization", body: "Removes all people, schedules and attendance records. Export first.", cta: "Delete" },
+];
+const SECURITY_FIELDS = [
+  { label: "Current password", placeholder: "Enter your current password", wrap: "grid-column:1/-1" },
+  { label: "New password", placeholder: "Create a new password" },
+  { label: "Confirm new password", placeholder: "Repeat the new password" },
+];
+const SESSIONS = [
+  { device: "Chrome on Windows · Lagos", meta: "This device · last active just now", status: "Current", tone: "ok" },
+  { device: "Safari on iPhone · Lagos", meta: "Last active 2 hours ago", status: "Active", tone: "info" },
+  { device: "Chrome on Android · Ibadan", meta: "Last active 6 days ago", status: "Idle", tone: "warn" },
+];
+
+const BRANCHES = [
+  { name: "Victoria Island", location: "Lagos, Nigeria", status: "Active", employees: 96, managers: 2, supervisors: 4,
+    hours: "Mon–Sun · 8:00 AM–10:00 PM", address: "14 Adeola Odeku Street, Victoria Island, Lagos", created: "12 Jan 2024",
+    managers_: [{ name: "Adaeze Nwosu", role: "Branch Manager", email: "adaeze.nwosu@abcsupermarket.com" }, { name: "Tunde Bakare", role: "Assistant Manager", email: "tunde.bakare@abcsupermarket.com" }],
+    supervisors_: [{ name: "Sarah Johnson", role: "Sales Floor Supervisor", email: "sarah.johnson@abcsupermarket.com" }, { name: "Michael Okafor", role: "Front End Supervisor", email: "michael.o@abcsupermarket.com" }, { name: "Adesuwa Bakare", role: "Warehouse Supervisor", email: "adesuwa.b@abcsupermarket.com" }, { name: "Chinedu Eze", role: "Bakery Supervisor", email: "chinedu.e@abcsupermarket.com" }] },
+  { name: "Ikeja Main Branch", location: "Lagos, Nigeria", status: "Active", employees: 84, managers: 2, supervisors: 4,
+    hours: "Mon–Sun · 7:00 AM–11:00 PM", address: "22 Awolowo Way, Ikeja, Lagos", created: "3 Mar 2023",
+    managers_: [{ name: "Daniel Okonkwo", role: "Branch Manager", email: "daniel@abcsupermarket.com" }, { name: "Blessing Eze", role: "Assistant Manager", email: "blessing.eze@abcsupermarket.com" }],
+    supervisors_: [{ name: "Ifeoma Chukwu", role: "Sales Floor Supervisor", email: "ifeoma.chukwu@abcsupermarket.com" }, { name: "Segun Adebayo", role: "Cashiers Supervisor", email: "segun.adebayo@abcsupermarket.com" }, { name: "Grace Umeh", role: "Warehouse Supervisor", email: "grace.umeh@abcsupermarket.com" }, { name: "Yusuf Aliyu", role: "Bakery Supervisor", email: "yusuf.aliyu@abcsupermarket.com" }] },
+  { name: "Lekki Phase 1", location: "Lagos, Nigeria", status: "Active", employees: 54, managers: 0, supervisors: 3,
+    hours: "Mon–Sun · 8:00 AM–10:00 PM", address: "5 Admiralty Way, Lekki Phase 1, Lagos", created: "18 Jul 2024",
+    attentionNote: "No branch manager assigned.",
+    managers_: [],
+    supervisors_: [{ name: "Kelechi Nwankwo", role: "Sales Floor Supervisor", email: "kelechi.nwankwo@abcsupermarket.com" }, { name: "Amaka Eze", role: "Cashiers Supervisor", email: "amaka.eze@abcsupermarket.com" }, { name: "Bashir Suleiman", role: "Warehouse Supervisor", email: "bashir.suleiman@abcsupermarket.com" }] },
+  { name: "Ibadan Branch", location: "Ibadan, Oyo", status: "Active", employees: 62, managers: 2, supervisors: 4,
+    hours: "Mon–Sun · 8:00 AM–9:00 PM", address: "9 Ring Road, Ibadan, Oyo", created: "29 Sep 2023",
+    managers_: [{ name: "Chukwuemeka Obi", role: "Branch Manager", email: "chukwuemeka.obi@abcsupermarket.com" }, { name: "Halima Yakubu", role: "Assistant Manager", email: "halima.yakubu@abcsupermarket.com" }],
+    supervisors_: [{ name: "Peace Nnamdi", role: "Sales Floor Supervisor", email: "peace.nnamdi@abcsupermarket.com" }, { name: "Rotimi Ayo", role: "Cashiers Supervisor", email: "rotimi.ayo@abcsupermarket.com" }, { name: "Uche Anyanwu", role: "Warehouse Supervisor", email: "uche.anyanwu@abcsupermarket.com" }, { name: "Zainab Lawal", role: "Bakery Supervisor", email: "zainab.lawal@abcsupermarket.com" }] },
+  { name: "Port Harcourt Branch", location: "Port Harcourt, Rivers", status: "Pending setup", employees: 0, managers: 0, supervisors: 0,
+    hours: "Not set", address: "Not set", created: "5 Aug 2026",
+    attentionNote: "Branch setup is incomplete.",
+    managers_: [], supervisors_: [] },
+  { name: "Abuja Branch", location: "Abuja, FCT", status: "Active", employees: 62, managers: 2, supervisors: 3,
+    hours: "Mon–Sun · 8:00 AM–10:00 PM", address: "Plot 14, Gwarinpa, Abuja, FCT", created: "14 Feb 2024",
+    managers_: [{ name: "Fatima Bello", role: "Branch Manager", email: "fatima.b@abcsupermarket.com" }, { name: "Emeka Nnadi", role: "Assistant Manager", email: "emeka.nnadi@abcsupermarket.com" }],
+    supervisors_: [{ name: "Chidinma Okoro", role: "Sales Floor Supervisor", email: "chidinma.okoro@abcsupermarket.com" }, { name: "Musa Garba", role: "Cashiers Supervisor", email: "musa.garba@abcsupermarket.com" }, { name: "Bola Adisa", role: "Warehouse Supervisor", email: "bola.adisa@abcsupermarket.com" }] },
+];
+
+const TOTAL_EMPLOYEES = BRANCHES.reduce((s, b) => s + b.employees, 0);
+const TOTAL_MANAGERS = BRANCHES.reduce((s, b) => s + b.managers, 0);
+const TOTAL_SUPERVISORS = BRANCHES.reduce((s, b) => s + b.supervisors, 0);
+const SEAT_CAP = 400;
+
+const INVOICES = [
+  { period: "August 2026", ref: "INV-2026-08-014", amount: "₦12,000", status: "Paid", tone: "ok" },
+  { period: "July 2026", ref: "INV-2026-07-014", amount: "₦12,000", status: "Paid", tone: "ok" },
+  { period: "June 2026", ref: "INV-2026-06-014", amount: "₦12,000", status: "Paid", tone: "ok" },
+  { period: "May 2026", ref: "INV-2026-05-014", amount: "₦12,000", status: "Refunded", tone: "warn" },
+];
+const TONES = { ok: [C.ok, C.okSoft], warn: [C.warn, C.warnSoft], bad: [C.bad, C.badSoft], info: [C.info, C.infoSoft], primary: [C.deep, C.soft], violet: ["#7C3AED", "#F3EEFE"], neutral: [C.mute, "#F1EDEA"] };
+
+const SCREENS = ["Overview", "Branches", "Branch Detail", "Subscription", "Settings"];
+const DEVICES = ["Desktop", "Mobile"];
+const DATA_STATES = ["Populated", "Loading", "Empty"];
+
+const EMPLOYEE_ROWS = [
+  { name: "Chidi Anozie", role: "Sales Associate", dept: "Sales Floor", employment: "Full-time", status: "Active" },
+  { name: "Ronke Fashola", role: "Cashier", dept: "Front End", employment: "Full-time", status: "Active" },
+  { name: "Emeka Duru", role: "Stock Clerk", dept: "Warehouse", employment: "Part-time", status: "Active" },
+  { name: "Aisha Bello", role: "Baker", dept: "Bakery", employment: "Full-time", status: "On leave" },
+  { name: "Femi Owolabi", role: "Sales Associate", dept: "Sales Floor", employment: "Full-time", status: "Active" },
+];
+const SCHEDULE_ROWS = [
+  { name: "Sarah Johnson", role: "Sales Floor Supervisor", time: "8:00 AM – 4:00 PM" },
+  { name: "Michael Okafor", role: "Front End Supervisor", time: "9:00 AM – 5:00 PM" },
+  { name: "Chidi Anozie", role: "Sales Associate", time: "8:00 AM – 4:00 PM" },
+  { name: "Ronke Fashola", role: "Cashier", time: "12:00 PM – 8:00 PM" },
+];
+const TASK_ROWS = [
+  { title: "Restock front displays", assignee: "Chidi Anozie", status: "Done", tone: "ok" },
+  { title: "Weekly inventory count", assignee: "Emeka Duru", status: "In progress", tone: "info" },
+  { title: "Deep clean bakery station", assignee: "Aisha Bello", status: "Pending", tone: "warn" },
+  { title: "Cash reconciliation", assignee: "Ronke Fashola", status: "Done", tone: "ok" },
+];
+const ANNOUNCEMENT_ROWS = [
+  { title: "New closing checklist starts Monday", body: "Front end must complete the updated checklist before clocking out.", author: "Branch Manager", time: "2 days ago" },
+  { title: "New promotion display goes live Friday", body: "Ensure all displays are updated and shelves are stocked before 10 AM Friday.", author: "Sales Floor Supervisor", time: "Yesterday, 4:12 PM" },
+  { title: "Public holiday schedule", body: "Confirm availability for the upcoming holiday weekend by Friday.", author: "Branch Manager", time: "5 days ago" },
+];
+const ATTENDANCE_STATS = [
+  { label: "Present", value: "17", color: "#2E9E62" },
+  { label: "Late", value: "2", color: "#B77714" },
+  { label: "Absent", value: "1", color: "#C93A22" },
+  { label: "Corrections", value: "3", color: "#2563EB" },
+];
+const SCHEDULE_GRID = [
+  { name: "Sarah Johnson", role: "Sales Floor Supervisor", cells: [
+    { type: "Morning", time: "8:00 – 4:00" }, { type: "Morning", time: "8:00 – 4:00" }, { type: "Morning", time: "8:00 – 4:00" }, { type: "Morning", time: "8:00 – 4:00" }, { type: "Morning", time: "8:00 – 4:00" }, null, null ] },
+  { name: "Michael Okafor", role: "Front End Supervisor", cells: [
+    { type: "Afternoon", time: "12:00 – 8:00" }, { type: "Afternoon", time: "12:00 – 8:00" }, null, { type: "Afternoon", time: "12:00 – 8:00" }, { type: "Afternoon", time: "12:00 – 8:00" }, { type: "Afternoon", time: "12:00 – 8:00" }, null ] },
+  { name: "Chidi Anozie", role: "Sales Associate", cells: [
+    { type: "Morning", time: "8:00 – 4:00" }, null, { type: "Morning", time: "8:00 – 4:00" }, { type: "Morning", time: "8:00 – 4:00" }, { type: "Morning", time: "8:00 – 4:00" }, { type: "Morning", time: "8:00 – 4:00" }, null ] },
+  { name: "Ronke Fashola", role: "Cashier", cells: [
+    { type: "Afternoon", time: "12:00 – 8:00" }, { type: "Afternoon", time: "12:00 – 8:00" }, { type: "Afternoon", time: "12:00 – 8:00" }, null, null, { type: "Afternoon", time: "12:00 – 8:00" }, { type: "Afternoon", time: "12:00 – 8:00" } ] },
+  { name: "Emeka Duru", role: "Stock Clerk", cells: [
+    { type: "Night", time: "8:00 – 8:00" }, { type: "Night", time: "8:00 – 8:00" }, { type: "Night", time: "8:00 – 8:00" }, { type: "Night", time: "8:00 – 8:00" }, null, null, { type: "Night", time: "8:00 – 8:00" } ] },
+];
+const ATTENDANCE_ROWS = [
+  { name: "Chidi Anozie", status: "On time", tone: "ok", time: "8:02 AM", note: "" },
+  { name: "Ronke Fashola", status: "Late", tone: "warn", time: "12:14 PM", note: "Traffic delay" },
+  { name: "Emeka Duru", status: "On time", tone: "ok", time: "7:58 AM" },
+  { name: "Aisha Bello", status: "Absent", tone: "bad", time: "—" },
+];
+const BRANCH_TABS = ["Leadership", "Employees", "Schedule", "Tasks", "Announcements", "Attendance", "Requests"];
+const EMP_STATS = [
+  { label: "Total Employees", value: "20", meta: "Main Branch", ico: "users", tone: "primary" },
+  { label: "Active", value: "17", meta: "85% of total", ico: "checkCircle", tone: "ok" },
+  { label: "On Shift Today", value: "12", meta: "60% of total", ico: "user", tone: "info" },
+  { label: "On Leave", value: "1", meta: "5% of total", ico: "calendar", tone: "violet" },
+];
+const EMP_TABS_B = ["All Employees (20)", "Active (17)", "On Leave (1)", "Inactive (2)"];
+const EMP_DIRECTORY = [
+  { id: "EMP-001", name: "John Doe", role: "Assistant Manager", roleTone: "info", dept: "Management", status: "Active", tone: "ok", phone: "+234 801 234 5678", added: "Apr 12, 2025" },
+  { id: "EMP-002", name: "Sarah Johnson", role: "Supervisor", roleTone: "primary", dept: "Operations", status: "Active", tone: "ok", phone: "+234 802 345 6789", added: "Apr 12, 2025" },
+  { id: "EMP-003", name: "Michael Brown", role: "Store Manager", roleTone: "violet", dept: "Management", status: "Active", tone: "ok", phone: "+234 803 456 7890", added: "Mar 28, 2025" },
+  { id: "EMP-004", name: "Emily Davis", role: "Cashier", roleTone: "ok", dept: "Front End", status: "Active", tone: "ok", phone: "+234 804 567 8901", added: "Apr 15, 2025" },
+  { id: "EMP-005", name: "David Wilson", role: "Stock Clerk", roleTone: "warn", dept: "Operations", status: "Active", tone: "ok", phone: "+234 805 678 9012", added: "Apr 15, 2025" },
+  { id: "EMP-006", name: "Jessica Taylor", role: "Cashier", roleTone: "ok", dept: "Front End", status: "On Leave", tone: "info", phone: "+234 806 789 0123", added: "Apr 20, 2025" },
+  { id: "EMP-007", name: "Daniel Anderson", role: "Security", roleTone: "neutral", dept: "Operations", status: "Active", tone: "ok", phone: "+234 807 890 1234", added: "Mar 18, 2025" },
+  { id: "EMP-008", name: "Olivia Thomas", role: "Cleaner", roleTone: "bad", dept: "Facilities", status: "Active", tone: "ok", phone: "+234 808 901 2345", added: "Apr 22, 2025" },
+];
+const DEPTS_B = [
+  { name: "Management", n: 3, pct: 15, c: "#7C3AED" },
+  { name: "Operations", n: 6, pct: 30, c: "#2563EB" },
+  { name: "Front End", n: 5, pct: 25, c: "#2E9E62" },
+  { name: "Facilities", n: 2, pct: 10, c: "#E8A33D" },
+  { name: "Security", n: 2, pct: 10, c: "#EC4899" },
+  { name: "Unassigned", n: 2, pct: 10, c: "#DDD6D0" },
+];
+const EMP_FILTERS_B = [
+  { label: "Status", value: "All Statuses" },
+  { label: "Department", value: "All Departments" },
+  { label: "Role", value: "All Roles" },
+  { label: "Employment Type", value: "All Types" },
+];
+const WEEK = [["Mon", "19"], ["Tue", "20"], ["Wed", "21"], ["Thu", "22"], ["Fri", "23"], ["Sat", "24"], ["Sun", "25"]];
+const SCHEDULE = [
+  { name: "Morning", time: "08:00 – 16:00", cells: ["5 staff", "5 staff", "4 staff", "5 staff", "6 staff", "6 staff", "off"] },
+  { name: "Afternoon", time: "12:00 – 20:00", cells: ["3 staff", "3 staff", "unassigned", "3 staff", "4 staff", "4 staff", "off"] },
+  { name: "Night", time: "20:00 – 08:00", cells: ["2 staff", "2 staff", "2 staff", "2 staff", "2 staff", "2 staff", "off"] },
+];
+const TASK_COLUMNS = [
+  { title: "To do", tone: "#A79C93", tasks: [
+    { title: "Restock beverages in aisle 4", meta: "Due 10:00 AM · Front End", priority: "Medium", tone: "warn", assignee: "Grace Williams", done: false },
+    { title: "Bakery preparation check", meta: "Due 11:00 AM · Bakery", priority: "Low", tone: "info", assignee: "Unassigned", done: false },
+  ] },
+  { title: "In progress", tone: "#B77714", tasks: [
+    { title: "Weekly stock count", meta: "Started 09:10 AM · Warehouse", priority: "High", tone: "bad", assignee: "Michael Brown", done: false },
+  ] },
+  { title: "Completed", tone: "#2E9E62", tasks: [
+    { title: "Check cold room temperature", meta: "Completed 08:15 AM", priority: "High", tone: "bad", assignee: "Michael Brown", done: true },
+    { title: "Morning store walkthrough", meta: "Completed 08:25 AM", priority: "Medium", tone: "warn", assignee: "Sarah Johnson", done: true },
+  ] },
+];
+const SWAPS = [
+  { ref: "SWP-2025-0148", status: "Awaiting your approval", tone: "warn", age: "Raised 2 days ago", closed: false,
+    fromName: "John Doe", fromRole: "Sales Associate · Sales Floor", fromShift: "Mon 20 May · Evening Shift", fromMeta: "14:00 – 22:00 · Front End",
+    toName: "Michael Brown", toRole: "Stock Clerk · Warehouse", toShift: "Wed 22 May · Morning Shift", toMeta: "08:00 – 16:00 · Warehouse",
+    reason: "Family commitment on Monday evening. Michael has agreed to take the shift and I'll cover his Wednesday morning.",
+    steps: [["Requested", true], ["Counterparty accepted", true], ["Supervisor approved", false]], outcome: "Pending supervisor decision", filter: "Pending" },
+  { ref: "SWP-2025-0151", status: "Awaiting counterparty", tone: "info", age: "Raised 4 hours ago", closed: false,
+    fromName: "Grace Williams", fromRole: "Cashier · Front End", fromShift: "Sat 24 May · Morning Shift", fromMeta: "08:00 – 16:00 · Front End",
+    toName: "Mary Johnson", toRole: "Cashier · Front End", toShift: "Sun 25 May · Evening Shift", toMeta: "14:00 – 22:00 · Front End",
+    reason: "Swapping so I can attend a wedding on Saturday morning.",
+    steps: [["Requested", true], ["Counterparty accepted", false], ["Supervisor approved", false]], outcome: "Waiting for Mary Johnson to accept", filter: "Pending" },
+  { ref: "SWP-2025-0139", status: "Approved", tone: "ok", age: "Approved 12 May", closed: true,
+    fromName: "Michael Brown", fromRole: "Stock Clerk · Warehouse", fromShift: "Fri 16 May · Night Shift", fromMeta: "22:00 – 06:00 · Warehouse",
+    toName: "David Wilson", toRole: "Cleaner · Facilities", toShift: "Thu 15 May · Evening Shift", toMeta: "14:00 – 22:00 · Facilities",
+    reason: "Medical appointment early Saturday morning.",
+    steps: [["Requested", true], ["Counterparty accepted", true], ["Supervisor approved", true]], outcome: "Approved by Sarah Johnson · schedule updated", filter: "Resolved" },
+  { ref: "SWP-2025-0132", status: "Declined", tone: "bad", age: "Declined 09 May", closed: true,
+    fromName: "Mary Johnson", fromRole: "Cashier · Front End", fromShift: "Sat 10 May · Morning Shift", fromMeta: "08:00 – 16:00 · Front End",
+    toName: "James Carter", toRole: "Baker · Bakery", toShift: "Sat 10 May · Morning Shift", toMeta: "08:00 – 16:00 · Bakery",
+    reason: "Wanted to switch departments for one shift.",
+    steps: [["Requested", true], ["Counterparty accepted", true], ["Supervisor approved", true]], outcome: "Declined — Bakery cover cannot move to Front End", filter: "Resolved" },
+];
+const LEAVE = [
+  { name: "Mary Johnson", dept: "Front End", dates: "02 – 04 Jun", days: "3 working days", type: "Annual leave", reason: "Family travel", status: "Pending", tone: "warn", filter: "Pending" },
+  { name: "Grace Williams", dept: "Front End", dates: "28 May", days: "1 working day", type: "Unpaid leave", reason: "Personal appointment", status: "Pending", tone: "warn", filter: "Pending" },
+  { name: "John Doe", dept: "Sales Floor", dates: "09 Jun", days: "1 working day", type: "Annual leave", reason: "Graduation ceremony", status: "Approved", tone: "ok", filter: "Resolved" },
+  { name: "Aisha Bello", dept: "Bakery", dates: "19 Aug", days: "1 working day", type: "Personal leave", reason: "Not enough notice given", status: "Declined", tone: "bad", filter: "Resolved" },
+];
+
+class Component extends DCLogic {
+  state = { screen: null, device: null, data: null, selected: 0, filter: "All", branchTab: "Leadership",
+    askQuery: "", askResult: "", assistantExpanded: false, reqTab: "Swap requests", reqFilter: "Pending", settingsTab: "Profile" };
+
+  requestsVals() {
+    const onSwaps = this.state.reqTab === "Swap requests";
+    const filt = this.state.reqFilter;
+    const matchFilter = (f) => filt === "All" || f === filt;
+    const shownSwaps = SWAPS.filter((s) => matchFilter(s.filter));
+    const shownLeave = LEAVE.filter((l) => matchFilter(l.filter));
+    const stepDot = (done) => `display:flex; width:16px; height:16px; border-radius:999px; align-items:center; justify-content:center; font-size:9px; font-weight:800; ` +
+      (done ? `background:${C.ok}; color:#fff` : `border:1.5px solid ${C.line}; color:${C.faint}; background:#fff`);
+    return {
+      reqTabs: ["Swap requests", "Time off"].map((label) => ({
+        label, select: () => this.setState({ reqTab: label }),
+        style: seg(label === this.state.reqTab),
+      })),
+      reqFilters: ["Pending", "Resolved", "All"].map((label) => ({
+        label, select: () => this.setState({ reqFilter: label }),
+        style: `border:1px solid ${label === filt ? C.primary : C.line}; border-radius:9px; padding:6px 12px; font-family:inherit; font-size:11.5px; font-weight:700; cursor:pointer; ` +
+          (label === filt ? `background:${C.soft}; color:${C.deep}` : `background:#fff; color:${C.mute}`),
+      })),
+      reqCount: onSwaps ? shownSwaps.length + " swap requests" : shownLeave.length + " leave requests",
+      reqIsSwaps: onSwaps, reqIsLeave: !onSwaps,
+      swapsEmptyBranch: shownSwaps.length === 0,
+      swapCards: shownSwaps.map((s) => {
+        const [fg, bg] = TONES[s.tone] || TONES.warn;
+        return { ...s, pill: pill(fg, bg),
+          card: `border:1px solid ${C.line}; border-radius:16px; background:#fff; padding:16px 18px`,
+          fromAvatar: avatarStyle(32), fromInitials: initialsOf(s.fromName),
+          toAvatar: avatarStyle(32), toInitials: initialsOf(s.toName),
+          steps: s.steps.map(([label, done]) => ({ label, dot: stepDot(done), glyph: done ? "✓" : "" })),
+        };
+      }),
+      leaveRowsBranch: shownLeave.map((l) => ({ ...l, initials: initialsOf(l.name), avatar: avatarStyle(32), pill: pill(...(TONES[l.tone] || TONES.warn)) })),
+    };
+  }
+
+  renderVals() {
+    const screen = this.state.screen ?? this.props.screen ?? "Overview";
+    const device = this.state.device ?? this.props.device ?? "Desktop";
+    const data = this.state.data ?? this.props.data ?? "Populated";
+    const isDesktop = device === "Desktop";
+    const selectedBranch = BRANCHES[this.state.selected] || BRANCHES[0];
+
+    const openBranch = (i) => () => this.setState({ selected: i, screen: "Branch Detail", branchTab: "Leadership", assistantExpanded: false });
+    const goto = (label) => () => this.setState({ screen: label, assistantExpanded: false });
+    const branchTab = this.state.branchTab;
+
+    const pct = Math.round((TOTAL_EMPLOYEES / SEAT_CAP) * 100);
+
+    const statusPillStyle = (status) => {
+      const [fg, bg] = status === "Active" ? TONES.ok : status === "Pending setup" ? TONES.warn : TONES.neutral || [C.mute, "#F1EDEA"];
+      return pill(fg, bg);
+    };
+
+    const branchTile = (b) => `display:flex; width:40px; height:40px; flex:0 0 auto; border-radius:13px; align-items:center; justify-content:center; ` +
+      (b.attentionNote ? `background:${C.warnSoft}; color:${C.warn}` : `background:${C.soft}; color:${C.deep}`);
+
+    const attentionItems = [];
+    BRANCHES.forEach((b, i) => {
+      if (b.attentionNote) attentionItems.push({ title: b.name, body: b.attentionNote, icon: icon("store", 15), act: openBranch(i), cta: "View branch" });
+    });
+    if (pct >= 85) attentionItems.push({ title: "Professional Plan", body: `Usage has reached ${pct}% of your employee capacity.`, icon: icon("card", 15), act: goto("Subscription"), cta: "Upgrade" });
+
+    const personCards = (list) => list.map((p) => ({ ...p, initials: initialsOf(p.name), avatar: avatarStyle(38) }));
+
+    return {
+      pageWrapStyle: `min-height:100vh; background:${isDesktop ? "#fff" : "#EFEAE6"}; color:${C.ink}; font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif; font-size:13px; line-height:1.55`,
+      stageStyle: isDesktop ? "" : "padding:22px 14px 40px; display:flex; justify-content:center",
+      shellStyle: isDesktop
+        ? "position:relative; display:flex; min-height:calc(100vh - 49px)"
+        : "position:relative; width:100%; max-width:410px; min-height:780px; display:flex; flex-direction:column; background:#fff; border-radius:28px; border:1px solid #E4DED9; box-shadow:0 30px 70px -35px rgba(56,49,43,.4); overflow:hidden",
+      mainStyle: isDesktop ? "padding:22px 26px 40px; flex:1 1 auto; background:#FDFCFB" : "padding:16px 16px 24px; flex:1 1 auto; background:#FDFCFB; overflow-y:auto",
+
+      isDesktop, isMobileDevice: !isDesktop,
+      orgName: ORG_NAME, adminName: ADMIN_NAME, adminInitials: initialsOf(ADMIN_NAME),
+      greeting: screen === "Overview" ? "Good morning, " + ADMIN_NAME.split(" ")[0]
+        : screen === "Branch Detail" ? selectedBranch.name
+        : screen,
+      headerSubtitle: screen === "Overview" ? `Here's an overview of ${ORG_NAME}.`
+        : screen === "Branches" ? `Every branch in ${ORG_NAME}.`
+        : screen === "Branch Detail" ? selectedBranch.location
+        : screen === "Subscription" ? "Plan, billing and invoices."
+        : "Your account and access.",
+      bellIcon: icon("bell", 16),
+
+      screenTabs: SCREENS.filter((s) => s !== "Branch Detail" || screen === "Branch Detail").map((label) => ({
+        label, select: () => this.setState({ screen: label }), style: seg(label === screen),
+      })),
+      deviceTabs: DEVICES.map((label) => ({ label, select: () => this.setState({ device: label }), style: seg(label === device) })),
+      dataTabs: DATA_STATES.map((label) => ({ label, select: () => this.setState({ data: label }), style: seg(label === data) })),
+
+      isLoading: data === "Loading",
+      isReady: data !== "Loading",
+      isEmpty: data === "Empty" && screen === "Branches",
+      isPopulatedBranches: !(data === "Empty" && screen === "Branches"),
+      four: [0, 1, 2, 3], three: [0, 1, 2],
+
+      isOverview: screen === "Overview",
+      isBranches: screen === "Branches",
+      isBranchDetail: screen === "Branch Detail",
+      isSubscription: screen === "Subscription",
+      isSettings: screen === "Settings",
+
+      sidebarNav: ["Overview", "Branches", "Subscription", "Settings"].map((label) => ({
+        label, go: goto(label),
+        icon: icon(label === "Overview" ? "overview" : label === "Branches" ? "store" : label === "Subscription" ? "card" : "gear", 15),
+        iconTile: `display:flex; width:24px; height:24px; flex:0 0 auto; border-radius:7px; align-items:center; justify-content:center; margin-right:9px; color:${(label === screen || (label === "Branches" && screen === "Branch Detail")) ? "#fff" : C.faint}`,
+        style: `display:flex; align-items:center; width:100%; text-align:left; border:0; border-radius:11px; padding:9px 12px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; ` +
+          ((label === screen || (label === "Branches" && screen === "Branch Detail")) ? `background:${C.primary}; color:#fff` : `background:transparent; color:${C.mute}`),
+      })),
+      bottomNav: ["Overview", "Branches", "Subscription", "Settings"].map((label) => {
+        const active = label === screen || (label === "Branches" && screen === "Branch Detail");
+        return {
+          label, go: goto(label),
+          icon: icon(label === "Overview" ? "overview" : label === "Branches" ? "store" : label === "Subscription" ? "card" : "gear", 17),
+          iconStyle: `display:flex; color:${active ? C.primary : C.faint}`,
+          labelStyle: `font-size:10px; font-weight:700; margin-top:3px; color:${active ? C.primary : C.faint}`,
+          style: `flex:1 1 0; display:flex; flex-direction:column; align-items:center; gap:0; border:0; background:transparent; padding:10px 4px 8px; font-family:inherit; cursor:pointer`,
+        };
+      }),
+
+      orgStats: [
+        { label: "Active branches in the organization.", value: BRANCHES.length, icon: icon("store", 16), tile: `display:flex; width:34px; height:34px; border-radius:11px; background:${C.soft}; color:${C.deep}; align-items:center; justify-content:center` },
+        { label: "Employees across all branches.", value: TOTAL_EMPLOYEES, icon: icon("users", 16), tile: `display:flex; width:34px; height:34px; border-radius:11px; background:${C.infoSoft}; color:${C.info}; align-items:center; justify-content:center` },
+        { label: "Branch managers currently assigned.", value: TOTAL_MANAGERS, icon: icon("building", 16), tile: `display:flex; width:34px; height:34px; border-radius:11px; background:${C.okSoft}; color:${C.ok}; align-items:center; justify-content:center` },
+        { label: "Supervisors currently assigned.", value: TOTAL_SUPERVISORS, icon: icon("users", 16), tile: `display:flex; width:34px; height:34px; border-radius:11px; background:${C.warnSoft}; color:${C.warn}; align-items:center; justify-content:center` },
+      ],
+
+      subPlan: "Professional", subPrice: "₦12,000", subSeatsLabel: `${TOTAL_EMPLOYEES} / ${SEAT_CAP} employees`,
+      subPct: pct, subRenews: "1 September 2026",
+      subBarStyle: `display:block; height:100%; border-radius:999px; background:${pct >= 85 ? C.warn : C.primary}; width:${Math.min(pct, 100)}%`,
+      subShowWarn: pct >= 85,
+      goSubscription: goto("Subscription"),
+
+      hasAttention: attentionItems.length > 0,
+      attentionItems: attentionItems.map((a) => ({ ...a })),
+
+      goBranches: goto("Branches"),
+      branchCountLabel: `${BRANCHES.length} branches`,
+      previewBranches: BRANCHES.slice(0, 3).map((b, i) => ({
+        name: b.name, location: b.location, employees: b.employees,
+        open: openBranch(i), icon: icon("store", 17), tile: branchTile(b),
+        healthPill: pill(...(b.attentionNote ? TONES.warn : TONES.ok)),
+        healthLabel: b.attentionNote ? "Attention" : "Normal",
+      })),
+
+      branchFilters: ["All", "Active", "Attention", "Pending setup"].map((label) => ({
+        label, select: () => this.setState({ filter: label }),
+        style: `height:36px; padding:0 13px; border-radius:10px; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; ` +
+          (label === this.state.filter ? `border:1px solid ${C.primary}; background:${C.soft}; color:${C.deep}` : `border:1px solid ${C.line}; background:#fff; color:${C.mute}`),
+      })),
+      storeIconLg: icon("store", 32),
+      branchCards: BRANCHES
+        .filter((b) => {
+          const f = this.state.filter;
+          if (f === "All") return true;
+          if (f === "Attention") return !!b.attentionNote;
+          return b.status === f;
+        })
+        .map((b) => {
+          const i = BRANCHES.indexOf(b);
+          return {
+            open: openBranch(i), icon: icon("store", 19), tile: branchTile(b),
+            name: b.name, location: b.location, status: b.status,
+            statusPill: statusPillStyle(b.status),
+            employees: b.employees, managers: b.managers, supervisors: b.supervisors,
+            card: `text-align:left; border:1px solid ${b.attentionNote ? "#F3C6BD" : C.line}; border-radius:16px; background:#fff; padding:18px; font-family:inherit; cursor:pointer`,
+            healthStyle: `margin:14px 0 0; padding-top:12px; border-top:1px solid #F2EEEA; font-size:12px; font-weight:700; color:${b.attentionNote ? C.bad : C.ok}`,
+            healthText: b.attentionNote || "Operating normally",
+          };
+        }),
+
+      detailTile: `display:flex; width:52px; height:52px; flex:0 0 auto; border-radius:16px; align-items:center; justify-content:center; ` + (selectedBranch.attentionNote ? `background:${C.warnSoft}; color:${C.warn}` : `background:${C.soft}; color:${C.deep}`),
+      detailIcon: icon("store", 24),
+      detail: {
+        name: selectedBranch.name,
+        status: selectedBranch.status,
+        statusPill: statusPillStyle(selectedBranch.status),
+        address: selectedBranch.address,
+        managerSummary: selectedBranch.managers_.length ? selectedBranch.managers_[0].name : "Unassigned",
+        employees: selectedBranch.employees, managers: selectedBranch.managers, supervisors: selectedBranch.supervisors,
+        hours: selectedBranch.hours, created: selectedBranch.created,
+        hasAttention: !!selectedBranch.attentionNote, attentionNote: selectedBranch.attentionNote || "",
+        noManagers: selectedBranch.managers_.length === 0,
+        noSupervisors: selectedBranch.supervisors_.length === 0,
+        managerCards: personCards(selectedBranch.managers_),
+        supervisorCards: personCards(selectedBranch.supervisors_),
+      },
+
+      invoices: INVOICES.map((i) => ({ ...i, pill: `${pill(...(TONES[i.tone] || TONES.ok))}; margin-left:auto` })),
+
+      grantedPerms: ["Manage subscription", "View branches", "View branch leadership", "View organization overview"],
+      deniedPerms: ["Manage schedules", "Manage employees", "Approve leave", "Manage attendance"],
+
+      settingsTabs: SETTINGS_TABS.map((label) => ({
+        label, select: () => this.setState({ settingsTab: label }), style: seg(label === this.state.settingsTab),
+      })),
+      isSettingsProfile: this.state.settingsTab === "Profile",
+      isSettingsOrg: this.state.settingsTab === "Organization",
+      isSettingsSecurity: this.state.settingsTab === "Security",
+      isSettingsBilling: this.state.settingsTab === "Billing",
+      profileFields: PROFILE_FIELDS.map((f) => ({
+        label: f.label, value: f.value,
+        disabled: f.disabled ? "disabled" : "",
+        wrap: f.note ? "grid-column:1/-1" : "",
+        input: input(!!f.disabled),
+        note: f.note || "",
+        noteStyle: f.note ? `display:block; margin-top:6px; font-size:11.5px; color:${C.faint}` : "display:none",
+      })),
+      orgFields: ORG_FIELDS.map((f) => ({
+        label: f.label, value: f.value,
+        disabled: f.disabled ? "disabled" : "",
+        wrap: f.note ? "grid-column:1/-1" : "",
+        input: input(!!f.disabled),
+        note: f.note || "",
+        noteStyle: f.note ? `display:block; margin-top:6px; font-size:11.5px; color:${C.faint}` : "display:none",
+      })),
+      rules: RULES.map((r) => {
+        const [fg, bg] = TONES[r.tone] || TONES.info;
+        return { ...r, valueStyle: `${pill(fg, bg)}; padding:7px 14px; font-size:12px; margin-left:auto` };
+      }),
+      dangers: DANGERS,
+      securityFields: SECURITY_FIELDS.map((f) => ({ ...f, wrap: f.wrap || "", input: input(false) })),
+      sessions: SESSIONS.map((s) => {
+        const [fg, bg] = TONES[s.tone] || TONES.info;
+        return { ...s, pill: `${pill(fg, bg)}; margin-left:auto` };
+      }),
+      billingStats: [
+        { label: "Employees", value: `${TOTAL_EMPLOYEES} of ${SEAT_CAP}` },
+        { label: "Branches", value: String(BRANCHES.length) },
+        { label: "Next invoice", value: "₦12,000 on 1 Sep" },
+      ],
+
+      lockIcon: icon("lock", 10),
+      readOnlyPill: "display:inline-flex; align-items:center; gap:6px; border-radius:999px; background:#F1EDEA; color:#57504A; padding:5px 11px; font-size:11px; font-weight:700",
+      branchTabs: BRANCH_TABS.map((label) => ({
+        label, select: () => this.setState({ branchTab: label, assistantExpanded: false }), style: seg(label === branchTab),
+      })),
+      branchTabIsLeadership: branchTab === "Leadership",
+      branchTabIsEmployees: branchTab === "Employees",
+      branchTabIsSchedule: branchTab === "Schedule",
+      branchTabIsTasks: branchTab === "Tasks",
+      branchTabIsAnnouncements: branchTab === "Announcements",
+      branchTabIsAttendance: branchTab === "Attendance",
+      branchTabIsRequests: branchTab === "Requests",
+
+      empStats: EMP_STATS.map((s) => {
+        const [fg, bg] = TONES[s.tone] || TONES.primary;
+        return { ...s, icon: icon(s.ico, 15), tile: `display:flex; width:32px; height:32px; flex:0 0 auto; border-radius:10px; background:${bg}; color:${fg}; align-items:center; justify-content:center` };
+      }),
+      empTabsBranch: EMP_TABS_B.map((label, i) => ({ label, select: () => {}, style: seg(i === 0) })),
+      empRowsBranch: EMP_DIRECTORY.map((e) => {
+        const [rf, rb] = TONES[e.roleTone] || TONES.info;
+        const [sf, sb] = TONES[e.tone] || TONES.ok;
+        return { ...e, initials: initialsOf(e.name), avatar: avatarStyle(32),
+          rolePill: pill(rf, rb), statusPill: pill(sf, sb) + "; display:inline-flex; gap:6px",
+          statusDot: `width:6px; height:6px; border-radius:999px; background:${sf}` };
+      }),
+      empPagerBranch: [1, 2, 3, "→"].map((label, i) => ({
+        label, style: `width:32px; height:32px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; ` +
+          (i === 0 ? `border:1px solid ${C.primary}; background:${C.soft}; color:${C.deep}` : `border:1px solid ${C.line}; background:#fff; color:${C.mute}`),
+      })),
+      empFiltersBranch: EMP_FILTERS_B,
+      donutStyleBranch: (() => {
+        let acc = 0;
+        const stops = DEPTS_B.map((d) => { const s = acc; acc += d.pct; return `${d.c} ${s}% ${acc}%`; }).join(", ");
+        return `position:absolute; inset:0; border-radius:999px; background:conic-gradient(${stops})`;
+      })(),
+      deptLegendBranch: DEPTS_B.map((d) => ({ name: d.name, count: d.n, dot: `width:8px; height:8px; border-radius:2px; background:${d.c}; flex:0 0 auto` })),
+      weekDays: WEEK.map(([label, date]) => ({ label, date })),
+      scheduleLegend: [
+        { label: "Morning", dot: `width:9px; height:9px; border-radius:3px; background:${C.primary}` },
+        { label: "Afternoon", dot: `width:9px; height:9px; border-radius:3px; background:#2563EB` },
+        { label: "Night", dot: `width:9px; height:9px; border-radius:3px; background:#7C3AED` },
+      ],
+      scheduleRows: SCHEDULE_GRID.map((r) => ({
+        name: r.name, role: r.role, initials: initialsOf(r.name), avatar: avatarStyle(32),
+        cells: r.cells.map((cell) => {
+          if (!cell) return { isOff: true, hasShift: false };
+          const kind = { Morning: [C.primary, C.soft], Afternoon: ["#2563EB", "#EFF4FE"], Night: ["#7C3AED", "#F3EEFE"] }[cell.type] || [C.primary, C.soft];
+          return { hasShift: true, isOff: false, top: cell.type, bottom: cell.time,
+            style: `width:100%; border-radius:9px; padding:6px 7px; text-align:center; background:${kind[1]}; color:${kind[0]}` };
+        }),
+      })),
+      taskColumns: TASK_COLUMNS.map((col) => ({
+        title: col.title, count: col.tasks.length, dot: `width:9px; height:9px; border-radius:3px; background:${col.tone}; flex:0 0 auto`,
+        tasks: col.tasks.map((t) => {
+          const [fg, bg] = TONES[t.tone] || TONES.info;
+          return { ...t, pill: pill(fg, bg), checkGlyph: t.done ? "✓" : "",
+            check: `display:flex; width:17px; height:17px; flex:0 0 auto; margin-top:1px; border-radius:999px; align-items:center; justify-content:center; font-size:10px; font-weight:800; ` +
+              (t.done ? `background:${C.ok}; color:#fff` : `border:1.5px solid ${C.line}; color:transparent`) };
+        }),
+      })),
+      announcementRows: ANNOUNCEMENT_ROWS.map((a, i) => {
+        const tones = ["primary", "info", "violet"]; const tone = tones[i % tones.length];
+        const [fg, bg] = TONES[tone] || TONES.info;
+        const pct = [82, 45, 100][i % 3];
+        return { ...a, pinned: i === 0, card: `border:1px solid ${i === 0 ? "#F7DFD1" : C.line}; border-radius:16px; background:${i === 0 ? "#FEFAF7" : "#fff"}; padding:17px 18px`,
+          audience: i === 0 ? "Whole branch" : "Supervisors", pill: pill(fg, bg),
+          bar: `display:block; width:${pct}%; height:100%; border-radius:999px; background:${pct >= 80 ? C.ok : pct >= 50 ? C.warn : C.bad}`,
+          ack: pct + "% acknowledged" };
+      }),
+      attendanceStatsBranch: ATTENDANCE_STATS.map((s) => ({
+        ...s, wrap: "display:flex; flex-direction:column; padding:0 22px 0 0; border-right:1px solid #F2EEEA; margin-right:22px",
+        valueStyle: `font-size:22px; font-weight:800; letter-spacing:-0.02em; color:${s.color}`,
+      })),
+      attendanceRowsBranch: ATTENDANCE_ROWS.map((r) => {
+        const [fg, bg] = TONES[r.tone] || TONES.ok;
+        return { ...r, initials: initialsOf(r.name), avatar: avatarStyle(32), role: "Sales Associate",
+          scheduled: "Scheduled 8:00 AM", clockIn: r.time, note: r.note || "—",
+          statusIcon: icon(r.tone === "ok" ? "check" : r.tone === "warn" ? "clock" : "x", 12),
+          statusWrap: `display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:700; color:${fg}`,
+          timeStyle: `display:block; font-size:12.5px; font-weight:700; color:${fg}` };
+      }),
+
+      ...this.requestsVals(),
+
+      ...this.assistantVals(screen),
+    };
+  }
+
+  runAssistant(raw) {
+    const q = (raw || "").trim();
+    if (!q) return;
+    const lower = q.toLowerCase();
+    const branchIdx = BRANCHES.findIndex((b) => lower.includes(b.name.toLowerCase()));
+    let result;
+    if (branchIdx > -1) {
+      this.setState({ selected: branchIdx, screen: "Branch Detail", branchTab: "Leadership" });
+      result = `Opening ${BRANCHES[branchIdx].name}…`;
+    } else if (/billing|subscription|plan|invoice/.test(lower)) {
+      this.setState({ screen: "Subscription" });
+      result = "Opening Subscription…";
+    } else if (/setting/.test(lower)) {
+      this.setState({ screen: "Settings" });
+      result = "Opening Settings…";
+    } else if (/overview|dashboard|home/.test(lower)) {
+      this.setState({ screen: "Overview" });
+      result = "Opening your organization overview…";
+    } else if (/branch(es)?/.test(lower)) {
+      this.setState({ screen: "Branches" });
+      result = "Opening Branches…";
+    } else if (/attention|issue|problem/.test(lower)) {
+      const notes = BRANCHES.filter((b) => b.attentionNote).map((b) => `${b.name} (${b.attentionNote})`);
+      result = notes.length ? `Needs attention: ${notes.join("; ")}.` : "Nothing needs attention right now.";
+    } else if (/how many employee|employee count|total employee/.test(lower)) {
+      result = `You have ${TOTAL_EMPLOYEES} employees across ${BRANCHES.length} branches.`;
+    } else if (/manager/.test(lower)) {
+      result = `${TOTAL_MANAGERS} branch managers are currently assigned across your organization.`;
+    } else {
+      result = "I can help you navigate — try \u201cOpen Victoria Island\u201d or \u201cOpen Billing\u201d, or ask about branches, leadership and subscription. I can't make changes on your behalf.";
+    }
+    this.setState({ askResult: result, askQuery: "", assistantExpanded: false });
+  }
+
+  assistantVals(screen) {
+    const chips = [
+      { label: "Open Victoria Island", q: "Open Victoria Island" },
+      { label: "Open Billing", q: "Open billing" },
+      { label: "Which branches need attention?", q: "Which branches need attention?" },
+      { label: "Total employees?", q: "How many employees do we have?" },
+    ];
+    return {
+      askQuery: this.state.askQuery,
+      setAskQuery: (e) => this.setState({ askQuery: e.target.value }),
+      askKey: (e) => { if (e.key === "Enter") this.runAssistant(this.state.askQuery); },
+      askSubmit: () => this.runAssistant(this.state.askQuery),
+      askHasResult: !!this.state.askResult,
+      askResult: this.state.askResult,
+      askChips: chips.map((c) => ({ label: c.label, run: () => this.runAssistant(c.q) })),
+      askChipsSmall: chips.slice(0, 2).map((c) => ({ label: c.label, run: () => this.runAssistant(c.q) })),
+
+      showFloatingAssistant: screen !== "Overview",
+      assistantExpanded: this.state.assistantExpanded,
+      toggleAssistant: () => this.setState((s) => ({ assistantExpanded: !s.assistantExpanded })),
+      collapseAssistant: () => this.setState({ assistantExpanded: false }),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #FBFAF9; -webkit-font-smoothing: antialiased; }
+  a { color: #C6420E; text-decoration: none; }
+  a:hover { color: #F04E17; }
+  *:focus-visible { outline: 2px solid #F04E17; outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } }
+  @media (max-width: 720px) {
+    .so-auth-aside { display: none !important; }
+    .so-auth-main { padding: 18px 16px 28px !important; }
+  }
+</style>
+</helmet>
+
+<div style="min-height:100vh; background:#FBFAF9; color:#38312B; font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif; font-size:14px; line-height:1.55; display:flex; flex-wrap:wrap">
+
+  <aside class="so-auth-aside" style="flex:1 1 460px; min-width:300px; position:relative; overflow:hidden; background:#231E1A; color:#FBF7F4; padding:40px 36px; display:flex; flex-direction:column; gap:26px">
+    <span aria-hidden="true" style="position:absolute; left:-120px; top:32%; width:420px; height:420px; border-radius:999px; background:rgba(240,78,23,.22); filter:blur(70px); pointer-events:none"></span>
+    <span aria-hidden="true" style="position:absolute; right:-140px; top:-100px; width:360px; height:360px; border-radius:999px; background:rgba(240,78,23,.14); filter:blur(70px); pointer-events:none"></span>
+
+    <div style="position:relative; display:flex; align-items:center; justify-content:space-between; gap:14px">
+      <div style="display:flex; align-items:center; gap:9px">
+        <img src="assets/logo-shiftos-light.png" alt="ShiftOS" style="height:32px; width:auto; display:block" />
+      </div>
+      <span style="display:inline-flex; align-items:center; gap:7px; border:1px solid rgba(251,247,244,.16); background:rgba(251,247,244,.06); border-radius:999px; padding:6px 12px; font-size:11px; font-weight:700">Secure workspace</span>
+    </div>
+
+    <div style="position:relative; margin-top:auto; max-width:460px">
+      <span style="display:inline-flex; align-items:center; border-radius:999px; background:rgba(240,78,23,.18); color:#FF8B58; padding:6px 12px; font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase">{{ eyebrow }}</span>
+      <h1 style="margin:18px 0 0; font-size:38px; line-height:1.07; letter-spacing:-0.03em; font-weight:800">{{ panelTitle }} <span style="color:#F04E17">{{ panelAccent }}</span></h1>
+      <p style="margin:14px 0 0; font-size:14px; color:rgba(251,247,244,.72); max-width:420px">{{ panelBody }}</p>
+
+      <div style="margin-top:24px; display:flex; gap:12px; border:1px solid rgba(251,247,244,.14); background:rgba(251,247,244,.06); border-radius:16px; padding:15px">
+        <span style="display:flex; width:34px; height:34px; flex:0 0 auto; border-radius:11px; background:rgba(240,78,23,.18); color:#FF8B58; align-items:center; justify-content:center">{{ highlightIcon }}</span>
+        <span>
+          <span style="display:block; font-size:13.5px; font-weight:800">{{ highlightTitle }}</span>
+          <span style="display:block; margin-top:3px; font-size:12px; color:rgba(251,247,244,.62)">{{ highlightBody }}</span>
+        </span>
+      </div>
+
+      <ul style="margin:26px 0 0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:18px 24px">
+        <sc-for list="{{ benefits }}" as="b" hint-placeholder-count="4">
+          <li style="display:flex; gap:12px">
+            <span style="display:flex; width:34px; height:34px; flex:0 0 auto; border-radius:11px; background:rgba(240,78,23,.16); color:#FF8B58; align-items:center; justify-content:center">{{ b.icon }}</span>
+            <span style="min-width:0">
+              <span style="display:block; font-size:13px; font-weight:800; line-height:1.25">{{ b.title }}</span>
+              <span style="display:block; margin-top:4px; font-size:12px; line-height:1.45; color:rgba(251,247,244,.58)">{{ b.body }}</span>
+            </span>
+          </li>
+        </sc-for>
+      </ul>
+    </div>
+
+    <div style="position:relative; margin-top:26px; padding-top:20px; border-top:1px solid rgba(251,247,244,.12); display:flex; align-items:flex-end; justify-content:space-between; gap:20px">
+      <div>
+        <p style="margin:0; font-size:12.5px; font-weight:800; color:#FF8B58">Built with retail operators in Nigeria</p>
+        <p style="margin:7px 0 0; max-width:290px; font-size:12px; line-height:1.5; color:rgba(251,247,244,.6)">Shaped by supermarket managers and supervisors who run shifts every day — not by assumptions about how they work.</p>
+      </div>
+      <img src="assets/illus-brand.png" alt="" style="width:96px; flex:0 0 auto; object-fit:contain; display:block" />
+    </div>
+  </aside>
+
+  <div class="so-auth-main" style="flex:1.05 1 480px; min-width:320px; display:flex; flex-direction:column; padding:26px 24px 34px">
+
+    <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end">
+      <div style="display:flex; flex-wrap:wrap; padding:3px; background:#F1EDEA; border-radius:11px; gap:2px">
+        <sc-for list="{{ screenTabs }}" as="t" hint-placeholder-count="7">
+          <button type="button" onClick="{{ t.select }}" style="{{ t.style }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+    <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end">
+      <sc-for list="{{ stateTabs }}" as="t" hint-placeholder-count="5">
+        <button type="button" onClick="{{ t.select }}" style="{{ t.style }}">{{ t.label }}</button>
+      </sc-for>
+    </div>
+
+    <p style="margin:14px 0 0; text-align:right; font-size:13px; color:#857A72">{{ topRightText }} <a href="#">{{ topRightLink }}</a></p>
+
+    <div style="flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:26px 0">
+      <div style="width:100%; max-width:462px">
+
+        <div style="border:1px solid #EBE7E3; border-radius:24px; background:#fff; padding:28px; box-shadow:0 24px 60px -34px rgba(56,49,43,.4)">
+
+          <sc-if value="{{ isTerminal }}" hint-placeholder-val="{{ false }}">
+            <div role="status" style="text-align:center; padding:6px 0 2px">
+              <span style="{{ terminalTile }}">{{ terminalIcon }}</span>
+              <h2 style="margin:18px 0 0; font-size:21px; font-weight:800; letter-spacing:-0.02em">{{ terminalTitle }}</h2>
+              <p style="margin:9px auto 0; max-width:340px; font-size:13.5px; color:#857A72">{{ terminalBody }}</p>
+              <sc-if value="{{ terminalMeta }}" hint-placeholder-val="{{ false }}">
+                <p style="margin:14px auto 0; max-width:340px; border:1px solid #EBE7E3; border-radius:12px; background:#FDFCFB; padding:11px 13px; font-size:12.5px; color:#57504A">{{ terminalMetaText }}</p>
+              </sc-if>
+              <button type="button" style="margin-top:18px; width:100%; height:46px; border:0; border-radius:12px; background:#F04E17; color:#fff; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer">{{ terminalCta }}</button>
+              <button type="button" style="margin-top:10px; width:100%; height:42px; border:1px solid #EBE7E3; border-radius:12px; background:#fff; color:#38312B; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer">{{ terminalSecondary }}</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isForm }}" hint-placeholder-val="{{ true }}">
+            <h2 style="margin:0; font-size:22px; font-weight:800; letter-spacing:-0.02em; text-align:center">{{ formTitle }}</h2>
+            <p style="margin:8px 0 0; font-size:13px; color:#857A72; text-align:center">{{ formSubtitle }}</p>
+
+            <sc-if value="{{ showInviteCard }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:18px; display:flex; align-items:center; gap:12px; border:1px solid #F7DFD1; background:#FEF7F2; border-radius:14px; padding:13px 14px">
+                <span style="display:flex; width:38px; height:38px; flex:0 0 auto; border-radius:999px; background:#F04E17; color:#fff; align-items:center; justify-content:center; font-size:13px; font-weight:800">{{ inviteInitials }}</span>
+                <span style="min-width:0">
+                  <span style="display:block; font-size:13px; font-weight:800">{{ inviteHeadline }}</span>
+                  <span style="display:block; font-size:12px; color:#857A72">{{ inviteMeta }}</span>
+                </span>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ false }}">
+              <div role="alert" style="{{ bannerStyle }}">
+                <span style="{{ bannerIconStyle }}">{{ bannerGlyph }}</span>
+                <span style="min-width:0">
+                  <span style="display:block; font-size:13px; font-weight:800">{{ bannerTitle }}</span>
+                  <span style="display:block; margin-top:2px; font-size:12.5px; line-height:1.45">{{ bannerBody }}</span>
+                </span>
+              </div>
+            </sc-if>
+
+            <form onSubmit="{{ submit }}" style="margin-top:18px; display:flex; flex-direction:column; gap:15px">
+
+              <sc-if value="{{ hasPhoto }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; align-items:center; gap:14px; border:1px solid #EBE7E3; border-radius:14px; padding:14px; background:#FDFCFB">
+                  <span style="{{ photoTileStyle }}">{{ photoTileContent }}</span>
+                  <div style="min-width:0; flex:1 1 auto">
+                    <p style="margin:0; font-size:13px; font-weight:800">Profile photo <span style="font-weight:600; color:#A79C93">(optional)</span></p>
+                    <p style="margin:3px 0 0; font-size:11.5px; color:#857A72">PNG, JPG or WebP · max 2 MB. You can add it later.</p>
+                    <div style="margin-top:9px; display:flex; flex-wrap:wrap; gap:7px">
+                      <sc-for list="{{ photoActions }}" as="a" hint-placeholder-count="2">
+                        <button type="button" onClick="{{ a.act }}" style="{{ a.style }}">{{ a.label }}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-for list="{{ fields }}" as="f" hint-placeholder-count="3">
+                <label style="display:block">
+                  <span style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px">
+                    <span style="font-size:12.5px; font-weight:700">{{ f.label }}<span style="color:#F04E17">{{ f.req }}</span></span>
+                    <span style="{{ f.hintStyle }}">{{ f.hint }}</span>
+                  </span>
+                  <span style="position:relative; display:block">
+                    <input type="{{ f.type }}" value="{{ f.value }}" placeholder="{{ f.placeholder }}" disabled="{{ f.disabled }}" aria-invalid="{{ f.invalid }}" autoComplete="{{ f.autoComplete }}" style="{{ f.input }}" style-focus="border-color:#F04E17" />
+                    <sc-if value="{{ f.toggle }}" hint-placeholder-val="{{ false }}">
+                      <button type="button" onClick="{{ togglePassword }}" aria-label="{{ passwordToggleLabel }}" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); width:34px; height:34px; border:0; border-radius:9px; background:transparent; color:#857A72; font-family:inherit; font-size:11px; font-weight:700; cursor:pointer">{{ passwordToggleGlyph }}</button>
+                    </sc-if>
+                  </span>
+                  <span style="{{ f.errStyle }}">{{ f.error }}</span>
+                </label>
+              </sc-for>
+
+              <sc-if value="{{ hasStrength }}" hint-placeholder-val="{{ false }}">
+                <div style="border:1px solid #EBE7E3; border-radius:14px; padding:14px; background:#FDFCFB">
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:10px">
+                    <span style="font-size:12px; font-weight:700; color:#857A72">Password strength</span>
+                    <span style="{{ strengthLabelStyle }}">{{ strengthLabel }}</span>
+                  </div>
+                  <div style="margin-top:9px; display:flex; gap:5px">
+                    <sc-for list="{{ strengthBars }}" as="s" hint-placeholder-count="4">
+                      <span style="{{ s.style }}"></span>
+                    </sc-for>
+                  </div>
+                  <ul style="margin:12px 0 0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:7px 14px">
+                    <sc-for list="{{ passwordRules }}" as="r" hint-placeholder-count="4">
+                      <li style="display:flex; align-items:center; gap:7px; font-size:12px; color:#57504A">
+                        <span style="{{ r.dot }}">{{ r.glyph }}</span>{{ r.label }}
+                      </li>
+                    </sc-for>
+                  </ul>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ hasCheckbox }}" hint-placeholder-val="{{ false }}">
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer">
+                  <input type="checkbox" checked="{{ checkboxChecked }}" onChange="{{ toggleCheckbox }}" style="width:17px; height:17px; margin:2px 0 0; accent-color:#F04E17; cursor:pointer" />
+                  <span>
+                    <span style="display:block; font-size:12.5px; font-weight:700">{{ checkboxLabel }}</span>
+                    <span style="display:block; font-size:11.5px; color:#857A72">{{ checkboxBody }}</span>
+                  </span>
+                </label>
+              </sc-if>
+
+              <sc-if value="{{ hasForgot }}" hint-placeholder-val="{{ false }}">
+                <p style="margin:-4px 0 0; text-align:right"><a href="#" style="font-size:12.5px; font-weight:700">Forgot Password?</a></p>
+              </sc-if>
+
+              <button type="submit" disabled="{{ busy }}" style="{{ submitStyle }}">{{ submitLabel }}</button>
+
+              <sc-if value="{{ hasGoogle }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <div style="display:flex; align-items:center; gap:12px; color:#A79C93; font-size:12px">
+                    <span style="flex:1 1 auto; height:1px; background:#EBE7E3"></span>or<span style="flex:1 1 auto; height:1px; background:#EBE7E3"></span>
+                  </div>
+                  <button type="button" style="margin-top:12px; width:100%; height:46px; border:1px solid #E4DED9; border-radius:12px; background:#fff; color:#38312B; font-family:inherit; font-size:13.5px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:9px" style-hover="border-color:#D9D0C8">
+                    <span style="display:flex; width:20px; height:20px; border-radius:999px; background:#F1EDEA; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#57504A">G</span>
+                    Continue with Google
+                  </button>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ hasResend }}" hint-placeholder-val="{{ false }}">
+                <p style="margin:0; text-align:center; font-size:12.5px; color:#857A72">Didn't get the email? <a href="#">Resend verification link</a></p>
+              </sc-if>
+
+              <p style="margin:0; font-size:11.5px; line-height:1.5; color:#A79C93; text-align:center">{{ formFootnote }}</p>
+            </form>
+          </sc-if>
+        </div>
+
+        <p style="margin:16px 0 0; display:flex; align-items:center; justify-content:center; gap:7px; font-size:12px; color:#857A72">Your data is secure and protected.</p>
+
+        <div style="margin-top:18px; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px 18px; font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#A79C93">
+          <sc-for list="{{ trustPoints }}" as="t" hint-placeholder-count="3">
+            <span style="display:flex; align-items:center; gap:7px"><span style="width:6px; height:6px; border-radius:999px; background:#F04E17"></span>{{ t }}</span>
+          </sc-for>
+        </div>
+        <p style="margin:16px 0 0; text-align:center; font-size:12px; color:#857A72">Need help getting started? <a href="#">Talk to our team</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Sign In&quot;,&quot;Sign Up&quot;,&quot;Forgot Password&quot;,&quot;Reset Password&quot;,&quot;Verify Email&quot;,&quot;Accept Invitation&quot;,&quot;Admin Invitation&quot;,&quot;Complete Profile&quot;],&quot;default&quot;:&quot;Sign In&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Preview&quot;},&quot;viewState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Idle&quot;,&quot;Validation error&quot;,&quot;Loading&quot;,&quot;Success&quot;,&quot;Network error&quot;,&quot;Expired link&quot;,&quot;Used link&quot;],&quot;default&quot;:&quot;Idle&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Preview&quot;}}">
+const C = {
+  ink: "#38312B", body: "#57504A", mute: "#857A72", faint: "#A79C93", line: "#EBE7E3",
+  primary: "#F04E17", deep: "#C6420E", soft: "#FDF0E9",
+  ok: "#2E9E62", okSoft: "#E9F7EF", warn: "#B77714", warnSoft: "#FDF4E6",
+  bad: "#C93A22", badSoft: "#FCEDEA", info: "#2563EB", infoSoft: "#EFF4FE",
+};
+const h = React.createElement;
+const P = {
+  shield: [["path", { d: "M12 3l7.5 3v6c0 4.3-3.1 7.6-7.5 9-4.4-1.4-7.5-4.7-7.5-9V6z" }]],
+  lock: [["rect", { x: 4.5, y: 10, width: 15, height: 10.5, rx: 3 }], ["path", { d: "M8 10V7.5a4 4 0 0 1 8 0V10" }]],
+  mail: [["rect", { x: 3, y: 5, width: 18, height: 14, rx: 3 }], ["path", { d: "M3.6 6.5 12 13l8.4-6.5" }]],
+  users: [["circle", { cx: 9, cy: 8, r: 3.2 }], ["path", { d: "M3 20c0-3.3 2.7-5.6 6-5.6s6 2.3 6 5.6" }], ["path", { d: "M16.4 14.6c2.6.4 4.6 2.5 4.6 5.4" }]],
+  user: [["circle", { cx: 12, cy: 8, r: 3.4 }], ["path", { d: "M5 20c0-3.7 3.1-6.2 7-6.2s7 2.5 7 6.2" }]],
+  calendar: [["rect", { x: 3, y: 4, width: 18, height: 17, rx: 3 }], ["path", { d: "M8 2v4M16 2v4M3 10h18" }]],
+  clock: [["circle", { cx: 12, cy: 12, r: 8.6 }], ["path", { d: "M12 7v5.3l3.8 2.2" }]],
+  check: [["circle", { cx: 12, cy: 12, r: 8.8 }], ["path", { d: "M8 12.4l3 3 5.2-6" }]],
+  building: [["rect", { x: 4, y: 3, width: 16, height: 18, rx: 3 }], ["path", { d: "M4 9h16M12 9v12" }]],
+  bars: [["path", { d: "M6 20v-8M12 20V5M18 20v-6" }]],
+  message: [["rect", { x: 3, y: 4, width: 18, height: 13, rx: 3.5 }], ["path", { d: "M8 17v4l5-4" }]],
+  alert: [["path", { d: "M12 4.4 21 20H3z" }], ["path", { d: "M12 10v4M12 17h.01" }]],
+  x: [["circle", { cx: 12, cy: 12, r: 8.8 }], ["path", { d: "M9 9l6 6M15 9l-6 6" }]],
+};
+const icon = (n, s) =>
+  h("svg", { viewBox: "0 0 24 24", width: s || 17, height: s || 17, fill: "none", stroke: "currentColor",
+    strokeWidth: 1.85, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", style: { display: "block" } },
+    (P[n] || P.check).map((p, i) => h(p[0], { key: i, ...p[1] })));
+
+const seg = (active, small) =>
+  `border:0; border-radius:9px; padding:${small ? "5px 10px" : "6px 11px"}; font-family:inherit; font-size:${small ? "11px" : "11.5px"}; font-weight:700; cursor:pointer; ` +
+  (active ? `background:#fff; color:${C.ink}; box-shadow:0 1px 3px rgba(56,49,43,.16)` : `background:transparent; color:${C.faint}`);
+
+/* Password rules mirror src/lib/password.ts */
+const RULES = ["At least 8 characters", "One uppercase letter", "One lowercase letter", "One number"];
+
+const SCREENS = ["Sign In", "Sign Up", "Forgot Password", "Reset Password", "Verify Email", "Accept Invitation", "Admin Invitation", "Complete Profile"];
+
+const CFG = {
+  "Sign In": {
+    eyebrow: "Welcome back", title: "Welcome Back. Access Your", accent: "Workspace",
+    body: "Sign in to continue managing schedules, staff and daily operations from one secure platform.",
+    highlight: { icon: "lock", title: "One account, one workspace", body: "You'll land in the branch and role your organization assigned to you." },
+    benefits: [
+      { icon: "bars", title: "Access dashboard", body: "Your role's view, ready on sign-in." },
+      { icon: "clock", title: "Live shift data", body: "Attendance and tasks as they happen." },
+      { icon: "calendar", title: "Manage schedules", body: "Build, publish and adjust the week." },
+      { icon: "message", title: "Branch updates", body: "Announcements your team must read." },
+    ],
+    topRight: ["Don't have an account?", "Sign up"],
+    formTitle: "Sign in to your account", formSubtitle: "Access your active workspace",
+    fields: [
+      { key: "email", label: "Work Email", type: "email", placeholder: "Enter your work email", req: true, autoComplete: "email" },
+      { key: "password", label: "Password", type: "password", placeholder: "Enter your password", req: true, autoComplete: "current-password", toggle: true },
+    ],
+    forgot: true, google: true, checkbox: ["Keep me signed in", "Only on this device — not on shared branch terminals."],
+    submit: "Sign in →", busyLabel: "Signing you in…",
+    footnote: "By signing in you agree to our Terms & Conditions and Privacy Policy.",
+    invalid: { title: "Email or password is incorrect", body: "Check your details and try again. After 5 failed attempts, sign-in is paused for 15 minutes." },
+    success: { icon: "check", tone: "ok", title: "Signed in", body: "Taking you to your workspace…", cta: "Go to dashboard", secondary: "Switch account" },
+  },
+  "Sign Up": {
+    eyebrow: "Create your account", title: "Run Your Shifts Without Spreadsheets", accent: "or Chat-App Chaos",
+    body: "Create your organization workspace in minutes. Build schedules, keep staff informed and manage operations from one platform.",
+    highlight: { icon: "building", title: "One account. One organization workspace.", body: "Invite supervisors and staff once your branches are set up." },
+    benefits: [
+      { icon: "calendar", title: "30-day free trial", body: "Explore every feature for 30 days." },
+      { icon: "lock", title: "No credit card", body: "Start instantly. No hidden fees." },
+      { icon: "users", title: "Built for shift teams", body: "Designed for managers and supervisors." },
+      { icon: "message", title: "Support included", body: "We're here to help you get set up." },
+    ],
+    topRight: ["Already have an account?", "Sign in"],
+    formTitle: "Create your account", formSubtitle: "Start your 30-day free trial. Cancel anytime.",
+    fields: [
+      { key: "fullName", label: "Full Name", type: "text", placeholder: "Enter your full name", req: true, autoComplete: "name" },
+      { key: "email", label: "Work Email", type: "email", placeholder: "Enter your work email", req: true, autoComplete: "email" },
+      { key: "whatsapp", label: "WhatsApp Number", type: "tel", placeholder: "+234 801 234 5678", req: true, autoComplete: "tel" },
+      { key: "role", label: "Role", type: "text", placeholder: "Manager, Supervisor or Staff", req: true, hint: "Manager creates the organization" },
+      { key: "password", label: "Password", type: "password", placeholder: "Create your password", req: true, autoComplete: "new-password", toggle: true },
+    ],
+    strength: true, google: true,
+    submit: "Continue →", busyLabel: "Creating your account…",
+    footnote: "By creating an account you agree to our Terms & Conditions and Privacy Policy.",
+    invalid: { title: "Check the highlighted fields", body: "Two fields need attention before we can create your account." },
+    success: { icon: "mail", tone: "primary", title: "Check your email", body: "We sent a verification link to sarah@abcsupermarket.com. Verify it to continue setting up your organization.", meta: "The link expires in 24 hours. You can request a new one at any time.", cta: "Open verification", secondary: "Change email address" },
+  },
+  "Forgot Password": {
+    eyebrow: "Password help", title: "Forgot Your", accent: "Password?",
+    body: "Enter the work email on your ShiftOS account and we'll send a secure reset link. Your branch data stays untouched.",
+    highlight: { icon: "shield", title: "Links expire in 20 minutes", body: "Short-lived links keep your organization's data safe if an inbox is shared." },
+    benefits: [
+      { icon: "mail", title: "One email", body: "Sent to the address on your account." },
+      { icon: "clock", title: "20-minute window", body: "Request a new link any time." },
+      { icon: "lock", title: "Nothing changes yet", body: "Your current password still works." },
+      { icon: "users", title: "Need a hand?", body: "Your manager can also reset it for you." },
+    ],
+    topRight: ["Remember your password?", "Sign in"],
+    formTitle: "Reset your password", formSubtitle: "We'll email you a secure reset link.",
+    fields: [{ key: "email", label: "Work Email", type: "email", placeholder: "Enter your work email", req: true, autoComplete: "email" }],
+    submit: "Send reset link →", busyLabel: "Sending link…",
+    footnote: "For security we send the same confirmation whether or not the email is registered.",
+    invalid: { title: "Enter a valid work email", body: "Use the address your organization invited you with." },
+    success: { icon: "mail", tone: "primary", title: "Reset link sent", body: "If that email belongs to a ShiftOS account, a reset link is on its way.", meta: "Didn't arrive within a few minutes? Check spam, or request another link.", cta: "Back to sign in", secondary: "Send another link" },
+  },
+  "Reset Password": {
+    eyebrow: "Secure password reset", title: "Create a New", accent: "Password",
+    body: "Your new password must be strong and unique to keep your ShiftOS account and branch data secure.",
+    highlight: { icon: "shield", title: "You're in control", body: "Only you can access your account with your new password." },
+    benefits: [
+      { icon: "lock", title: "Secure & protected", body: "Your password is encrypted at rest." },
+      { icon: "user", title: "You're in control", body: "Only you can access your account." },
+      { icon: "shield", title: "Peace of mind", body: "We can sign out all other devices." },
+      { icon: "clock", title: "20-minute link", body: "Expired links can be reissued." },
+    ],
+    topRight: ["Remember your password?", "Sign in"],
+    formTitle: "Reset your password", formSubtitle: "Enter and confirm your new password below.",
+    fields: [
+      { key: "password", label: "New Password", type: "password", placeholder: "Enter a new password", req: true, autoComplete: "new-password", toggle: true },
+      { key: "confirm", label: "Confirm Password", type: "password", placeholder: "Confirm your new password", req: true, autoComplete: "new-password" },
+    ],
+    strength: true,
+    checkbox: ["Sign out all other devices", "This will end all active sessions except this one."],
+    submit: "Reset password →", busyLabel: "Updating password…",
+    footnote: "For security reasons, this reset link will expire in 20 minutes.",
+    invalid: { title: "Passwords don't match", body: "Re-enter the confirmation to continue." },
+    success: { icon: "check", tone: "ok", title: "Password updated successfully", body: "Your password has been changed and all other devices have been signed out.", cta: "Continue to sign in →", secondary: "Review security settings" },
+    expired: { icon: "clock", tone: "warn", title: "This link has expired", body: "For your security, password reset links expire after 20 minutes.", cta: "Request new link", secondary: "Back to sign in" },
+    used: { icon: "x", tone: "bad", title: "This link has already been used", body: "Reset links work once. If you didn't change your password, request a new link and contact your manager.", cta: "Request new link", secondary: "Back to sign in" },
+  },
+  "Verify Email": {
+    eyebrow: "One step left", title: "Verify Your", accent: "Email",
+    body: "Confirm your email address so we can secure your account and finish creating your organization workspace.",
+    highlight: { icon: "mail", title: "Sent to sarah@abcsupermarket.com", body: "Wrong address? Change it before verifying." },
+    benefits: [
+      { icon: "shield", title: "Confirms it's you", body: "Protects the organization you create." },
+      { icon: "clock", title: "Valid for 24 hours", body: "Request a new link any time." },
+      { icon: "building", title: "Unlocks setup", body: "Onboarding starts once verified." },
+      { icon: "users", title: "Enables invitations", body: "Needed before inviting your team." },
+    ],
+    topRight: ["Wrong email address?", "Change it"],
+    formTitle: "Verify your email", formSubtitle: "Enter the 6-digit code from the email, or use the link we sent.",
+    fields: [{ key: "code", label: "Verification Code", type: "text", placeholder: "123456", req: true, hint: "6 digits", autoComplete: "one-time-code" }],
+    resend: true,
+    submit: "Verify email →", busyLabel: "Verifying…",
+    footnote: "Codes and links expire after 24 hours for your security.",
+    invalid: { title: "That code isn't right", body: "Check the most recent email — earlier codes stop working once a new one is sent." },
+    success: { icon: "check", tone: "ok", title: "Email verified", body: "Your account is confirmed. Next, set up your organization.", cta: "Start setup →", secondary: "Go to sign in" },
+    expired: { icon: "clock", tone: "warn", title: "This verification link has expired", body: "Links are valid for 24 hours. Request a new one and we'll email it immediately.", cta: "Resend verification link", secondary: "Back to sign in" },
+    used: { icon: "check", tone: "ok", title: "Already verified", body: "This email was verified previously. You can sign in and continue setting up your organization.", cta: "Continue to sign in", secondary: "Need help?" },
+  },
+  "Accept Invitation": {
+    eyebrow: "You've been invited", title: "Join Your Team on", accent: "ShiftOS",
+    body: "Your manager has invited you to a ShiftOS organization. Set a password to activate your account.",
+    highlight: { icon: "users", title: "Your access is already scoped", body: "Role, branch and permissions were set by the person who invited you." },
+    benefits: [
+      { icon: "building", title: "ABC Supermarket Ltd.", body: "Main Branch · Operations" },
+      { icon: "shield", title: "Supervisor role", body: "Attendance, tasks and shift notes." },
+      { icon: "clock", title: "Invitation valid 7 days", body: "Expires 23 August 2026." },
+      { icon: "user", title: "Invited by", body: "Daniel Okonkwo, Manager." },
+    ],
+    topRight: ["Not your invitation?", "Contact your manager"],
+    formTitle: "Accept your invitation", formSubtitle: "Set a password to activate your ShiftOS account.",
+    invite: { initials: "AS", headline: "ABC Supermarket Ltd.", meta: "Supervisor · Main Branch · invited by Daniel Okonkwo" },
+    fields: [
+      { key: "email", label: "Work Email", type: "email", value: "sarah.johnson@abcsupermarket.com", disabled: true, hint: "From your invitation", req: false },
+      { key: "password", label: "Create Password", type: "password", placeholder: "Create your password", req: true, autoComplete: "new-password", toggle: true },
+    ],
+    strength: true,
+    submit: "Accept invitation →", busyLabel: "Activating your account…",
+    footnote: "By accepting you agree to our Terms & Conditions and Privacy Policy.",
+    invalid: { title: "Password doesn't meet the requirements", body: "Fix the unmet rules below and try again." },
+    success: { icon: "check", tone: "ok", title: "Welcome to ShiftOS", body: "Your account is active. Next, complete your profile so your team can recognize you.", cta: "Complete profile →", secondary: "Skip for now" },
+    expired: { icon: "clock", tone: "warn", title: "This invitation has expired", body: "Invitations are valid for 7 days. Ask Daniel Okonkwo to send a new one — your place on the team is unaffected.", cta: "Request new invitation", secondary: "Back to sign in" },
+    used: { icon: "x", tone: "bad", title: "This invitation was already accepted", body: "An account already exists for this email. Sign in instead, or reset your password if you've forgotten it.", cta: "Go to sign in", secondary: "Reset password" },
+  },
+  "Admin Invitation": {
+    eyebrow: "You've been invited as an Admin", title: "Oversee Your Organization on", accent: "ShiftOS",
+    body: "ABC Supermarket Ltd. invited you to manage their ShiftOS subscription and view organization-wide branch information.",
+    highlight: { icon: "shield", title: "Admins don't run daily operations", body: "You'll oversee subscription and branches — Managers keep running the day-to-day." },
+    benefits: [
+      { icon: "building", title: "ABC Supermarket Ltd.", body: "6 branches across Lagos, Ibadan and Abuja" },
+      { icon: "shield", title: "Admin role", body: "Subscription, billing and branch oversight" },
+      { icon: "clock", title: "Invitation valid 7 days", body: "Expires 27 August 2026" },
+      { icon: "user", title: "Invited by", body: "Daniel Okonkwo, Manager" },
+    ],
+    topRight: ["Not your invitation?", "Contact Daniel Okonkwo"],
+    formTitle: "Accept your Admin invitation", formSubtitle: "Set a password to activate your ShiftOS account.",
+    invite: { initials: "NA", headline: "ABC Supermarket Ltd.", meta: "Admin · invited by Daniel Okonkwo" },
+    fields: [
+      { key: "email", label: "Work Email", type: "email", value: "ngozi.adeyemi@abcsupermarket.com", disabled: true, hint: "From your invitation", req: false },
+      { key: "password", label: "Create Password", type: "password", placeholder: "Create your password", req: true, autoComplete: "new-password", toggle: true },
+    ],
+    strength: true,
+    submit: "Accept invitation →", busyLabel: "Activating your account…",
+    footnote: "By accepting you agree to our Terms & Conditions and Privacy Policy.",
+    invalid: { title: "Password doesn't meet the requirements", body: "Fix the unmet rules below and try again." },
+    success: { icon: "check", tone: "ok", title: "Welcome to ShiftOS", body: "Your Admin account is active. You'll land on your organization overview — branches, leadership and subscription in one place.", cta: "Go to Admin dashboard →", secondary: "Complete profile" },
+    expired: { icon: "clock", tone: "warn", title: "This invitation has expired", body: "Admin invitations are valid for 7 days. Ask Daniel Okonkwo to send a new one — your place on the team is unaffected.", cta: "Request new invitation", secondary: "Back to sign in" },
+    used: { icon: "x", tone: "bad", title: "This invitation was already accepted", body: "An Admin account already exists for this email. Sign in instead, or reset your password if you've forgotten it.", cta: "Go to sign in", secondary: "Reset password" },
+  },
+  "Complete Profile": {
+    eyebrow: "Almost there", title: "Complete Your", accent: "Profile",
+    body: "Add the details your branch needs to recognize you on the schedule. A photo is optional and can be added later.",
+    highlight: { icon: "user", title: "Photos are optional", body: "Without one, ShiftOS shows your initials in every avatar." },
+    benefits: [
+      { icon: "users", title: "Recognizable on shift", body: "Your name appears on schedules and tasks." },
+      { icon: "message", title: "Reachable", body: "Supervisors can contact you about cover." },
+      { icon: "user", title: "Photo optional", body: "Add, replace or remove it any time." },
+      { icon: "shield", title: "Only your organization", body: "Profile details stay inside it." },
+    ],
+    topRight: ["Signed in as", "sarah.johnson@abcsupermarket.com"],
+    formTitle: "Complete your profile", formSubtitle: "This is how your team will see you in ShiftOS.",
+    photo: true,
+    fields: [
+      { key: "firstName", label: "First Name", type: "text", placeholder: "Sarah", req: true, autoComplete: "given-name" },
+      { key: "lastName", label: "Last Name", type: "text", placeholder: "Johnson", req: true, autoComplete: "family-name" },
+      { key: "phone", label: "Phone Number", type: "tel", placeholder: "+234 802 345 6789", req: true, autoComplete: "tel" },
+      { key: "jobTitle", label: "Job Title", type: "text", placeholder: "Floor Supervisor", req: false, hint: "Optional" },
+    ],
+    submit: "Save and continue →", busyLabel: "Saving your profile…",
+    footnote: "You can change any of this later from Settings → Profile.",
+    invalid: { title: "A required field is missing", body: "First name, last name and phone number are needed." },
+    success: { icon: "check", tone: "ok", title: "Profile saved", body: "You're all set. Next, ShiftOS will walk you through your first shift.", cta: "Go to dashboard →", secondary: "Review my profile" },
+  },
+};
+
+const STATES = ["Idle", "Validation error", "Loading", "Success", "Network error", "Expired link", "Used link"];
+const TONES = { ok: [C.ok, C.okSoft], warn: [C.warn, C.warnSoft], bad: [C.bad, C.badSoft], primary: [C.deep, C.soft], info: [C.info, C.infoSoft] };
+
+class Component extends DCLogic {
+  state = { screen: null, view: null, showPassword: false, checked: true, photo: "empty" };
+
+  tabs(list, current, key, small) {
+    return list.map((label) => ({
+      label, select: () => this.setState({ [key]: label }), style: seg(label === current, small),
+    }));
+  }
+
+  renderVals() {
+    const screen = this.state.screen ?? this.props.screen ?? "Sign In";
+    const cfg = CFG[screen];
+    let view = this.state.view ?? this.props.viewState ?? "Idle";
+    if (view === "Expired link" && !cfg.expired) view = "Idle";
+    if (view === "Used link" && !cfg.used) view = "Idle";
+
+    const invalid = view === "Validation error";
+    const busy = view === "Loading";
+    const terminalCfg =
+      view === "Success" ? cfg.success : view === "Expired link" ? cfg.expired : view === "Used link" ? cfg.used : null;
+    const [tFg, tBg] = terminalCfg ? TONES[terminalCfg.tone] : TONES.ok;
+
+    const passed = invalid ? 2 : 4;
+    const strengthLabel = passed <= 1 ? "Weak" : passed === 2 ? "Fair" : passed === 3 ? "Good" : "Strong";
+    const strengthColor = passed <= 2 ? C.warn : passed === 3 ? C.info : C.ok;
+
+    const photo = this.state.photo;
+
+    return {
+      screenTabs: this.tabs(SCREENS, screen, "screen"),
+      stateTabs: this.tabs(
+        STATES.filter((s) => (s !== "Expired link" || cfg.expired) && (s !== "Used link" || cfg.used)),
+        view, "view", true,
+      ),
+
+      eyebrow: cfg.eyebrow, panelTitle: cfg.title, panelAccent: cfg.accent, panelBody: cfg.body,
+      highlightIcon: icon(cfg.highlight.icon, 18), highlightTitle: cfg.highlight.title, highlightBody: cfg.highlight.body,
+      benefits: cfg.benefits.map((b) => ({ ...b, icon: icon(b.icon, 16) })),
+      topRightText: cfg.topRight[0], topRightLink: cfg.topRight[1],
+      trustPoints: ["30-day free trial", "No credit card", "Cancel anytime"],
+
+      isTerminal: !!terminalCfg,
+      isForm: !terminalCfg,
+      terminalTile: `display:flex; width:60px; height:60px; margin:0 auto; border-radius:999px; align-items:center; justify-content:center; color:${tFg}; background:${tBg}`,
+      terminalIcon: terminalCfg ? icon(terminalCfg.icon, 28) : null,
+      terminalTitle: terminalCfg ? terminalCfg.title : "",
+      terminalBody: terminalCfg ? terminalCfg.body : "",
+      terminalMeta: !!(terminalCfg && terminalCfg.meta),
+      terminalMetaText: terminalCfg && terminalCfg.meta ? terminalCfg.meta : "",
+      terminalCta: terminalCfg ? terminalCfg.cta : "",
+      terminalSecondary: terminalCfg ? terminalCfg.secondary : "",
+
+      formTitle: cfg.formTitle, formSubtitle: cfg.formSubtitle, formFootnote: cfg.footnote,
+
+      showInviteCard: !!cfg.invite,
+      inviteInitials: cfg.invite ? cfg.invite.initials : "",
+      inviteHeadline: cfg.invite ? cfg.invite.headline : "",
+      inviteMeta: cfg.invite ? cfg.invite.meta : "",
+
+      showBanner: invalid || view === "Network error",
+      bannerStyle:
+        `margin-top:18px; display:flex; gap:11px; border-radius:14px; padding:13px 14px; ` +
+        (view === "Network error"
+          ? `border:1px solid #F3D9AE; background:${C.warnSoft}; color:#7A4F10`
+          : `border:1px solid #F3C6BD; background:${C.badSoft}; color:#8E2A17`),
+      bannerIconStyle:
+        `display:flex; width:26px; height:26px; flex:0 0 auto; border-radius:999px; align-items:center; justify-content:center; font-size:13px; font-weight:800; ` +
+        (view === "Network error" ? `background:${C.warn}; color:#fff` : `background:${C.bad}; color:#fff`),
+      bannerGlyph: "!",
+      bannerTitle: view === "Network error" ? "Couldn't reach ShiftOS" : cfg.invalid.title,
+      bannerBody:
+        view === "Network error"
+          ? "Your connection dropped before we could finish. Nothing was submitted — check your network and retry."
+          : cfg.invalid.body,
+
+      fields: (cfg.fields || []).map((f) => {
+        const bad = invalid && (f.key === "email" || f.key === "password" || f.key === "confirm" || f.key === "code" || f.key === "phone");
+        const isPw = f.type === "password";
+        return {
+          label: f.label,
+          req: f.req ? " *" : "",
+          type: isPw && this.state.showPassword ? "text" : f.type,
+          value: f.value || "",
+          placeholder: f.placeholder || "",
+          autoComplete: f.autoComplete || "off",
+          disabled: f.disabled ? "disabled" : "",
+          toggle: !!f.toggle,
+          invalid: bad ? "true" : "false",
+          hint: f.hint || "",
+          hintStyle: f.hint ? `font-size:11.5px; color:${C.faint}` : "display:none",
+          input:
+            `width:100%; box-sizing:border-box; height:46px; border-radius:12px; padding:0 ${f.toggle ? "46px" : "13px"} 0 13px; font-family:inherit; font-size:13.5px; outline:none; ` +
+            `border:1px solid ${bad ? C.bad : "#E4DED9"}; background:${f.disabled ? "#F7F4F1" : bad ? "#FEF7F5" : "#fff"}; color:${f.disabled ? C.mute : C.ink}`,
+          error: bad ? (f.key === "confirm" ? "Passwords don't match." : f.key === "code" ? "Enter the 6-digit code from your most recent email." : "This doesn't look right — check and try again.") : "",
+          errStyle: bad ? `display:block; margin-top:6px; font-size:11.5px; font-weight:600; color:${C.bad}` : "display:none",
+        };
+      }),
+      togglePassword: () => this.setState((s) => ({ showPassword: !s.showPassword })),
+      passwordToggleLabel: this.state.showPassword ? "Hide password" : "Show password",
+      passwordToggleGlyph: this.state.showPassword ? "Hide" : "Show",
+
+      hasStrength: !!cfg.strength,
+      strengthLabel,
+      strengthLabelStyle: `font-size:12px; font-weight:800; color:${strengthColor}`,
+      strengthBars: [0, 1, 2, 3].map((i) => ({
+        style: `flex:1 1 0; height:5px; border-radius:999px; background:${i < passed ? strengthColor : "#EFEAE6"}`,
+      })),
+      passwordRules: RULES.map((label, i) => {
+        const met = i < passed;
+        return {
+          label,
+          glyph: met ? "✓" : "",
+          dot:
+            `display:flex; width:16px; height:16px; flex:0 0 auto; border-radius:999px; align-items:center; justify-content:center; font-size:10px; font-weight:800; ` +
+            (met ? `background:${C.ok}; color:#fff` : `border:1.5px solid ${C.line}; color:transparent`),
+        };
+      }),
+
+      hasCheckbox: !!cfg.checkbox,
+      checkboxLabel: cfg.checkbox ? cfg.checkbox[0] : "",
+      checkboxBody: cfg.checkbox ? cfg.checkbox[1] : "",
+      checkboxChecked: this.state.checked ? "checked" : "",
+      toggleCheckbox: () => this.setState((s) => ({ checked: !s.checked })),
+
+      hasForgot: !!cfg.forgot,
+      hasGoogle: !!cfg.google,
+      hasResend: !!cfg.resend,
+
+      hasPhoto: !!cfg.photo,
+      photoTileStyle:
+        `display:flex; width:64px; height:64px; flex:0 0 auto; border-radius:999px; align-items:center; justify-content:center; font-size:17px; font-weight:800; overflow:hidden; ` +
+        (photo === "uploaded"
+          ? `background:${C.soft}; color:${C.deep}`
+          : photo === "uploading"
+            ? `background:#F4F1EE; color:${C.mute}; font-size:11px`
+            : photo === "error"
+              ? `border:1.5px dashed ${C.bad}; background:${C.badSoft}; color:${C.bad}; font-size:11px`
+              : `border:1.5px dashed ${C.line}; background:#fff; color:${C.faint}`),
+      photoTileContent:
+        photo === "uploaded" ? "SJ" : photo === "uploading" ? "62%" : photo === "error" ? "Failed" : "SJ",
+      photoActions:
+        photo === "uploaded"
+          ? [
+              { label: "Replace photo", act: () => this.setState({ photo: "uploading" }), tone: "quiet" },
+              { label: "Remove", act: () => this.setState({ photo: "empty" }), tone: "danger" },
+            ]
+          : photo === "uploading"
+            ? [
+                { label: "Uploading… 62%", act: () => this.setState({ photo: "uploaded" }), tone: "quiet" },
+                { label: "Cancel", act: () => this.setState({ photo: "empty" }), tone: "danger" },
+              ]
+            : photo === "error"
+              ? [
+                  { label: "Try again", act: () => this.setState({ photo: "uploading" }), tone: "primary" },
+                  { label: "Skip photo", act: () => this.setState({ photo: "empty" }), tone: "quiet" },
+                ]
+              : [
+                  { label: "Upload photo", act: () => this.setState({ photo: "uploading" }), tone: "primary" },
+                  { label: "Simulate failure", act: () => this.setState({ photo: "error" }), tone: "quiet" },
+                ],
+
+      busy: busy ? "disabled" : "",
+      submitLabel: busy ? cfg.busyLabel : cfg.submit,
+      submitStyle:
+        `width:100%; height:48px; border:0; border-radius:13px; font-family:inherit; font-size:14.5px; font-weight:700; ` +
+        (busy
+          ? `background:#F5A98A; color:#fff; cursor:progress`
+          : `background:${C.primary}; color:#fff; cursor:pointer; box-shadow:0 14px 30px -16px rgba(240,78,23,.75)`),
+      submit: (e) => {
+        e.preventDefault();
+        this.setState({ view: "Loading" });
+        window.clearTimeout(this.t);
+        this.t = window.setTimeout(() => this.setState({ view: "Success" }), 900);
+      },
+    };
+  }
+
+  componentWillUnmount() {
+    window.clearTimeout(this.t);
+  }
+}
+</script>
+</body>
+</html>

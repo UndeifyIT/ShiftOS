@@ -58,6 +58,7 @@ export const APP_ROUTES = [
   '/requests',
   '/reports',
   '/settings',
+  '/branches',
   '/members',
   '/invitations',
   '/organization',
