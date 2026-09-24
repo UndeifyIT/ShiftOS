@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
-import { HandoffModal, ModalField, ModalFields, modalControl } from '../../components/HandoffModal.js';
+import { HandoffModal, ModalField, ModalFields, modalControl, modalSelect } from '../../components/HandoffModal.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import type { Department, Employee, LeaveRequest, Member, Schedule, Shift, ShiftAssignment, ShiftSwap } from '../../types/domain.js';
 import { OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
@@ -626,7 +626,7 @@ export default function RequestsPage(): React.ReactElement {
         <ModalFields>
           {!isApprover && canRequestSwap && canCreateLeave ? (
             <ModalField label="Request type" required>
-              <select className={modalControl} value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value as NewRequestDraft['type'] })}>
+              <select className={modalSelect} value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value as NewRequestDraft['type'] })}>
                 <option>Shift swap</option>
                 <option>Time off</option>
               </select>
@@ -635,7 +635,7 @@ export default function RequestsPage(): React.ReactElement {
           {draft.type === 'Shift swap' ? (
             <>
               <ModalField label="Your shift" required>
-                <select className={modalControl} value={draft.assignmentId} onChange={(event) => setDraft({ ...draft, assignmentId: event.target.value })}>
+                <select className={modalSelect} value={draft.assignmentId} onChange={(event) => setDraft({ ...draft, assignmentId: event.target.value })}>
                   <option value="">{shiftChoices.length ? 'Choose a shift' : 'No upcoming shifts'}</option>
                   {shiftChoices.map((choice) => (
                     <option key={choice.id} value={choice.id}>
@@ -645,7 +645,7 @@ export default function RequestsPage(): React.ReactElement {
                 </select>
               </ModalField>
               <ModalField label="Swap with">
-                <select className={modalControl} value={draft.targetId} onChange={(event) => setDraft({ ...draft, targetId: event.target.value })}>
+                <select className={modalSelect} value={draft.targetId} onChange={(event) => setDraft({ ...draft, targetId: event.target.value })}>
                   <option value="">Anyone in the branch</option>
                   {colleagues.map((person) => (
                     <option key={person.id} value={person.id}>
@@ -659,7 +659,7 @@ export default function RequestsPage(): React.ReactElement {
             <>
               {isApprover ? (
                 <ModalField label="Employee" required>
-                  <select className={modalControl} value={draft.employeeId} onChange={(event) => setDraft({ ...draft, employeeId: event.target.value })}>
+                  <select className={modalSelect} value={draft.employeeId} onChange={(event) => setDraft({ ...draft, employeeId: event.target.value })}>
                     <option value="">Choose a person</option>
                     {(employees ?? [])
                       .filter((e) => e.is_active && !e.deleted_at)
@@ -672,7 +672,7 @@ export default function RequestsPage(): React.ReactElement {
                 </ModalField>
               ) : null}
               <ModalField label="Leave type" required>
-                <select className={modalControl} value={draft.leaveType} onChange={(event) => setDraft({ ...draft, leaveType: event.target.value as LeaveRequest['leave_type'] })}>
+                <select className={modalSelect} value={draft.leaveType} onChange={(event) => setDraft({ ...draft, leaveType: event.target.value as LeaveRequest['leave_type'] })}>
                   {Object.entries(LEAVE_TYPE_LABEL).map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}

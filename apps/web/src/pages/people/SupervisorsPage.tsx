@@ -10,7 +10,7 @@ import { OverviewEmpty, OverviewHeader, OverviewLoading } from '../dashboard/man
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
 import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
 import { TONES, type Tone } from '../scheduling/grid/scheduleFormat.js';
-import { HeaderCta, RolePeopleTable, TableAction } from './RolePeopleTable.js';
+import { HeaderCta, RolePeopleTable, supervisorTableRow, TableAction } from './RolePeopleTable.js';
 import {
   buildSupervisorRows,
   filterSupervisors,
@@ -305,7 +305,7 @@ export default function SupervisorsPage(): React.ReactElement {
     return (
       <RolePeopleTable
         columns={COLUMNS}
-        rows={shown}
+        rows={shown.map(supervisorTableRow)}
         filter={filter}
         onFilter={setFilter}
         query={query}

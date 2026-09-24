@@ -323,6 +323,35 @@ export function createOverviewBackend(options: { staffLogins?: boolean; supervis
       version: 1
     });
   }
+  if (sup) {
+    // Monday to Thursday already worked — the Team page's "hours this week". Some people had a day off.
+    PEOPLE.forEach(([id], index) => {
+      for (let day = 12; day <= 15; day += 1) {
+        if ((index + day) % 5 === 0 || id === 'p17') continue;
+        const worked = 450 + ((index * 7 + day) % 4) * 15;
+        attendance.push({
+          ...stamp({ id: `att-${id}-${day}` }),
+          created_at: at(day, 7, 28),
+          updated_at: at(day, 17, 0),
+          branch_id: BRANCH,
+          shift_assignment_id: `asg-${id}-${day}`,
+          employee_id: id,
+          attendance_status: 'completed',
+          clock_in_at: at(day, 7, 28),
+          clock_out_at: at(day, 17, 0),
+          break_minutes: 60,
+          worked_minutes: worked,
+          overtime_minutes: 0,
+          late_minutes: 0,
+          early_departure_minutes: 0,
+          notes: null,
+          recorded_by: 'user-me',
+          updated_by: null,
+          version: 1
+        });
+      }
+    });
+  }
   const markPresent = (input: Record<string, unknown>): AttendanceRecord => {
     const assignment = assignments.find((a) => a.id === input.shiftAssignmentId);
     if (!assignment) throw new Error('Assignment not found');

@@ -18,7 +18,7 @@ import { RouteErrorBoundary } from './RouteErrorBoundary.js';
  * The onboarding Shifty guide doesn't render here — it only appears in
  * OnboardingWizard, where its per-step guidance is genuinely contextual. The
  * one floating element is the handoff's Ask ShiftOS bubble
- * (FloatingAskShiftOS), which shows only for Managers and never on the
+ * (FloatingAskShiftOS), which shows for Managers and Supervisors and never on the
  * overview, where the full Ask ShiftOS card already sits.
  */
 

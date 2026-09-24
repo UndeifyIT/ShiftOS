@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
-import { HandoffModal, ModalField, ModalFields, modalControl } from '../../components/HandoffModal.js';
+import { HandoffModal, ModalField, ModalFields, modalControl, modalSelect } from '../../components/HandoffModal.js';
 import { downloadText, toCsv } from '../../lib/spreadsheet.js';
 import { useRpcMutation, useRpcQueries, useRpcQuery } from '../../lib/useRpc.js';
 import type { Announcement, AnnouncementAcknowledgement, AnnouncementReminderResult, Department, Employee, Member } from '../../types/domain.js';
@@ -400,7 +400,7 @@ export default function AnnouncementsPage(): React.ReactElement {
       >
         <ModalFields>
           <ModalField label="Audience" required>
-            <select className={modalControl} value={draft.audience} onChange={(event) => setDraft({ ...draft, audience: event.target.value as NewAnnouncementDraft['audience'] })}>
+            <select className={modalSelect} value={draft.audience} onChange={(event) => setDraft({ ...draft, audience: event.target.value as NewAnnouncementDraft['audience'] })}>
               {branchId ? <option value="branch">Whole branch</option> : null}
               <option value="organization">Whole organization</option>
             </select>
@@ -417,7 +417,7 @@ export default function AnnouncementsPage(): React.ReactElement {
             />
           </ModalField>
           <ModalField label="Pin to top">
-            <select className={modalControl} value={draft.pinned ? 'yes' : 'no'} onChange={(event) => setDraft({ ...draft, pinned: event.target.value === 'yes' })}>
+            <select className={modalSelect} value={draft.pinned ? 'yes' : 'no'} onChange={(event) => setDraft({ ...draft, pinned: event.target.value === 'yes' })}>
               <option value="no">No</option>
               <option value="yes">Yes</option>
             </select>

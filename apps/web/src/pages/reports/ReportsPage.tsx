@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PermissionDenied } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
-import { HandoffModal, ModalField, ModalFields, modalControl } from '../../components/HandoffModal.js';
+import { HandoffModal, ModalField, ModalFields, modalControl, modalSelect } from '../../components/HandoffModal.js';
 import { downloadText, toCsv } from '../../lib/spreadsheet.js';
 import { useRpcQuery } from '../../lib/useRpc.js';
 import type { Branch, Department, Employee, OperationsSummaryReport } from '../../types/domain.js';
@@ -186,7 +186,7 @@ export default function ReportsPage(): React.ReactElement {
             <input className={modalControl} value={exportTitle} readOnly />
           </ModalField>
           <ModalField label="Include">
-            <select className={modalControl} value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}>
+            <select className={modalSelect} value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}>
               <option value="">All departments</option>
               {liveDepartments.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -215,7 +215,7 @@ export default function ReportsPage(): React.ReactElement {
             <input className={modalControl} value={`Last 30 days · ${periodLabel(current)}`} readOnly />
           </ModalField>
           <ModalField label="Departments">
-            <select className={modalControl} value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}>
+            <select className={modalSelect} value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}>
               <option value="">All departments</option>
               {liveDepartments.map((d) => (
                 <option key={d.id} value={d.id}>

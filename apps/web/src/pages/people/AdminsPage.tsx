@@ -8,7 +8,7 @@ import type { Branch, Invitation, Member, Role } from '../../types/domain.js';
 import { OverviewEmpty, OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
 import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
-import { DialogNote, HeaderCta, RolePeopleTable } from './RolePeopleTable.js';
+import { DialogNote, HeaderCta, RolePeopleTable, supervisorTableRow } from './RolePeopleTable.js';
 import { adminsCount, adminsSubtitle, buildAdminRows, filterSupervisors, invitableAdminRoles, type SupervisorFilter } from './rolePeopleModel.js';
 
 /*
@@ -164,7 +164,7 @@ export default function AdminsPage(): React.ReactElement {
     return (
       <RolePeopleTable
         columns={COLUMNS}
-        rows={shown}
+        rows={shown.map(supervisorTableRow)}
         filter={filter}
         onFilter={setFilter}
         query={query}

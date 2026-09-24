@@ -40,7 +40,7 @@ function buildSession(role: PreviewRole) {
       auth_user_id: 'auth-me',
       first_name: isManager ? 'Daniel' : 'Sarah',
       last_name: isManager ? 'Okonkwo' : 'Johnson',
-      email: 'preview@example.com',
+      email: isManager ? 'preview@example.com' : 'sarah.johnson@abc.example',
       phone: null,
       job_title: isManager ? 'Manager' : 'Supervisor',
       avatar_url: null,

@@ -127,3 +127,6 @@ export const modalControl =
 export function ModalConfirm({ children }: { children: React.ReactNode }): React.ReactElement {
   return <p className="mx-[22px] mb-0 mt-4 rounded-[13px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] p-3.5 text-[13px] leading-[1.55] text-[#57504A]">{children}</p>;
 }
+
+/** modalControl for a <select>: no native inset, so its text lines up with the inputs', and a small chevron. */
+export const modalSelect = `${modalControl} handoff-select cursor-pointer appearance-none pr-9`;
