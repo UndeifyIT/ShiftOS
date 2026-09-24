@@ -20,12 +20,15 @@ export class UserService {
     lastName?: string;
     phone?: string | null;
     avatarUrl?: string | null;
+    /** users.job_title (044) — "editable later from Settings". */
+    jobTitle?: string | null;
   }): Promise<User> {
     const changes: Partial<User> = {};
     if (patch.firstName !== undefined) changes.first_name = patch.firstName;
     if (patch.lastName !== undefined) changes.last_name = patch.lastName;
     if (patch.phone !== undefined) changes.phone = patch.phone;
     if (patch.avatarUrl !== undefined) changes.avatar_url = patch.avatarUrl;
+    if (patch.jobTitle !== undefined) changes.job_title = patch.jobTitle?.trim() || null;
     return this.users.update(this.context.userId, changes);
   }
 }

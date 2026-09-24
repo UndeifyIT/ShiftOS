@@ -13,6 +13,13 @@
 
   const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
   const RAW = new Set(['style', 'script', 'textarea']);
+  // https://html.spec.whatwg.org/#special
+  const SPECIAL = new Set(
+    ('address applet area article aside base basefont bgsound blockquote body br button caption center col colgroup dd details dir div dl dt ' +
+      'embed fieldset figcaption figure footer form frame frameset h1 h2 h3 h4 h5 h6 head header hgroup hr html iframe img input keygen li link ' +
+      'listing main marquee menu meta nav noembed noframes noscript object ol p param plaintext pre script search section select source style ' +
+      'summary table tbody td template textarea tfoot th thead title tr track ul wbr xmp').split(' ')
+  );
 
   // --- A forgiving HTML tokenizer that keeps attribute case (onClick, autoComplete)
   // and never reparents nodes the way the browser's parser does inside <select>/<p>.
@@ -30,11 +37,15 @@
       if (src[i] === '<' && src[i + 1] === '/') {
         const end = src.indexOf('>', i);
         const name = src.slice(i + 2, end).trim();
+        // The HTML parser's "any other end tag" rule: walk up to the matching open
+        // element, but give up (ignore the stray end tag) on reaching a "special"
+        // element such as a div. The handoff has one stray </sc-if> that relies on it.
         for (let k = stack.length - 1; k > 0; k--) {
           if (stack[k].tag === name) {
             stack.length = k;
             break;
           }
+          if (SPECIAL.has(stack[k].tag.toLowerCase())) break;
         }
         i = end + 1;
         continue;

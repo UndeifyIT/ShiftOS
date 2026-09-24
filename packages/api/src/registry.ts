@@ -65,7 +65,9 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   getMyNotificationPreferences,
-  setMyNotificationPreference
+  setMyNotificationPreference,
+  getMyNotificationEventPreferences,
+  setMyNotificationEventPreference
 } from './operations/notification.js';
 import { askAssistant } from './operations/assistant.js';
 
@@ -201,6 +203,8 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(markAllNotificationsRead);
   registry.register(getMyNotificationPreferences);
   registry.register(setMyNotificationPreference);
+  registry.register(getMyNotificationEventPreferences);
+  registry.register(setMyNotificationEventPreference);
   registry.register(askAssistant);
 
   registry.register(createDepartment);

@@ -6,10 +6,10 @@ const params = new URLSearchParams(window.location.search);
 
 export const previewRole: PreviewRole = params.get('as') === 'supervisor' ? 'supervisor' : 'manager';
 
-// `?path=/` (Manager overview), `?path=/employees…`, `?path=/supervisors`, `?path=/admins`, `?path=/recent-activity`, `?path=/announcements`, `?path=/requests` and `?path=/reports` run against the handoff's own morning; everything else is the schedule week.
+// `?path=/` (Manager overview), `?path=/employees…`, `?path=/supervisors`, `?path=/admins`, `?path=/recent-activity`, `?path=/announcements`, `?path=/requests`, `?path=/reports` and `?path=/settings` run against the handoff's own morning; everything else is the schedule week.
 const path = params.get('path') ?? '';
 export const callRpc =
-  path === '/' || path.startsWith('/employees') || path.startsWith('/supervisors') || path.startsWith('/admins') || path.startsWith('/recent-activity') || path.startsWith('/announcements') || path.startsWith('/requests') || path.startsWith('/reports')
+  path === '/' || path.startsWith('/employees') || path.startsWith('/supervisors') || path.startsWith('/admins') || path.startsWith('/recent-activity') || path.startsWith('/announcements') || path.startsWith('/requests') || path.startsWith('/reports') || path.startsWith('/settings')
     ? createOverviewBackend({ staffLogins: path.startsWith('/announcements') })
     : createMockBackend({
         role: previewRole,

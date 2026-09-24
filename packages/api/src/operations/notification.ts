@@ -11,6 +11,19 @@ export const setMyNotificationPreference = defineRpc('set_my_notification_prefer
   return new NotificationService(context).setMyPreference(requiredStringField(input, 'channel'), booleanField(input, 'isEnabled') ?? true);
 });
 
+export const getMyNotificationEventPreferences = defineRpc('get_my_notification_event_preferences', async (context) => {
+  return new NotificationService(context).getMyEventPreferences();
+});
+
+export const setMyNotificationEventPreference = defineRpc('set_my_notification_event_preference', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new NotificationService(context).setMyEventPreference(
+    requiredStringField(input, 'eventType'),
+    requiredStringField(input, 'channel'),
+    booleanField(input, 'isEnabled') ?? true
+  );
+});
+
 export const listMyNotifications = defineRpc('list_my_notifications', async (context, rawInput: unknown) => {
   const input = asRecord(rawInput ?? {});
   return new NotificationService(context).listMine({
@@ -35,5 +48,7 @@ export const notificationOperations = [
   markNotificationRead,
   markAllNotificationsRead,
   getMyNotificationPreferences,
-  setMyNotificationPreference
+  setMyNotificationPreference,
+  getMyNotificationEventPreferences,
+  setMyNotificationEventPreference
 ];

@@ -11,7 +11,7 @@ import {
 import { ValidationError, AuthorizationError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
 import { assertUuid } from '../validation.js';
-import { notify } from '../notifications/notificationService.js';
+import { notifyEvent } from '../notifications/notificationService.js';
 
 /**
  * Shift swap requests (backend completion pass, second phase). See
@@ -265,7 +265,7 @@ export class ShiftSwapService {
       approved: 'Your shift swap request was approved and the shift has been reassigned.',
       rejected: 'Your shift swap request was reviewed and rejected.'
     };
-    await notify(this.context.client, this.context.organizationId, requesterUser.id, titles[outcome], bodies[outcome]);
+    await notifyEvent(this.context.client, this.context.organizationId, requesterUser.id, 'swap_updates', titles[outcome], bodies[outcome]);
   }
 
   private async resolveMyEmployee() {

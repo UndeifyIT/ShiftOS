@@ -11,7 +11,7 @@ import {
 } from '@shiftos/repositories';
 import { ValidationError, NotFoundError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
-import { notify } from '../notifications/notificationService.js';
+import { notifyEvent } from '../notifications/notificationService.js';
 import { assertNonEmptyString, assertUuid, assertOneOf } from '../validation.js';
 
 const ANNOUNCEMENT_TYPES: readonly AnnouncementType[] = ['general', 'policy', 'safety', 'operational', 'emergency'];
@@ -211,10 +211,11 @@ export class AnnouncementService {
         result.undelivered += 1;
         continue;
       }
-      await notify(
+      await notifyEvent(
         this.context.client,
         this.context.organizationId,
         user.id,
+        'announcement_reminders',
         `Reminder: ${announcement.title}`,
         'Please read this announcement and acknowledge it in ShiftOS.'
       );

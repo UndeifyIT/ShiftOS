@@ -447,6 +447,24 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
       ]
     };
   };
+  const branch = stamp({
+    id: BRANCH,
+    name: 'Main Branch',
+    address: null,
+    settings: {
+      timeZone: 'Africa/Lagos',
+      operatingHours: Object.fromEntries(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => [d, { open: '09:00', close: '18:00', closed: false }]))
+    } as Record<string, unknown>,
+    is_active: true
+  });
+  const organization = stamp({
+    id: ORG,
+    name: 'ABC Supermarket Ltd.',
+    slug: 'abc-supermarket',
+    metadata: { businessType: 'Supermarket', country: 'NG', timeZone: 'Africa/Lagos', onboardingCompletedAt: CREATED } as Record<string, unknown>,
+    is_active: true
+  });
+  const eventPrefs: Record<string, boolean> = {};
   const decideLeave = (id: string, status: 'approved' | 'rejected', notes: string | null): LeaveRequest => {
     const row = branchLeave.find((l) => l.id === id);
     if (!row) throw new Error('Leave request not found');
@@ -565,7 +583,20 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
     update_role_permissions: (input) => input.capabilities,
     list_invitable_roles: () =>
       ['Employee', 'Supervisor', 'Admin'].map((name) => stamp({ id: `role-${name.toLowerCase()}`, name, description: null, is_system: true, is_active: true, grants_org_wide_branch_access: false })),
-    list_branches: () => [stamp({ id: BRANCH, name: 'Main Branch', address: null, settings: {}, is_active: true })],
+    list_branches: () => [branch],
+    // Settings: the organization, the branch's hours and the notification switches.
+    get_organization: () => organization,
+    update_organization: (input) => Object.assign(organization, { name: input.name, metadata: input.metadata ?? organization.metadata }),
+    update_branch: (input) => Object.assign(branch, { settings: input.settings ?? branch.settings }),
+    update_profile: () => ({ id: 'user-me' }),
+    get_my_notification_event_preferences: () =>
+      ['swap_updates', 'leave_decisions', 'announcement_reminders'].flatMap((event_type) =>
+        ['in_app', 'email'].map((channel) => ({ event_type, channel, is_enabled: eventPrefs[`${event_type}:${channel}`] ?? !(event_type === 'announcement_reminders' && channel === 'email') }))
+      ),
+    set_my_notification_event_preference: (input) => {
+      eventPrefs[`${input.eventType}:${input.channel}`] = Boolean(input.isEnabled);
+      return { event_type: input.eventType, channel: input.channel, is_enabled: input.isEnabled };
+    },
     list_employees: () => employees,
     get_employee: (input) => {
       const employee = employees.find((e) => e.id === input.employeeId);

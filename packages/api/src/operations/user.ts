@@ -8,7 +8,8 @@ export const updateProfile = defineRpc('update_profile', async (context, rawInpu
     firstName: stringField(input, 'firstName'),
     lastName: stringField(input, 'lastName'),
     phone: stringField(input, 'phone') ?? (input.phone === null ? null : undefined),
-    avatarUrl: stringField(input, 'avatarUrl') ?? (input.avatarUrl === null ? null : undefined)
+    avatarUrl: stringField(input, 'avatarUrl') ?? (input.avatarUrl === null ? null : undefined),
+    jobTitle: stringField(input, 'jobTitle') ?? (input.jobTitle === null ? null : undefined)
   });
 });
 
