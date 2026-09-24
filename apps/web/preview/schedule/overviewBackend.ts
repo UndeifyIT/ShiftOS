@@ -415,6 +415,38 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
     { ...leave('lv-4', 'p17', '2025-05-14', '2025-05-21', 'sick_leave', 'Medical certificate attached', 12), status: 'approved', approved_by: 'user-me', approved_at: at(12, 10, 0) },
     { ...leave('lv-5', 'p20', '2025-05-19', '2025-05-20', 'annual_leave', 'Short break', 11), status: 'rejected', rejected_by: 'user-me', rejected_at: at(12, 10, 0), manager_notes: 'Facilities is short that week' }
   ];
+  const operationsReport = (current: boolean) => {
+    // [department, attended, recorded] — Sales Floor 95%, Bakery 88%, Front End 78%, Warehouse 60% this period.
+    const rates: Array<[string, number, number]> = current
+      ? [['dep-sales', 190, 200], ['dep-bakery', 132, 150], ['dep-frontend', 117, 150], ['dep-warehouse', 60, 100]]
+      : [['dep-sales', 186, 200], ['dep-bakery', 126, 150], ['dep-frontend', 111, 150], ['dep-warehouse', 58, 100]];
+    const gapCount = current ? 11 : 15;
+    return {
+      startDate: current ? '2025-04-17' : '2025-03-18',
+      endDate: current ? '2025-05-16' : '2025-04-16',
+      attendance: { attended: rates.reduce((n, r) => n + r[1], 0), recorded: rates.reduce((n, r) => n + r[2], 0) },
+      departments: rates.map(([department_id, attended, recorded]) => ({ department_id, attended, recorded })),
+      scheduledMinutes: (current ? 6240 : 6060) * 60,
+      shiftCount: 780,
+      unfilledShifts: Array.from({ length: gapCount }, (_, i) => ({
+        shift_id: `gap-${i}`,
+        shift_date: `2025-05-${String(1 + i).padStart(2, '0')}`,
+        start_time: '14:30:00',
+        end_time: '22:30:00',
+        title: 'Evening Shift',
+        department_id: i % 2 ? 'dep-warehouse' : 'dep-frontend',
+        paid_minutes: 420,
+        assigned: 0
+      })),
+      swapRequests: current ? 18 : 12,
+      hoursByEmployee: PEOPLE.map(([id]) => ({ employee_id: id, shifts: 20, worked_minutes: 20 * 450, overtime_minutes: 30, late_minutes: id === 'p8' ? 40 : 0 })),
+      requestActivity: [
+        { department_id: 'dep-sales', kind: 'swap', raised: 7, approved: 5, declined: 1 },
+        { department_id: 'dep-frontend', kind: 'swap', raised: 11, approved: 8, declined: 2 },
+        { department_id: 'dep-bakery', kind: 'leave', raised: 3, approved: 2, declined: 0 }
+      ]
+    };
+  };
   const decideLeave = (id: string, status: 'approved' | 'rejected', notes: string | null): LeaveRequest => {
     const row = branchLeave.find((l) => l.id === id);
     if (!row) throw new Error('Leave request not found');
@@ -560,6 +592,8 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
     ],
     list_pending_shift_swap_approvals: () => [swap('sw-1', 'asg-p8', 'p8', 'p11'), swap('sw-2', 'asg-p9', 'p9', 'p10')],
     // Requests: the handoff's SWAPS and LEAVE — two swaps and three leave requests waiting, and some already decided.
+    // Reports: the handoff's last 30 days (91% attendance, 6,240 hours, 11 gaps, 18 swaps) and the 30 before.
+    get_operations_summary_report: (input) => operationsReport(String(input.endDate) === '2025-05-16'),
     list_branch_shift_swaps: () => branchSwaps,
     list_branch_leave: () => branchLeave,
     approve_shift_swap: (input) => decideSwap(String(input.swapId), 'approved', null),

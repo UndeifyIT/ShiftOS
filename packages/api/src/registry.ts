@@ -51,7 +51,7 @@ import {
   listPendingShiftSwapApprovals,
   listBranchShiftSwaps
 } from './operations/shiftSwap.js';
-import { getAttendanceSummaryReport, getTaskCompletionReport, getLeaveUsageReport } from './operations/reporting.js';
+import { getAttendanceSummaryReport, getTaskCompletionReport, getLeaveUsageReport, getOperationsSummaryReport } from './operations/reporting.js';
 import {
   clockIn, clockOut, markAttendanceAbsent, getAttendanceRecord, listAttendanceForEmployee,
   listMyAttendance, listAttendanceForBranchAndRange, recordAttendanceCorrection, listAttendanceCorrections
@@ -224,6 +224,7 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(getAttendanceSummaryReport);
   registry.register(getTaskCompletionReport);
   registry.register(getLeaveUsageReport);
+  registry.register(getOperationsSummaryReport);
 
   return registry;
 }

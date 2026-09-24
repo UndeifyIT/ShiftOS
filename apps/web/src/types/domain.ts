@@ -472,3 +472,26 @@ export interface ScheduleConflict {
   kind: 'double_booking' | 'long_shift';
   detail: string;
 }
+
+/** `get_operations_summary_report` — one period of a branch's operations (Reports page). */
+export interface OperationsSummaryReport {
+  startDate: string;
+  endDate: string;
+  attendance: { attended: number; recorded: number };
+  departments: Array<{ department_id: string | null; attended: number; recorded: number }>;
+  scheduledMinutes: number;
+  shiftCount: number;
+  unfilledShifts: Array<{
+    shift_id: string;
+    shift_date: string;
+    start_time: string;
+    end_time: string;
+    title: string;
+    department_id: string | null;
+    paid_minutes: number;
+    assigned: number;
+  }>;
+  swapRequests: number;
+  hoursByEmployee: Array<{ employee_id: string; shifts: number; worked_minutes: number; overtime_minutes: number; late_minutes: number }>;
+  requestActivity: Array<{ department_id: string | null; kind: 'swap' | 'leave'; raised: number; approved: number; declined: number }>;
+}
