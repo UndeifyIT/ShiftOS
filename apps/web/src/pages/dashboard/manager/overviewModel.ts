@@ -82,6 +82,9 @@ export interface AnnouncementPreview {
 
 export type ActivityIcon = 'users' | 'checkCircle' | 'clipboard' | 'megaphone' | 'calendar' | 'user';
 
+/** The Recent Activity page's three buckets (handoff ACTIVITY `type`). */
+export type ActivityCategory = 'System Events' | 'Employee Actions' | 'Task Updates';
+
 export interface ActivityEvent {
   key: string;
   at: Date;
@@ -89,6 +92,26 @@ export interface ActivityEvent {
   time: string;
   icon: ActivityIcon;
   tone: Tone;
+  /** `title` split for the handoff's red accent word: 'Mary Johnson marked' + 'late'. */
+  headline: string;
+  accent: string | null;
+  /** Second line: 'Check-in time: 08:15 AM (15m late)'. */
+  desc: string;
+  /** Who it concerns, and their department or role ('System' · 'Automated' when nobody did it). */
+  person: string;
+  role: string;
+  category: ActivityCategory;
+  /** The page the row's menu opens. */
+  href: string;
+}
+
+interface EventDetail {
+  accent?: string;
+  desc: string;
+  person: string;
+  role: string;
+  category: ActivityCategory;
+  href: string;
 }
 
 export interface TodayAssignment {
@@ -436,35 +459,103 @@ export function buildManagerOverview(input: OverviewInput): ManagerOverview {
 
   const weekAgo = now.getTime() - 7 * DAY_MS;
   const events: ActivityEvent[] = [];
-  const pushEvent = (key: string, iso: string | null, title: string, icon: ActivityIcon, tone: Tone): void => {
+  const pushEvent = (key: string, iso: string | null, headline: string, icon: ActivityIcon, tone: Tone, detail: EventDetail): void => {
     if (!iso) return;
     const at = new Date(iso);
     if (Number.isNaN(at.getTime()) || at.getTime() < weekAgo || at.getTime() > now.getTime()) return;
-    events.push({ key, at, title, time: activityTime(at, now), icon, tone });
+    const accent = detail.accent ?? null;
+    events.push({
+      key,
+      at,
+      title: accent ? `${headline} ${accent}` : headline,
+      time: activityTime(at, now),
+      icon,
+      tone,
+      headline,
+      accent,
+      desc: detail.desc,
+      person: detail.person,
+      role: detail.role,
+      category: detail.category,
+      href: detail.href
+    });
   };
+  const departmentOfEmployee = (person: Employee | undefined): string =>
+    person?.department_id ? departmentsById.get(person.department_id)?.name ?? 'Staff' : 'Staff';
+  const memberName = (userId: string | null): { person: string; role: string } | null => {
+    const member = userId ? membersByUser.get(userId) : undefined;
+    return member ? { person: `${member.user_first_name} ${member.user_last_name}`.trim(), role: member.role_name } : null;
+  };
+  const SYSTEM = { person: 'System', role: 'Automated' };
   for (const record of input.attendance) {
     if (record.deleted_at) continue;
     const person = employeesById.get(record.employee_id);
     const name = person ? fullName(person) : 'Someone';
+    const who = { person: name, role: departmentOfEmployee(person), category: 'Employee Actions' as const, href: '/attendance' };
     if (record.attendance_status === 'absent' || record.attendance_status === 'no_show') {
-      pushEvent(`att-${record.id}`, record.updated_at, `${name} marked absent`, 'users', 'bad');
+      pushEvent(`att-${record.id}`, record.updated_at, `${name} marked`, 'users', 'bad', { ...who, accent: 'absent', desc: 'No check-in recorded for this shift' });
     } else if (record.clock_in_at) {
       const late = record.attendance_status === 'late' || record.late_minutes > 0;
-      pushEvent(`att-${record.id}`, record.clock_in_at, late ? `${name} marked late` : `${name} checked in`, late ? 'users' : 'checkCircle', late ? 'bad' : 'ok');
+      const checkIn = `Check-in time: ${clock12(new Date(record.clock_in_at))}`;
+      pushEvent(
+        `att-${record.id}`,
+        record.clock_in_at,
+        late ? `${name} marked` : `${name} checked in`,
+        late ? 'users' : 'checkCircle',
+        late ? 'bad' : 'ok',
+        late ? { ...who, accent: 'late', desc: `${checkIn} (${record.late_minutes}m late)` } : { ...who, desc: checkIn }
+      );
     }
   }
   for (const task of input.tasks) {
-    if (task.completed_at) pushEvent(`task-${task.id}`, task.completed_at, 'Task completed', 'clipboard', 'info');
+    if (task.deleted_at) continue;
+    const assignee = task.assigned_supervisor_id ? employeesById.get(task.assigned_supervisor_id) : undefined;
+    const assigneeWho = assignee ? { person: fullName(assignee), role: departmentOfEmployee(assignee) } : null;
+    if (task.completed_at) {
+      pushEvent(`task-${task.id}`, task.completed_at, 'Task completed', 'clipboard', 'info', {
+        ...(memberName(task.completed_by) ?? assigneeWho ?? SYSTEM),
+        desc: `${task.title} completed`,
+        category: 'Task Updates',
+        href: '/tasks'
+      });
+    }
+    if (task.assigned_at && assignee) {
+      pushEvent(`task-assigned-${task.id}`, task.assigned_at, 'Task assigned', 'clipboard', 'info', {
+        ...(assigneeWho ?? SYSTEM),
+        desc: `${task.title} assigned to ${fullName(assignee)}`,
+        category: 'Task Updates',
+        href: '/tasks'
+      });
+    }
   }
   for (const announcement of liveAnnouncements) {
-    pushEvent(`ann-${announcement.id}`, announcement.published_at, 'Announcement posted', 'megaphone', 'primary');
+    pushEvent(`ann-${announcement.id}`, announcement.published_at, 'Announcement posted', 'megaphone', 'primary', {
+      ...(memberName(announcement.created_by) ?? SYSTEM),
+      desc: announcement.title,
+      category: 'System Events',
+      href: '/announcements'
+    });
   }
   for (const schedule of input.schedules) {
-    if (schedule.status === 'published') pushEvent(`sch-${schedule.id}`, schedule.updated_at, `${schedule.name} published`, 'calendar', 'violet');
+    if (schedule.status === 'published') {
+      pushEvent(`sch-${schedule.id}`, schedule.updated_at, `${schedule.name} published`, 'calendar', 'violet', {
+        ...SYSTEM,
+        desc: dateRange(schedule.start_date, schedule.end_date),
+        category: 'System Events',
+        href: '/schedules'
+      });
+    }
   }
   for (const leave of input.pendingLeave) {
     const person = employeesById.get(leave.employee_id);
-    pushEvent(`leave-${leave.id}`, leave.created_at, `${person ? fullName(person) : 'Someone'} requested leave`, 'user', 'warn');
+    const name = person ? fullName(person) : 'Someone';
+    pushEvent(`leave-${leave.id}`, leave.created_at, `${name} requested leave`, 'user', 'warn', {
+      person: name,
+      role: departmentOfEmployee(person),
+      desc: `${LEAVE_TYPE_LABEL[leave.leave_type]} · ${dateRange(leave.start_date, leave.end_date)}`,
+      category: 'Employee Actions',
+      href: '/requests'
+    });
   }
   events.sort((a, b) => b.at.getTime() - a.at.getTime());
 

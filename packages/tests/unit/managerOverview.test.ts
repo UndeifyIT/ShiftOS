@@ -158,6 +158,45 @@ describe('Manager overview model (design handoff HOME.Manager)', () => {
     ]);
   });
 
+  it('gives each activity event the Recent Activity row detail: accent, second line, person, bucket and link', () => {
+    const activity = buildManagerOverview(
+      input({
+        tasks: [
+          {
+            ...BASE,
+            id: 't1',
+            branch_id: 'br',
+            title: 'Check Cold Room Temperature',
+            description: null,
+            due_date: '2025-05-16',
+            due_time: null,
+            priority: 'normal',
+            task_status: 'completed',
+            assigned_supervisor_id: 'e4',
+            assigned_by: 'u1',
+            assigned_at: new Date(2025, 4, 16, 7, 0).toISOString(),
+            completed_at: new Date(2025, 4, 16, 8, 30).toISOString(),
+            completed_by: null,
+            completion_notes: null,
+            verified_at: null,
+            verified_by: null,
+            verification_notes: null,
+            verification_status: 'pending',
+            created_by: 'u1',
+            updated_by: null,
+            version: 1
+          }
+        ]
+      })
+    ).activity;
+    expect(activity.map((a) => [a.headline, a.accent, a.desc, a.person, a.role, a.category, a.href])).toEqual([
+      ['Task completed', null, 'Check Cold Room Temperature completed', 'Wale Test', 'Warehouse', 'Task Updates', '/tasks'],
+      ['John Test marked', 'late', 'Check-in time: 08:20 AM (20m late)', 'John Test', 'Sales Floor', 'Employee Actions', '/attendance'],
+      ['Sarah Test checked in', null, 'Check-in time: 07:55 AM', 'Sarah Test', 'Sales Floor', 'Employee Actions', '/attendance'],
+      ['Task assigned', null, 'Check Cold Room Temperature assigned to Wale Test', 'Wale Test', 'Warehouse', 'Task Updates', '/tasks']
+    ]);
+  });
+
   it('answers Ask ShiftOS questions from the same data, with the handoff fallback otherwise', () => {
     const overview = buildManagerOverview(input());
     const working = answerQuestion("Who's working today?", overview, NOW);

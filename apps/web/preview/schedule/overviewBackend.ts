@@ -6,7 +6,7 @@
  * waiting, 2 supervisor invitations, next week still a draft, and the
  * handoff's two announcements.
  */
-import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap } from '../../src/types/domain.js';
+import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap, Task } from '../../src/types/domain.js';
 
 const ORG = 'org-abc-supermarket';
 const BRANCH = 'br-main';
@@ -257,6 +257,32 @@ export function createOverviewBackend() {
       cancelled_at: null
     }) as LeaveRequest;
 
+  const task = (id: string, title: string, patch: Partial<Task>): Task =>
+    ({
+      ...stamp({ id }),
+      branch_id: BRANCH,
+      title,
+      description: null,
+      due_date: '2025-05-16',
+      due_time: null,
+      priority: 'normal',
+      task_status: 'assigned',
+      assigned_supervisor_id: 'p12',
+      assigned_by: 'user-me',
+      assigned_at: null,
+      completed_at: null,
+      completed_by: null,
+      completion_notes: null,
+      verified_at: null,
+      verified_by: null,
+      verification_notes: null,
+      verification_status: 'pending',
+      created_by: 'user-me',
+      updated_by: null,
+      version: 1,
+      ...patch
+    }) as Task;
+
   const swap = (id: string, assignmentId: string, from: string, to: string): ShiftSwap => ({
     id,
     organization_id: ORG,
@@ -432,7 +458,11 @@ export function createOverviewBackend() {
         created_by: 'user-p1'
       }
     ],
-    list_tasks: () => []
+    // Recent Activity: the handoff's two task events — one completed, one assigned, both Michael Brown's.
+    list_tasks: () => [
+      task('tsk-cold-room', 'Check Cold Room Temperature', { assigned_at: at(16, 6, 50), completed_at: at(16, 7, 46), completed_by: null, task_status: 'completed' }),
+      task('tsk-walkthrough', 'Morning Store Walkthrough', { assigned_at: at(16, 7, 20) })
+    ]
   };
 
   return async function callRpc<TOutput>(operation: string, _organizationId?: string, input?: unknown): Promise<TOutput> {
