@@ -12,6 +12,8 @@ export interface Announcement extends TenantEntity {
   announcement_type: AnnouncementType;
   visibility_type: AnnouncementVisibility;
   is_published: boolean;
+  /** Migration 066: shown first, with the handoff's "Pinned" badge. */
+  is_pinned: boolean;
   published_at: string | null;
   expires_at: string | null;
   created_by: string;

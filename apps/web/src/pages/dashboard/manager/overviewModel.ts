@@ -238,7 +238,7 @@ function localDay(at: Date): string {
 }
 
 /** Whole calendar days between an instant and today (0 = today). */
-function daysAgo(iso: string, now: Date): number {
+export function daysAgo(iso: string, now: Date): number {
   return Math.max(0, Math.round((parseDay(localDay(now)).getTime() - parseDay(localDay(new Date(iso))).getTime()) / DAY_MS));
 }
 
@@ -247,7 +247,7 @@ function agoText(days: number): string {
 }
 
 /** 'Today, 07:30 AM' / 'Yesterday, 05:40 PM' / '12 May' — announcement meta times. */
-function relativeStamp(iso: string, now: Date): string {
+export function relativeStamp(iso: string, now: Date): string {
   const at = new Date(iso);
   const days = daysAgo(iso, now);
   if (days === 0) return `Today, ${clock12(at)}`;
@@ -591,4 +591,4 @@ export function buildManagerOverview(input: OverviewInput): ManagerOverview {
   };
 }
 
-export { agoText, daysAgo, plural };
+export { agoText, plural };

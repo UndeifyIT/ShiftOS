@@ -326,12 +326,28 @@ export interface Announcement {
   announcement_type: AnnouncementType;
   visibility_type: AnnouncementVisibility;
   is_published: boolean;
+  /** Migration 066; absent on rows read before it ran. */
+  is_pinned?: boolean;
   published_at: string | null;
   expires_at: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+}
+
+/** One employee's acknowledgement of an announcement (`list_announcement_acknowledgements`). */
+export interface AnnouncementAcknowledgement {
+  id: string;
+  organization_id: string;
+  announcement_id: string;
+  employee_id: string;
+  acknowledged_at: string;
+}
+
+export interface AnnouncementReminderResult {
+  reminded: number;
+  undelivered: number;
 }
 
 export type LeaveType = 'annual_leave' | 'sick_leave' | 'emergency_leave' | 'unpaid_leave';

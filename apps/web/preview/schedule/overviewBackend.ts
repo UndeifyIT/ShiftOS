@@ -6,7 +6,7 @@
  * waiting, 2 supervisor invitations, next week still a draft, and the
  * handoff's two announcements.
  */
-import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap, Task } from '../../src/types/domain.js';
+import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap, Task, Announcement, AnnouncementAcknowledgement } from '../../src/types/domain.js';
 
 const ORG = 'org-abc-supermarket';
 const BRANCH = 'br-main';
@@ -49,7 +49,7 @@ const PEOPLE: Array<[string, string, string, string, boolean, number | null]> = 
 
 const emailOf = (first: string, last: string): string => `${first}.${last}@abc.example`.toLowerCase();
 
-export function createOverviewBackend() {
+export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
   // Employees page preview: handoff-style phone numbers, one person on leave and two inactive (EMP_STATS 17 active · 1 on leave).
   const STATUS_OF: Record<string, Employee['employment_status']> = { p10: 'on_leave', p14: 'inactive', p15: 'inactive' };
   const employees: Employee[] = PEOPLE.map(([id, first, last, departmentId], index) => ({
@@ -160,6 +160,75 @@ export function createOverviewBackend() {
     ...PEOPLE.filter(([, , , , supervisor]) => supervisor).map(([id, first, last]) =>
       stamp({ id: `mem-${id}`, user_id: `user-${id}`, role_id: 'role-supervisor', joined_at: CREATED, is_active: true, user_email: emailOf(first, last), user_first_name: first, user_last_name: last, role_name: 'Supervisor' })
     )
+  ];
+
+  // Announcements preview: staff have ShiftOS logins too — all but David Wilson, the handoff's "Not delivered" row.
+  if (options.staffLogins) {
+    for (const [id, first, last, , supervisor] of PEOPLE) {
+      if (supervisor || id === 'p20') continue;
+      members.push(
+        stamp({ id: `mem-${id}`, user_id: `user-${id}`, role_id: 'role-employee', joined_at: CREATED, is_active: true, user_email: emailOf(first, last), user_first_name: first, user_last_name: last, role_name: 'Employee' })
+      );
+    }
+  }
+
+  // Announcements: the handoff's three notices and who has acknowledged each (ANNOUNCEMENTS + RECIPIENTS).
+  const announcement = (id: string, title: string, content: string, published: string, author: string, branch: string | null, pinned = false): Announcement => ({
+    ...stamp({ id }),
+    created_at: published,
+    branch_id: branch,
+    title,
+    content,
+    announcement_type: branch ? 'operational' : 'policy',
+    visibility_type: branch ? 'branch' : 'organization',
+    is_published: true,
+    is_pinned: pinned,
+    published_at: published,
+    expires_at: null,
+    created_by: author
+  });
+  const announcements: Announcement[] = [
+    announcement(
+      'ann-stocktake',
+      'Stocktake weekend — we close at 6 PM Saturday',
+      "We close early on Saturday for the monthly stocktake. Supervisors should confirm their team's finish times by Friday afternoon.",
+      at(15, 17, 40),
+      'user-me',
+      BRANCH,
+      true
+    ),
+    announcement(
+      'ann-promotion',
+      'New promotion display goes live Friday',
+      "Ensure all displays are updated and shelves are stocked before 10 AM. Ask Sarah if you're unsure where stock goes.",
+      at(16, 7, 30),
+      'user-p1',
+      BRANCH
+    ),
+    announcement(
+      'ann-threshold',
+      'Late threshold moves to 10 minutes from 1 June',
+      'The grace period shortens from 15 to 10 minutes. Please brief your teams before the change takes effect.',
+      at(12, 9, 0),
+      'user-me',
+      null
+    )
+  ];
+  const ack = (announcementId: string, employeeId: string, when: string): AnnouncementAcknowledgement => ({
+    id: `ack-${announcementId}-${employeeId}`,
+    organization_id: ORG,
+    announcement_id: announcementId,
+    employee_id: employeeId,
+    acknowledged_at: when
+  });
+  const acknowledgements: AnnouncementAcknowledgement[] = [
+    ack('ann-stocktake', 'p1', at(15, 18, 42)),
+    ack('ann-stocktake', 'p7', at(15, 19, 10)),
+    ack('ann-stocktake', 'p16', at(16, 6, 55)),
+    ...['p2', 'p3', 'p4', 'p5', 'p6', 'p9', 'p11', 'p12', 'p13', 'p17', 'p18', 'p19'].map((id, index) => ack('ann-stocktake', id, at(16, 7, index + 1))),
+    ack('ann-promotion', 'p2', at(16, 7, 33)),
+    ack('ann-promotion', 'p12', at(16, 7, 35)),
+    ...PEOPLE.filter(([id]) => !['p10', 'p14', 'p15', 'p20'].includes(id)).map(([id], index) => ack('ann-threshold', id, at(12 + (index % 3), 9, index)))
   ];
 
   const shifts: Shift[] = [];
@@ -432,32 +501,32 @@ export function createOverviewBackend() {
       leave('lv-3', 'p2', '2025-06-09', '2025-06-09', 'annual_leave', 'Graduation ceremony', 15)
     ],
     list_pending_shift_swap_approvals: () => [swap('sw-1', 'asg-p8', 'p8', 'p11'), swap('sw-2', 'asg-p9', 'p9', 'p10')],
-    list_announcements: () => [
-      {
-        ...stamp({ id: 'ann-stocktake' }),
-        branch_id: BRANCH,
-        title: 'Stocktake weekend — we close at 6 PM Saturday',
-        content: "We close early on Saturday for the monthly stocktake. Supervisors should confirm their team's finish times by Friday afternoon.",
-        announcement_type: 'operational',
-        visibility_type: 'branch',
-        is_published: true,
-        published_at: at(15, 17, 40),
-        expires_at: null,
-        created_by: 'user-me'
-      },
-      {
-        ...stamp({ id: 'ann-promotion' }),
-        branch_id: BRANCH,
-        title: 'New promotion display goes live Friday',
-        content: "Ensure all displays are updated and shelves are stocked before 10 AM. Ask Sarah if you're unsure where stock goes.",
-        announcement_type: 'general',
-        visibility_type: 'branch',
-        is_published: true,
-        published_at: at(16, 7, 30),
-        expires_at: null,
-        created_by: 'user-p1'
-      }
-    ],
+    list_announcements: () => announcements,
+    list_announcement_acknowledgements: (input) => acknowledgements.filter((row) => row.announcement_id === input.announcementId),
+    has_acknowledged_announcement: (input) => ({ acknowledged: acknowledgements.some((row) => row.announcement_id === input.announcementId && row.employee_id === 'p1') }),
+    create_announcement: (input) => {
+      const created: Announcement = {
+        ...announcement(`ann-${announcements.length + 1}`, String(input.title), String(input.content), at(16, 7, 58), 'user-me', (input.branchId as string | null) ?? null, Boolean(input.isPinned)),
+        is_published: false,
+        published_at: null
+      };
+      announcements.unshift(created);
+      return created;
+    },
+    publish_announcement: (input) => {
+      const row = announcements.find((a) => a.id === input.announcementId);
+      if (!row) throw new Error('Announcement not found');
+      Object.assign(row, { is_published: true, published_at: at(16, 7, 58) });
+      return row;
+    },
+    remind_announcement: (input) => {
+      const row = announcements.find((a) => a.id === input.announcementId);
+      const acked = new Set(acknowledgements.filter((a) => a.announcement_id === input.announcementId).map((a) => a.employee_id));
+      const logins = new Set(members.map((m) => m.user_email));
+      const outstanding = employees.filter((e) => e.employment_status === 'active' && (!row?.branch_id || e.branch_id === row.branch_id) && !acked.has(e.id));
+      const reached = outstanding.filter((e) => e.email && logins.has(e.email)).length;
+      return { reminded: reached, undelivered: outstanding.length - reached };
+    },
     // Recent Activity: the handoff's two task events — one completed, one assigned, both Michael Brown's.
     list_tasks: () => [
       task('tsk-cold-room', 'Check Cold Room Temperature', { assigned_at: at(16, 6, 50), completed_at: at(16, 7, 46), completed_by: null, task_status: 'completed' }),

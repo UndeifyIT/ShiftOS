@@ -27,7 +27,8 @@ import {
 } from './operations/task.js';
 import {
   createAnnouncement, updateAnnouncement, publishAnnouncement, archiveAnnouncement,
-  getAnnouncement, listAnnouncements, acknowledgeAnnouncement, hasAcknowledgedAnnouncement
+  getAnnouncement, listAnnouncements, acknowledgeAnnouncement, hasAcknowledgedAnnouncement,
+  listAnnouncementAcknowledgements, remindAnnouncement
 } from './operations/announcement.js';
 import { createShiftNote, listShiftNotesForShift, archiveShiftNote } from './operations/shiftNote.js';
 import {
@@ -167,6 +168,8 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(listAnnouncements);
   registry.register(acknowledgeAnnouncement);
   registry.register(hasAcknowledgedAnnouncement);
+  registry.register(listAnnouncementAcknowledgements);
+  registry.register(remindAnnouncement);
 
   registry.register(createShiftNote);
   registry.register(listShiftNotesForShift);
