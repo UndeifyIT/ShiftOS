@@ -117,6 +117,32 @@ describe('attendance integration', () => {
     expect(absent.attendance_status).toBe('no_show');
   });
 
+  it('lets a supervisor mark someone present, correct it to absent, and change only the note', async () => {
+    const shift = await ctx.call<{ id: string }>('create_shift', {
+      scheduleId,
+      title: 'Attendance integration shift 2b',
+      shiftDate: '2027-02-05',
+      startTime: '09:00',
+      endTime: '17:00'
+    });
+    shiftIds.push(shift.id);
+    const assignment = await ctx.call<{ id: string }>('assign_employee', { shiftId: shift.id, employeeId: throwawayEmployeeId });
+
+    const marked = await ctx.call<{ id: string; attendance_status: string; clock_in_at: string | null }>('mark_attendance', { shiftAssignmentId: assignment.id, status: 'present' });
+    expect(['present', 'late']).toContain(marked.attendance_status);
+    expect(marked.clock_in_at).not.toBeNull();
+
+    const corrected = await ctx.call<{ attendance_status: string; clock_in_at: string | null }>('mark_attendance', { shiftAssignmentId: assignment.id, status: 'absent' });
+    expect(corrected.attendance_status).toBe('absent');
+    expect(corrected.clock_in_at).toBeNull();
+    const corrections = await ctx.call<unknown[]>('list_attendance_corrections', { attendanceRecordId: marked.id });
+    expect(corrections.length).toBeGreaterThan(0);
+
+    const noted = await ctx.call<{ notes: string | null; attendance_status: string }>('set_attendance_note', { attendanceRecordId: marked.id, notes: '  Called in sick  ' });
+    expect(noted.notes).toBe('Called in sick');
+    expect(noted.attendance_status).toBe('absent');
+  });
+
   it('records a correction and its own audit trail', async () => {
     const shift = await ctx.call<{ id: string }>('create_shift', {
       scheduleId,

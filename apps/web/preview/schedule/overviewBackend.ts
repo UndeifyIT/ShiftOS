@@ -761,6 +761,12 @@ export function createOverviewBackend(options: { staffLogins?: boolean; supervis
       if (input.status !== 'present' && input.status !== 'late') Object.assign(record, { attendance_status: input.status, clock_in_at: null, late_minutes: 0 });
       return record;
     },
+    set_attendance_note: (input) => {
+      const record = attendance.find((r) => r.id === input.attendanceRecordId);
+      if (!record) throw new Error('Attendance record not found');
+      record.notes = (input.notes as string | null) || null;
+      return record;
+    },
     // Supervisor: the handoff's five tasks for today's shift (HOME.Supervisor.secondary).
     list_tasks: () => sup ? [
       task('tsk-cold-room', 'Check cold room temperature', { priority: 'high', assigned_supervisor_id: 'p12', assigned_at: at(16, 6, 50), completed_at: at(16, 7, 15), task_status: 'completed', due_time: '08:00:00' }),

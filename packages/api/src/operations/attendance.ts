@@ -38,6 +38,11 @@ export const markAttendance = defineRpc('mark_attendance', async (context, rawIn
   });
 });
 
+export const setAttendanceNote = defineRpc('set_attendance_note', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new AttendanceService(context).setNote(requiredStringField(input, 'attendanceRecordId'), stringField(input, 'notes') ?? null);
+});
+
 export const getAttendanceRecord = defineRpc('get_attendance_record', async (context, rawInput: unknown) => {
   const input = asRecord(rawInput);
   return new AttendanceService(context).getRecord(requiredStringField(input, 'recordId'));
@@ -82,6 +87,6 @@ export const listAttendanceCorrections = defineRpc('list_attendance_corrections'
 });
 
 export const attendanceOperations = [
-  clockIn, clockOut, markAttendance, markAttendanceAbsent, getAttendanceRecord, listAttendanceForEmployee,
+  clockIn, clockOut, markAttendance, markAttendanceAbsent, setAttendanceNote, getAttendanceRecord, listAttendanceForEmployee,
   listMyAttendance, listAttendanceForBranchAndRange, recordAttendanceCorrection, listAttendanceCorrections
 ];

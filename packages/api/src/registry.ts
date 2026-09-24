@@ -53,7 +53,7 @@ import {
 } from './operations/shiftSwap.js';
 import { getAttendanceSummaryReport, getTaskCompletionReport, getLeaveUsageReport, getOperationsSummaryReport } from './operations/reporting.js';
 import {
-  clockIn, clockOut, markAttendanceAbsent, markAttendance, getAttendanceRecord, listAttendanceForEmployee,
+  clockIn, clockOut, markAttendanceAbsent, markAttendance, setAttendanceNote, getAttendanceRecord, listAttendanceForEmployee,
   listMyAttendance, listAttendanceForBranchAndRange, recordAttendanceCorrection, listAttendanceCorrections
 } from './operations/attendance.js';
 import {
@@ -183,6 +183,7 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(markAttendanceAbsent);
   // mark_attendance (PR 25) was defined but never registered, so the Attendance screen's marking failed.
   registry.register(markAttendance);
+  registry.register(setAttendanceNote);
   registry.register(getAttendanceRecord);
   registry.register(listAttendanceForEmployee);
   registry.register(listMyAttendance);

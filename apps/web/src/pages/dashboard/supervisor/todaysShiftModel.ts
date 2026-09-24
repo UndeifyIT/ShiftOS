@@ -50,6 +50,9 @@ export interface TodaysShift {
   tasksTotal: number;
   controls: ShiftControl[];
   shiftTitle: string;
+  /** Everyone on this shift, and whether it has started. */
+  members: TodayAssignment[];
+  started: boolean;
 }
 
 /** '08:00:00' → '08:00 AM' */
@@ -229,6 +232,8 @@ export function buildTodaysShift(overview: ManagerOverview, now: Date): TodaysSh
     tasksDone,
     tasksTotal: allTasks.length,
     controls,
-    shiftTitle: shift.title
+    shiftTitle: shift.title,
+    members: rows,
+    started
   };
 }

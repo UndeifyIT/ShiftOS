@@ -57,7 +57,7 @@ const SchedulesPage = lazy(() => import('./pages/scheduling/SchedulesPage.js'));
 const ProfilePage = lazy(() => import('./pages/account/ProfilePage.js'));
 const SecurityPage = lazy(() => import('./pages/account/SecurityPage.js'));
 const TasksPage = lazy(() => import('./pages/tasks/TasksPage.js'));
-const AttendancePage = lazy(() => import('./pages/attendance/AttendancePage.js'));
+const AttendancePage = lazy(() => import('./pages/attendance/ShiftAttendancePage.js'));
 
 function FullPageSpinner(): React.ReactElement {
   return (

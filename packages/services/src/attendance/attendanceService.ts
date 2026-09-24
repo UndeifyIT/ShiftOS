@@ -142,6 +142,19 @@ export class AttendanceService {
     return updated;
   }
 
+  /** The note on a record (handoff Attendance "Notes" column) — status and times stay as they are. */
+  async setNote(attendanceRecordId: string, notes: string | null): Promise<AttendanceRecord> {
+    assertUuid(attendanceRecordId, 'attendanceRecordId');
+    await this.context.requirePermission('attendance.update');
+    const record = await this.records.getByIdOrThrow(this.context.organizationId, attendanceRecordId);
+    this.context.requireBranchAccess(record.branch_id);
+    const trimmed = notes?.trim() || null;
+    if (trimmed && trimmed.length > 500) {
+      throw new ValidationError('Notes can be at most 500 characters');
+    }
+    return this.records.patch(this.context.organizationId, record.id, { notes: trimmed, updated_by: this.context.userId } as Partial<AttendanceRecord>);
+  }
+
   async getRecord(recordId: string): Promise<AttendanceRecord> {
     assertUuid(recordId, 'recordId');
     await this.context.requirePermission('attendance.read');
