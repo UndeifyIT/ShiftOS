@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
+import { useNavRole } from '../../layout/Sidebar.js';
 import { HandoffModal, ModalField, ModalFields, modalControl, modalTextarea, modalSelect } from '../../components/HandoffModal.js';
 import { downloadText, toCsv } from '../../lib/spreadsheet.js';
 import { useRpcMutation, useRpcQueries, useRpcQuery } from '../../lib/useRpc.js';
-import type { Announcement, AnnouncementAcknowledgement, AnnouncementReminderResult, Department, Employee, Member } from '../../types/domain.js';
+import type { Announcement, AnnouncementAcknowledgement, Branch, AnnouncementReminderResult, Department, Employee, Member } from '../../types/domain.js';
 import { OverviewEmpty, OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
 import { DialogNote, HeaderCta } from '../people/RolePeopleTable.js';
@@ -106,6 +107,8 @@ export default function AnnouncementsPage(): React.ReactElement {
 
   const branchId = useDefaultBranchId() ?? '';
   const scoped = branchId ? { branchId } : undefined;
+  const navRole = useNavRole();
+  const { data: branchList } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: hasPermission('branches.read') });
   const announcementsQuery = useRpcQuery<Announcement[]>('list_announcements', scoped);
   const { data: employees } = useRpcQuery<Employee[]>('list_employees', scoped, { enabled: canManage && Boolean(branchId) && hasPermission('employees.read') });
   const { data: departments } = useRpcQuery<Department[]>('list_departments', scoped, { enabled: canManage && Boolean(branchId) && hasPermission('departments.read') });
@@ -221,7 +224,7 @@ export default function AnnouncementsPage(): React.ReactElement {
 
   const myAwaiting = published.filter((a) => !mine.get(a.id)).length;
   const subtitle = canManage
-    ? announcementsSubtitle(cards)
+    ? announcementsSubtitle(cards, navRole === 'Supervisor' ? (branchList ?? []).find((b) => b.id === branchId)?.name ?? 'Your branch' : undefined)
     : !canAcknowledge
       ? countLine(cards.length)
       : myAwaiting

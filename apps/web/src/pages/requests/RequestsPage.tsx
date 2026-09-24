@@ -3,7 +3,8 @@ import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import { HandoffModal, ModalField, ModalFields, modalControl, modalTextarea, modalSelect } from '../../components/HandoffModal.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import type { Department, Employee, LeaveRequest, Member, Schedule, Shift, ShiftAssignment, ShiftSwap } from '../../types/domain.js';
+import { useNavRole } from '../../layout/Sidebar.js';
+import type { Branch, Department, Employee, LeaveRequest, Member, Schedule, Shift, ShiftAssignment, ShiftSwap } from '../../types/domain.js';
 import { OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
 import { LEAVE_TYPE_LABEL, weekdayDayMonth } from '../dashboard/manager/overviewModel.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
@@ -220,6 +221,10 @@ export default function RequestsPage(): React.ReactElement {
   const canRespond = hasPermission('swaps.respond');
   const canRequestSwap = hasPermission('swaps.request');
   const canCreateLeave = hasPermission('leave.create');
+  const navRole = useNavRole();
+  const { data: branchList } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: hasPermission('branches.read') });
+  const homeBranchId = useDefaultBranchId();
+  const branchLabel = (branchList ?? []).find((b) => b.id === homeBranchId)?.name ?? 'your branch';
 
   const branchId = useDefaultBranchId() ?? '';
   const scoped = branchId ? { branchId } : undefined;
@@ -469,8 +474,8 @@ export default function RequestsPage(): React.ReactElement {
   return (
     <div className="flex min-h-full flex-col text-[13px] text-[#38312B] [line-height:normal]">
       <OverviewHeader
-        title={isApprover ? 'Swap & leave requests' : 'My requests'}
-        subtitle={isApprover ? requestsSubtitle(swapViews, leaveViews) : `${swapViews.filter((v) => v.filter === 'Pending').length} swaps and ${leaveViews.filter((v) => v.filter === 'Pending').length} leave requests pending`}
+        title={isApprover ? (navRole === 'Supervisor' ? 'Requests' : 'Swap & leave requests') : 'My requests'}
+        subtitle={isApprover ? requestsSubtitle(swapViews, leaveViews, navRole === 'Supervisor' ? branchLabel : undefined) : `${swapViews.filter((v) => v.filter === 'Pending').length} swaps and ${leaveViews.filter((v) => v.filter === 'Pending').length} leave requests pending`}
         now={now}
         actions={
           canNewRequest ? (

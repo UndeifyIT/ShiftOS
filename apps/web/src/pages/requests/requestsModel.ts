@@ -242,13 +242,16 @@ export function applyFilter<T extends { filter: 'Pending' | 'Resolved' }>(rows: 
   return filter === 'All' ? rows : rows.filter((row) => row.filter === filter);
 }
 
-/** '2 swaps and 3 leave requests need a decision' */
-export function requestsSubtitle(swaps: SwapView[], leave: LeaveView[]): string {
+/**
+ * The Manager's '2 swaps and 3 leave requests need a decision', or with a
+ * branch name the Supervisor's '2 swaps and 3 leave requests for Main Branch'.
+ */
+export function requestsSubtitle(swaps: SwapView[], leave: LeaveView[], branchName?: string): string {
   const s = swaps.filter((v) => v.filter === 'Pending').length;
   const l = leave.filter((v) => v.filter === 'Pending').length;
-  if (!s && !l) return 'Nothing needs a decision right now';
+  if (!s && !l) return branchName ? `No open requests for ${branchName}` : 'Nothing needs a decision right now';
   const parts = [s ? `${s} ${s === 1 ? 'swap' : 'swaps'}` : null, l ? `${l} leave ${l === 1 ? 'request' : 'requests'}` : null].filter(Boolean);
-  return `${parts.join(' and ')} ${s + l === 1 ? 'needs' : 'need'} a decision`;
+  return branchName ? `${parts.join(' and ')} for ${branchName}` : `${parts.join(' and ')} ${s + l === 1 ? 'needs' : 'need'} a decision`;
 }
 
 export const countLabel = (n: number, tab: RequestTab): string =>

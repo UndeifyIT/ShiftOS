@@ -538,7 +538,8 @@ export function buildManagerOverview(input: OverviewInput): ManagerOverview {
   }
   for (const announcement of liveAnnouncements) {
     pushEvent(`ann-${announcement.id}`, announcement.published_at, 'Announcement posted', 'megaphone', 'primary', {
-      ...(memberName(announcement.created_by) ?? SYSTEM),
+      ...(memberName(announcement.created_by) ??
+        (announcement.author_name ? { person: announcement.author_name, role: announcement.author_role ?? 'Author' } : SYSTEM)),
       desc: announcement.title,
       category: 'System Events',
       href: '/announcements'

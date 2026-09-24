@@ -171,11 +171,12 @@ export function summarizeReceipts(receipts: Receipt[]): ReceiptSummary {
   };
 }
 
-/** '3 posted · 2 awaiting acknowledgement' */
-export function announcementsSubtitle(cards: AnnouncementCard[]): string {
+/** The Manager's '3 posted · 2 awaiting acknowledgement'; with a branch name, the Supervisor's 'Main Branch · 1 awaiting acknowledgement'. */
+export function announcementsSubtitle(cards: AnnouncementCard[], branchName?: string): string {
   const posted = cards.filter((c) => !c.draft).length;
   const drafts = cards.length - posted;
   const awaiting = cards.filter(isAwaiting).length;
+  if (branchName) return `${branchName} · ${awaiting} awaiting acknowledgement`;
   return [`${posted} posted`, drafts ? `${drafts} draft${drafts === 1 ? '' : 's'}` : null, `${awaiting} awaiting acknowledgement`].filter(Boolean).join(' · ');
 }
 
