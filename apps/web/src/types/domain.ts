@@ -401,6 +401,12 @@ export interface ShiftSwap {
   decision_notes: string | null;
   created_at: string;
   updated_at: string;
+  /** Joined in by every swap listing: the shift changing hands ('YYYY-MM-DD', 'HH:MM:SS'). */
+  shift_date?: string | null;
+  shift_start_time?: string | null;
+  shift_end_time?: string | null;
+  shift_title?: string | null;
+  shift_department_id?: string | null;
 }
 
 export type NotificationPriority = 'low' | 'normal' | 'high' | 'critical';

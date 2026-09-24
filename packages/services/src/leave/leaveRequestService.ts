@@ -173,6 +173,13 @@ export class LeaveRequestService {
     return this.leaveRequests.findPending(this.context.organizationId, branchIds, options);
   }
 
+  /** Every leave request in a branch, decided ones included — same permission as the pending queue. */
+  async listForBranch(requestedBranchId?: string, options?: { limit?: number; offset?: number }): Promise<LeaveRequest[]> {
+    await this.context.requirePermission('leave.approve');
+    const branchIds = this.context.resolveBranchScope(requestedBranchId);
+    return this.leaveRequests.findForBranches(this.context.organizationId, branchIds, options);
+  }
+
   private async getScoped(leaveRequestId: string): Promise<LeaveRequest> {
     const record = await this.leaveRequests.getByIdOrThrow(this.context.organizationId, leaveRequestId);
     this.context.requireBranchAccess(record.branch_id);

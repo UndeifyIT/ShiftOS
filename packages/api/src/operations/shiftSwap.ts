@@ -49,6 +49,11 @@ export const listPendingShiftSwapApprovals = defineRpc('list_pending_shift_swap_
   return new ShiftSwapService(context).listPendingApprovals(stringField(input, 'branchId'));
 });
 
+export const listBranchShiftSwaps = defineRpc('list_branch_shift_swaps', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput ?? {});
+  return new ShiftSwapService(context).listBranchSwaps(stringField(input, 'branchId'));
+});
+
 export const shiftSwapOperations = [
   requestShiftSwap,
   respondToShiftSwap,
@@ -58,5 +63,6 @@ export const shiftSwapOperations = [
   getShiftSwap,
   listMyShiftSwaps,
   listOpenShiftSwaps,
+  listBranchShiftSwaps,
   listPendingShiftSwapApprovals
 ];

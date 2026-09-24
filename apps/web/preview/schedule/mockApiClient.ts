@@ -6,10 +6,10 @@ const params = new URLSearchParams(window.location.search);
 
 export const previewRole: PreviewRole = params.get('as') === 'supervisor' ? 'supervisor' : 'manager';
 
-// `?path=/` (Manager overview), `?path=/employees…`, `?path=/supervisors`, `?path=/admins`, `?path=/recent-activity` and `?path=/announcements` run against the handoff's own morning; everything else is the schedule week.
+// `?path=/` (Manager overview), `?path=/employees…`, `?path=/supervisors`, `?path=/admins`, `?path=/recent-activity`, `?path=/announcements` and `?path=/requests` run against the handoff's own morning; everything else is the schedule week.
 const path = params.get('path') ?? '';
 export const callRpc =
-  path === '/' || path.startsWith('/employees') || path.startsWith('/supervisors') || path.startsWith('/admins') || path.startsWith('/recent-activity') || path.startsWith('/announcements')
+  path === '/' || path.startsWith('/employees') || path.startsWith('/supervisors') || path.startsWith('/admins') || path.startsWith('/recent-activity') || path.startsWith('/announcements') || path.startsWith('/requests')
     ? createOverviewBackend({ staffLogins: path.startsWith('/announcements') })
     : createMockBackend({
         role: previewRole,

@@ -189,6 +189,12 @@ describe('shift swaps integration', () => {
     const approved = await ctx.call<{ status: string }>('approve_shift_swap', { swapId, decisionNotes: 'Approved by integration test' });
     expect(approved.status).toBe('approved');
 
+    // The approver's full view keeps decided swaps, with the shift they moved.
+    const branchSwaps = await ctx.call<Array<{ id: string; status: string; shift_date: string | null }>>('list_branch_shift_swaps', { branchId: TEST_FIXTURES.branchId });
+    const listed = branchSwaps.find((s) => s.id === swapId);
+    expect(listed?.status).toBe('approved');
+    expect(listed?.shift_date).not.toBeNull();
+
     const reassigned = await ctx.client.query<{ employee_id: string }>(
       'SELECT employee_id FROM shift_assignments WHERE organization_id = $1 AND id = $2',
       [TEST_FIXTURES.organizationId, assignment.id]

@@ -15,6 +15,8 @@ export function HandoffModal({
   primaryDisabled,
   onPrimary,
   onClose,
+  tone,
+  secondary,
   children
 }: {
   open: boolean;
@@ -24,6 +26,10 @@ export function HandoffModal({
   primaryDisabled?: boolean;
   onPrimary: () => void;
   onClose: () => void;
+  /** Handoff `tone: "danger"` — a red primary (decline, remove). */
+  tone?: 'danger';
+  /** Handoff `secondary` — the red-outlined button between Cancel and the primary (e.g. Review leave → Decline). */
+  secondary?: { label: string; onClick: () => void; disabled?: boolean };
   children: React.ReactNode;
 }): React.ReactElement | null {
   const sheet = useRef<HTMLDivElement>(null);
@@ -69,11 +75,24 @@ export function HandoffModal({
           <button type="button" onClick={onClose} className="h-11 cursor-pointer rounded-[12px] border border-solid border-[#EBE7E3] bg-white px-[17px] text-[13.5px] font-bold text-[#38312B]">
             Cancel
           </button>
+          {secondary ? (
+            <button
+              type="button"
+              onClick={secondary.onClick}
+              disabled={secondary.disabled}
+              className="h-11 cursor-pointer rounded-[12px] border border-solid border-[#F3C6BD] bg-white px-[17px] text-[13.5px] font-bold text-[#C93A22] disabled:opacity-70"
+            >
+              {secondary.label}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onPrimary}
             disabled={primaryDisabled}
-            className="h-11 cursor-pointer rounded-[12px] border-0 bg-[#F04E17] px-5 text-[13.5px] font-bold text-white shadow-[0_12px_26px_-14px_rgba(240,78,23,.75)] disabled:opacity-70"
+            className={[
+              'h-11 cursor-pointer rounded-[12px] border-0 px-5 text-[13.5px] font-bold text-white disabled:opacity-70',
+              tone === 'danger' ? 'bg-[#C93A22]' : 'bg-[#F04E17] shadow-[0_12px_26px_-14px_rgba(240,78,23,.75)]'
+            ].join(' ')}
           >
             {primary}
           </button>

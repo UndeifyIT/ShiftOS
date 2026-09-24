@@ -370,6 +370,64 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
     updated_at: at(14, 12, 0)
   });
 
+  const withShift = (row: ShiftSwap, date: string, start: string, end: string, title: string, departmentId: string, patch: Partial<ShiftSwap> = {}): ShiftSwap => ({
+    ...row,
+    shift_date: date,
+    shift_start_time: `${start}:00`,
+    shift_end_time: `${end}:00`,
+    shift_title: title,
+    shift_department_id: departmentId,
+    ...patch
+  });
+  const branchSwaps: ShiftSwap[] = [
+    withShift(swap('sw-0148', 'asg-p2', 'p2', 'p12'), '2025-05-19', '14:00', '22:00', 'Evening Shift', 'dep-sales', {
+      notes: "Family commitment on Monday evening. Michael has agreed to take the shift and I'll cover his Wednesday morning.",
+      created_at: at(14, 7, 58),
+      responded_at: at(14, 18, 0)
+    }),
+    withShift(swap('sw-0151', 'asg-p16', 'p16', 'p8'), '2025-05-24', '08:00', '16:00', 'Morning Shift', 'dep-frontend', {
+      status: 'pending',
+      notes: 'Swapping so I can attend a wedding on Saturday morning.',
+      responded_by_employee_id: null,
+      responded_at: null,
+      created_at: at(16, 3, 58)
+    }),
+    withShift(swap('sw-0139', 'asg-p12', 'p12', 'p20'), '2025-05-16', '22:00', '06:00', 'Night Shift', 'dep-warehouse', {
+      status: 'approved',
+      notes: 'Medical appointment early Saturday morning.',
+      decision_by: 'user-p1',
+      decision_at: at(12, 11, 0),
+      created_at: at(10, 9, 0)
+    }),
+    withShift(swap('sw-0132', 'asg-p8', 'p8', 'p17'), '2025-05-10', '08:00', '16:00', 'Morning Shift', 'dep-frontend', {
+      status: 'rejected',
+      notes: 'Wanted to switch departments for one shift.',
+      decision_by: 'user-me',
+      decision_at: at(9, 15, 0),
+      decision_notes: 'Bakery cover cannot move to Front End',
+      created_at: at(8, 9, 0)
+    })
+  ];
+  const branchLeave: LeaveRequest[] = [
+    leave('lv-1', 'p8', '2025-06-02', '2025-06-04', 'annual_leave', 'Family travel', 13),
+    leave('lv-2', 'p16', '2025-05-28', '2025-05-28', 'unpaid_leave', 'Personal appointment', 14),
+    leave('lv-3', 'p2', '2025-06-09', '2025-06-09', 'annual_leave', 'Graduation ceremony', 15),
+    { ...leave('lv-4', 'p17', '2025-05-14', '2025-05-21', 'sick_leave', 'Medical certificate attached', 12), status: 'approved', approved_by: 'user-me', approved_at: at(12, 10, 0) },
+    { ...leave('lv-5', 'p20', '2025-05-19', '2025-05-20', 'annual_leave', 'Short break', 11), status: 'rejected', rejected_by: 'user-me', rejected_at: at(12, 10, 0), manager_notes: 'Facilities is short that week' }
+  ];
+  const decideLeave = (id: string, status: 'approved' | 'rejected', notes: string | null): LeaveRequest => {
+    const row = branchLeave.find((l) => l.id === id);
+    if (!row) throw new Error('Leave request not found');
+    Object.assign(row, { status, manager_notes: notes });
+    return row;
+  };
+  const decideSwap = (id: string, status: 'approved' | 'rejected', notes: string | null): ShiftSwap => {
+    const row = branchSwaps.find((s) => s.id === id);
+    if (!row) throw new Error('Swap not found');
+    Object.assign(row, { status, decision_by: 'user-me', decision_at: at(16, 7, 58), decision_notes: notes });
+    return row;
+  };
+
   const invitation = (id: string, email: string): Invitation => ({
     id,
     organization_id: ORG,
@@ -501,6 +559,18 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
       leave('lv-3', 'p2', '2025-06-09', '2025-06-09', 'annual_leave', 'Graduation ceremony', 15)
     ],
     list_pending_shift_swap_approvals: () => [swap('sw-1', 'asg-p8', 'p8', 'p11'), swap('sw-2', 'asg-p9', 'p9', 'p10')],
+    // Requests: the handoff's SWAPS and LEAVE — two swaps and three leave requests waiting, and some already decided.
+    list_branch_shift_swaps: () => branchSwaps,
+    list_branch_leave: () => branchLeave,
+    approve_shift_swap: (input) => decideSwap(String(input.swapId), 'approved', null),
+    reject_shift_swap: (input) => decideSwap(String(input.swapId), 'rejected', (input.decisionNotes as string) ?? null),
+    approve_leave_request: (input) => decideLeave(String(input.leaveRequestId), 'approved', null),
+    reject_leave_request: (input) => decideLeave(String(input.leaveRequestId), 'rejected', String(input.reason ?? '')),
+    create_leave_request: (input) => {
+      const created = leave(`lv-${branchLeave.length + 1}`, String(input.employeeId), String(input.startDate), String(input.endDate), input.leaveType as LeaveRequest['leave_type'], String(input.reason), 16);
+      branchLeave.unshift(created);
+      return created;
+    },
     list_announcements: () => announcements,
     list_announcement_acknowledgements: (input) => acknowledgements.filter((row) => row.announcement_id === input.announcementId),
     has_acknowledged_announcement: (input) => ({ acknowledged: acknowledgements.some((row) => row.announcement_id === input.announcementId && row.employee_id === 'p1') }),

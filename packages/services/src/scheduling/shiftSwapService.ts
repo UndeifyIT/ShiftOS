@@ -5,7 +5,8 @@ import {
   EmployeeRepository,
   UserRepository,
   AttendanceRecordRepository,
-  type ShiftSwapRequest
+  type ShiftSwapRequest,
+  type ShiftSwapWithShift
 } from '@shiftos/repositories';
 import { ValidationError, AuthorizationError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
@@ -230,6 +231,17 @@ export class ShiftSwapService {
     const branchIds = this.context.resolveBranchScope(requestedBranchId);
     const all = await this.swaps.listByBranches(this.context.organizationId, branchIds, { filters: { status: 'accepted' } });
     return all;
+  }
+
+  /**
+   * Every swap in a branch, whatever its status, with the shift each one
+   * moves — the approver's full Requests view (Pending / Resolved / All).
+   * Same permission as the pending queue.
+   */
+  async listBranchSwaps(requestedBranchId?: string): Promise<ShiftSwapWithShift[]> {
+    await this.context.requirePermission('swaps.approve');
+    const branchIds = this.context.resolveBranchScope(requestedBranchId);
+    return this.swaps.listForBranchesWithShift(this.context.organizationId, branchIds);
   }
 
   private async notifyRequester(swap: ShiftSwapRequest, outcome: 'accepted' | 'declined' | 'approved' | 'rejected'): Promise<void> {

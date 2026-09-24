@@ -48,7 +48,8 @@ import {
   getShiftSwap,
   listMyShiftSwaps,
   listOpenShiftSwaps,
-  listPendingShiftSwapApprovals
+  listPendingShiftSwapApprovals,
+  listBranchShiftSwaps
 } from './operations/shiftSwap.js';
 import { getAttendanceSummaryReport, getTaskCompletionReport, getLeaveUsageReport } from './operations/reporting.js';
 import {
@@ -57,7 +58,7 @@ import {
 } from './operations/attendance.js';
 import {
   createLeaveRequest, approveLeaveRequest, rejectLeaveRequest, cancelLeaveRequest,
-  getLeaveRequest, listLeaveForEmployee, listMyLeave, listPendingLeave
+  getLeaveRequest, listLeaveForEmployee, listMyLeave, listPendingLeave, listBranchLeave
 } from './operations/leave.js';
 import {
   listMyNotifications,
@@ -193,6 +194,7 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(listLeaveForEmployee);
   registry.register(listMyLeave);
   registry.register(listPendingLeave);
+  registry.register(listBranchLeave);
 
   registry.register(listMyNotifications);
   registry.register(markNotificationRead);
@@ -217,6 +219,7 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(listMyShiftSwaps);
   registry.register(listOpenShiftSwaps);
   registry.register(listPendingShiftSwapApprovals);
+  registry.register(listBranchShiftSwaps);
 
   registry.register(getAttendanceSummaryReport);
   registry.register(getTaskCompletionReport);
