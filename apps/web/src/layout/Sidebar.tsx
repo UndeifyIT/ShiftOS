@@ -10,6 +10,7 @@ import {
   Clock,
   LayoutDashboard,
   Megaphone,
+  NotebookPen,
   Settings,
   UserRound,
   Users
@@ -18,7 +19,8 @@ import { useSession } from '../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../auth/useDefaultBranchId.js';
 import logoShiftOS from '../assets/logo-shiftos.png';
 import { useRpcQuery } from '../lib/useRpc.js';
-import type { Branch, Invitation, LeaveRequest, ShiftSwap } from '../types/domain.js';
+import { currentTime } from '../lib/clock.js';
+import type { AttendanceRecord, Branch, Invitation, LeaveRequest, ShiftSwap } from '../types/domain.js';
 
 interface NavItem {
   to: string;
@@ -47,11 +49,38 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/settings', label: 'Settings', icon: Settings }
 ];
 
+// The handoff's Supervisor nav (NAVS.Supervisor, in its order): the shift they run, their team, and the tools they use on it.
+export const SUPERVISOR_NAV_ITEMS: NavItem[] = [
+  { to: '/', label: "Today's Shift", icon: LayoutDashboard },
+  { to: '/schedules', label: 'Schedules', icon: CalendarDays, requiresPermission: 'schedules.read' },
+  { to: '/team', label: 'Team', icon: Users, requiresPermission: 'employees.read' },
+  { to: '/attendance', label: 'Attendance', icon: Clock, requiresPermission: 'attendance.read' },
+  { to: '/tasks', label: 'Tasks', icon: CheckCircle2, requiresPermission: 'tasks.read' },
+  { to: '/recent-activity', label: 'Recent Activity', icon: Activity, requiresPermission: 'attendance.read' },
+  { to: '/requests', label: 'Requests', icon: ArrowLeftRight, requiresPermission: 'swaps.read' },
+  { to: '/shift-notes', label: 'Shift Notes', icon: NotebookPen, requiresPermission: 'shiftnotes.read' },
+  { to: '/announcements', label: 'Announcements', icon: Megaphone, requiresPermission: 'announcements.read' },
+  { to: '/settings', label: 'Settings', icon: Settings }
+];
+
+export type NavRole = 'Manager' | 'Supervisor' | 'Admin' | 'Staff';
+
+/** The sidebar's role label (handoff roleLabel): org-wide is the Manager; a branch role that runs the schedule is a Supervisor. */
+export function useNavRole(): NavRole {
+  const { myContext } = useSession();
+  if (myContext?.branchAccess.isOrgWide) return 'Manager';
+  const permissions = myContext?.permissions ?? [];
+  if (['employees.create', 'employees.update', 'schedules.create', 'branches.update'].some((code) => permissions.includes(code))) return 'Supervisor';
+  if (permissions.includes('org.members.manage')) return 'Admin';
+  return 'Staff';
+}
+
 /** Resolves the permission-filtered nav — shared by the desktop sidebar and the mobile tab bar/More sheet (design's mobileTabs + moreItems). */
 export function useNavItems(): NavItem[] {
   const { myContext, hasPermission } = useSession();
+  const role = useNavRole();
   const isOrgWide = myContext?.branchAccess.isOrgWide ?? false;
-  return NAV_ITEMS.filter((item) => {
+  return (role === 'Supervisor' ? SUPERVISOR_NAV_ITEMS : NAV_ITEMS).filter((item) => {
     if (item.orgWideOnly && !isOrgWide) return false;
     if (item.requiresPermission && !hasPermission(item.requiresPermission)) return false;
     return true;
@@ -77,7 +106,18 @@ function useNavBadges(): Record<string, number> {
   const { data: leave } = useRpcQuery<LeaveRequest[]>('list_pending_leave', undefined, { enabled: hasPermission('leave.approve') });
   const { data: invitations } = useRpcQuery<Invitation[]>('list_invitations', undefined, { enabled: hasPermission('org.members.manage') });
   const outstanding = (invitations ?? []).filter((i) => i.status === 'pending' && new Date(i.expires_at).getTime() > Date.now());
+  // Supervisor: today's absences on the home branch (handoff BADGES.Supervisor.Attendance).
+  const role = useNavRole();
+  const branchId = useDefaultBranchId();
+  const now = currentTime();
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const { data: today } = useRpcQuery<AttendanceRecord[]>(
+    'list_attendance_for_branch_and_range',
+    branchId ? { branchId, startIso: dayStart.toISOString(), endIso: new Date(dayStart.getTime() + 86_400_000).toISOString() } : undefined,
+    { enabled: role === 'Supervisor' && Boolean(branchId) && hasPermission('attendance.read') }
+  );
   return {
+    '/attendance': (today ?? []).filter((r) => !r.deleted_at && (r.attendance_status === 'absent' || r.attendance_status === 'no_show')).length,
     '/requests': (swaps?.length ?? 0) + (leave ?? []).filter((l) => l.status === 'pending').length,
     '/supervisors': outstanding.filter((i) => /supervisor/i.test(i.role_name)).length
   };
@@ -94,14 +134,9 @@ function useNavBadges(): Record<string, number> {
  * browser's 13.33px button text, a content-box presence dot).
  */
 export function Sidebar(): React.ReactElement {
-  const { profile, myContext, signOut, hasPermission } = useSession();
+  const { profile, signOut, hasPermission } = useSession();
   const navigate = useNavigate();
-  const isOrgWide = myContext?.branchAccess.isOrgWide ?? false;
-  const hasSupervisorSignal = ['employees.create', 'employees.update', 'schedules.create', 'branches.update'].some((permission) =>
-    myContext?.permissions.includes(permission)
-  );
-  const hasAdminSignal = myContext?.permissions.includes('org.members.manage') ?? false;
-  const roleLabel = isOrgWide ? 'Manager' : hasSupervisorSignal ? 'Supervisor' : hasAdminSignal ? 'Admin' : 'Staff';
+  const roleLabel = useNavRole();
 
   const fullName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : 'Your account';
   const initials =

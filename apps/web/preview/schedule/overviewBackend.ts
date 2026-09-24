@@ -49,7 +49,9 @@ const PEOPLE: Array<[string, string, string, string, boolean, number | null]> = 
 
 const emailOf = (first: string, last: string): string => `${first}.${last}@abc.example`.toLowerCase();
 
-export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
+export function createOverviewBackend(options: { staffLogins?: boolean; supervisor?: boolean } = {}) {
+  // Supervisor preview (`?as=supervisor`): Sarah Johnson's Morning Shift — everyone active, 17 in, Mary and David late, James absent.
+  const sup = Boolean(options.supervisor);
   // Employees page preview: handoff-style phone numbers, one person on leave and two inactive (EMP_STATS 17 active · 1 on leave).
   const STATUS_OF: Record<string, Employee['employment_status']> = { p10: 'on_leave', p14: 'inactive', p15: 'inactive' };
   const employees: Employee[] = PEOPLE.map(([id, first, last, departmentId], index) => ({
@@ -63,7 +65,7 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
       phone: `+234 80${(index % 9) + 1} ${String(234 + index * 111).slice(-3)} ${String(5678 + index * 1111).slice(-4)}`,
       date_of_birth: null,
       hire_date: '2024-01-15',
-      employment_status: STATUS_OF[id] ?? ('active' as const),
+      employment_status: (sup ? undefined : STATUS_OF[id]) ?? ('active' as const),
       notes: null,
       avatar_url: null,
       department_id: departmentId,
@@ -185,7 +187,9 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
     is_pinned: pinned,
     published_at: published,
     expires_at: null,
-    created_by: author
+    created_by: author,
+    author_name: author === 'user-me' ? 'Daniel Okonkwo' : 'Sarah Johnson',
+    author_role: author === 'user-me' ? 'Manager' : 'Supervisor'
   });
   const announcements: Announcement[] = [
     announcement(
@@ -240,7 +244,7 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
       branch_id: BRANCH,
       template_id: null,
       department_id: departmentId,
-      title: 'Shift',
+      title: sup ? 'Morning Shift' : 'Shift',
       description: null,
       shift_date: date,
       start_time: `${start}:00`,
@@ -255,7 +259,9 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
     return shift;
   };
 
-  for (const [id, , , departmentId, , clockedIn] of PEOPLE) {
+  const SUP_CLOCK: Record<string, number | null> = { p8: 45, p20: 42, p17: null };
+  for (const [id, , , departmentId, , managerClock] of PEOPLE) {
+    const clockedIn = sup ? (id in SUP_CLOCK ? SUP_CLOCK[id] : Math.min(managerClock ?? 25, 29)) : managerClock;
     const shift = addShift(`shf-${id}`, '2025-05-16', departmentId, '07:30', '17:00');
     const assignment: ShiftAssignment = stamp({
       id: `asg-${id}`,
@@ -271,8 +277,8 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
     });
     assignments.push(assignment);
     if (clockedIn !== null) {
-      // Shifts start 07:30; only Mary is past the 10-minute grace.
-      const late = id === 'p8' ? clockedIn - 30 : 0;
+      // Shifts start 07:30; only Mary (and, for the Supervisor, David) clocked in after it.
+      const late = id === 'p8' || (sup && id === 'p20') ? clockedIn - 30 : 0;
       attendance.push({
         ...stamp({ id: `att-${id}` }),
         created_at: at(16, 7, clockedIn),
@@ -295,6 +301,57 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
       });
     }
   }
+  if (sup) {
+    attendance.push({
+      ...stamp({ id: 'att-p17' }),
+      created_at: at(16, 7, 50),
+      updated_at: at(16, 7, 50),
+      branch_id: BRANCH,
+      shift_assignment_id: 'asg-p17',
+      employee_id: 'p17',
+      attendance_status: 'absent',
+      clock_in_at: null,
+      clock_out_at: null,
+      break_minutes: 0,
+      worked_minutes: 0,
+      overtime_minutes: 0,
+      late_minutes: 0,
+      early_departure_minutes: 0,
+      notes: 'Not shown up',
+      recorded_by: 'user-me',
+      updated_by: null,
+      version: 1
+    });
+  }
+  const markPresent = (input: Record<string, unknown>): AttendanceRecord => {
+    const assignment = assignments.find((a) => a.id === input.shiftAssignmentId);
+    if (!assignment) throw new Error('Assignment not found');
+    if (attendance.some((r) => r.shift_assignment_id === assignment.id)) throw new Error('Attendance already recorded');
+    const clockIn = (input.clockInAt as string) ?? at(16, 7, 58);
+    const late = Math.max(0, Math.round((new Date(clockIn).getTime() - new Date(at(16, 7, 30)).getTime()) / 60_000));
+    const record: AttendanceRecord = {
+      ...stamp({ id: `att-${assignment.employee_id}` }),
+      created_at: clockIn,
+      updated_at: clockIn,
+      branch_id: BRANCH,
+      shift_assignment_id: assignment.id,
+      employee_id: assignment.employee_id,
+      attendance_status: late > 0 ? 'late' : 'present',
+      clock_in_at: clockIn,
+      clock_out_at: null,
+      break_minutes: 0,
+      worked_minutes: 0,
+      overtime_minutes: 0,
+      late_minutes: late,
+      early_departure_minutes: 0,
+      notes: (input.notes as string) ?? null,
+      recorded_by: 'user-me',
+      updated_by: 'user-me',
+      version: 1
+    };
+    attendance.push(record);
+    return record;
+  };
   // Three published slots nobody is on yet — the week's coverage gaps.
   addShift('gap-1', '2025-05-17', 'dep-frontend', '07:30', '17:00');
   addShift('gap-2', '2025-05-17', 'dep-warehouse', '14:30', '22:30');
@@ -663,7 +720,26 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
       return { reminded: reached, undelivered: outstanding.length - reached };
     },
     // Recent Activity: the handoff's two task events — one completed, one assigned, both Michael Brown's.
-    list_tasks: () => [
+    mark_attendance: (input) => {
+      const existing = attendance.find((r) => r.shift_assignment_id === input.shiftAssignmentId);
+      if (existing) {
+        const clockIn = input.status === 'present' || input.status === 'late' ? ((input.at as string) ?? existing.clock_in_at ?? at(16, 7, 58)) : null;
+        const late = clockIn ? Math.max(0, Math.round((new Date(clockIn).getTime() - new Date(at(16, 7, 30)).getTime()) / 60_000)) : 0;
+        const status = input.status === 'present' || input.status === 'late' ? (late > 0 ? 'late' : 'present') : input.status;
+        return Object.assign(existing, { attendance_status: status, clock_in_at: clockIn, late_minutes: late, notes: 'notes' in input ? (input.notes as string) || null : existing.notes });
+      }
+      const record = markPresent({ shiftAssignmentId: input.shiftAssignmentId, clockInAt: input.at, notes: input.notes });
+      if (input.status !== 'present' && input.status !== 'late') Object.assign(record, { attendance_status: input.status, clock_in_at: null, late_minutes: 0 });
+      return record;
+    },
+    // Supervisor: the handoff's five tasks for today's shift (HOME.Supervisor.secondary).
+    list_tasks: () => sup ? [
+      task('tsk-cold-room', 'Check cold room temperature', { priority: 'high', assigned_supervisor_id: 'p12', assigned_at: at(16, 6, 50), completed_at: at(16, 7, 15), task_status: 'completed', due_time: '08:00:00' }),
+      task('tsk-walkthrough', 'Morning store walkthrough', { priority: 'normal', assigned_supervisor_id: 'p1', assigned_at: at(16, 6, 50), completed_at: at(16, 7, 25), task_status: 'completed', due_time: '09:00:00' }),
+      task('tsk-beverages', 'Restock beverages', { priority: 'normal', assigned_supervisor_id: 'p16', assigned_at: at(16, 7, 0), due_time: '10:00:00' }),
+      task('tsk-bakery', 'Bakery preparation check', { priority: 'low', assigned_supervisor_id: null, due_time: '11:00:00' }),
+      task('tsk-floor', 'Floor cleanliness check', { priority: 'low', assigned_supervisor_id: 'p20', assigned_at: at(16, 7, 5), due_time: '14:00:00' })
+    ] : [
       task('tsk-cold-room', 'Check Cold Room Temperature', { assigned_at: at(16, 6, 50), completed_at: at(16, 7, 46), completed_by: null, task_status: 'completed' }),
       task('tsk-walkthrough', 'Morning Store Walkthrough', { assigned_at: at(16, 7, 20) })
     ]

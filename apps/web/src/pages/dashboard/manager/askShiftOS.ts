@@ -259,3 +259,73 @@ export function answerQuestion(question: string, overview: ManagerOverview, now:
   const intent = INTENTS.find((candidate) => candidate.keys.some((key) => low.includes(key)));
   return intent ? intent.build(overview, now) : fallback(overview);
 }
+
+/* ---------------- Supervisor (handoff ASK_HINTS_SUP / ASK_CHIPS_SUP / ASK_INTENTS_SUP) ---------------- */
+
+export const ASK_HINTS_SUP = [
+  "Who's on my team today?",
+  "How do I check this week's schedule?",
+  'Any coverage gaps on my shift?',
+  "Who's late or absent today?",
+  'Who has leave waiting on me?',
+  'How many hours has my team worked?'
+];
+
+export const ASK_CHIPS_SUP = ["Who's working today?", 'How do I see the schedule?', 'Coverage gaps', 'Attendance today', 'Leave waiting on me', 'Hours this week', 'Can I add a task?'];
+
+/** What the signed-in supervisor may do — the answers follow their real permissions. */
+export interface SupervisorAbilities {
+  editSchedules: boolean;
+  createTasks: boolean;
+}
+
+const supervisorSchedule = (overview: ManagerOverview, abilities: SupervisorAbilities): AskAnswer => ({
+  kind: 'read',
+  label: 'Schedules',
+  value: abilities.editSchedules ? 'You can build and publish schedules' : 'Published by your manager',
+  sub: abilities.editSchedules ? `${overview.detail.branchName} · week by week` : "You can view your team's shifts and approve swaps",
+  lines: abilities.editSchedules
+    ? ['Open Schedules to see every shift for the week', 'Drafts stay private until you publish them', 'Swap requests from your team route to you for approval']
+    : ['Your manager publishes and edits the branch schedule', 'You can see every published shift under Schedules', 'Swap requests from your team route to you for approval'],
+  action: { label: 'Open Schedules', to: `/schedules?week=${overview.weekStart}` },
+  foot: abilities.editSchedules ? 'Read-only — nothing was changed' : 'Read-only — schedule changes are made by your manager'
+});
+
+const supervisorTask = (_overview: ManagerOverview, abilities: SupervisorAbilities): AskAnswer =>
+  abilities.createTasks
+    ? { ...addTask(_overview, new Date()), lines: ['Pick anyone on this shift as the assignee', 'Set a due time inside the shift', 'The assignee is notified the moment you save'] }
+    : {
+        kind: 'read',
+        label: 'Not available to you',
+        value: 'Only managers create tasks',
+        sub: 'You can view and complete tasks assigned to your team',
+        lines: ["Open Tasks to see what's assigned and mark items done", 'Ask your manager to raise a new task', 'Shift Notes is the right place to log something for handover'],
+        action: { label: 'Open Tasks', to: '/tasks' },
+        foot: 'Read-only — nothing was created'
+      };
+
+const SUPERVISOR_INTENTS: Array<{ keys: string[]; build: (overview: ManagerOverview, now: Date, abilities: SupervisorAbilities) => AskAnswer }> = [
+  { keys: ['working today', "who's working", 'who is working', 'on my team', 'on shift', 'on duty'], build: (o, n) => workingToday(o, n) },
+  { keys: ['add a task', 'new task', 'create a task', 'assign a task'], build: (o, _n, a) => supervisorTask(o, a) },
+  { keys: ['schedule', 'roster', 'publish', 'shifts this week', 'next week'], build: (o, _n, a) => supervisorSchedule(o, a) },
+  { keys: ['coverage', 'gap', 'unfilled', 'short'], build: (o, n) => coverage(o, n) },
+  { keys: ['late', 'absent', 'attendance'], build: (o, n) => attendanceToday(o, n) },
+  { keys: ['leave', 'time off', 'holiday', 'approval', 'waiting on me', 'requests'], build: (o, n) => leave(o, n) },
+  { keys: ['hours', 'overtime', 'payroll'], build: (o, n) => hours(o, n) }
+];
+
+/** Handoff askRun() for the Supervisor: the first intent with a key found in the question wins. */
+export function answerSupervisorQuestion(question: string, overview: ManagerOverview, now: Date, abilities: SupervisorAbilities): AskAnswer {
+  const low = question.toLowerCase();
+  const intent = SUPERVISOR_INTENTS.find((candidate) => candidate.keys.some((key) => low.includes(key)));
+  if (intent) return intent.build(overview, now, abilities);
+  return {
+    kind: 'read',
+    label: 'Ask me about your team or shift',
+    value: 'I can answer that a few ways',
+    sub: 'Try one of these — or tap a suggestion below.',
+    lines: ['“Who’s on my team today?”', '“How do I check this week’s schedule?”', '“Any coverage gaps?”', '“Who has leave waiting on me?”'],
+    action: { label: 'Open Attendance', to: '/attendance' },
+    foot: 'Read-only answers are instant'
+  };
+}

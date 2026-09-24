@@ -336,6 +336,9 @@ export interface Announcement {
   published_at: string | null;
   expires_at: string | null;
   created_by: string;
+  /** Joined by list_announcements: who posted it and their role. */
+  author_name?: string | null;
+  author_role?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

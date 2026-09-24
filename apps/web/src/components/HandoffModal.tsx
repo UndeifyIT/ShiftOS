@@ -122,3 +122,8 @@ export function ModalField({ label, required, full, children }: { label: string;
 
 export const modalControl =
   'box-border h-[42px] w-full rounded-[11px] border border-solid border-[#E4DED9] bg-white px-3 text-[13px] text-[#38312B] outline-none focus:border-[#F04E17]';
+
+/** Handoff `modalIsConfirm`: the plain explanation a confirmation dialog shows above its buttons. */
+export function ModalConfirm({ children }: { children: React.ReactNode }): React.ReactElement {
+  return <p className="mx-[22px] mb-0 mt-4 rounded-[13px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] p-3.5 text-[13px] leading-[1.55] text-[#57504A]">{children}</p>;
+}

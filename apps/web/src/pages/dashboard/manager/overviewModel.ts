@@ -155,6 +155,7 @@ export interface ManagerOverview {
     employeesById: Map<string, Employee>;
     attendanceWeek: AttendanceRecord[];
     lastAnnouncement: Announcement | undefined;
+    tasks: Task[];
   };
 }
 
@@ -446,10 +447,15 @@ export function buildManagerOverview(input: OverviewInput): ManagerOverview {
   const membersByUser = new Map(input.members.map((m) => [m.user_id, m]));
   const liveAnnouncements = input.announcements
     .filter((a) => a.is_published && !a.deleted_at && (!a.expires_at || new Date(a.expires_at).getTime() > now.getTime()))
-    .sort((a, b) => (b.published_at ?? b.created_at).localeCompare(a.published_at ?? a.created_at));
+    // Pinned notices first (066), as on the Announcements page, then newest.
+    .sort((a, b) => Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned)) || (b.published_at ?? b.created_at).localeCompare(a.published_at ?? a.created_at));
   const announcementPreviews: AnnouncementPreview[] = liveAnnouncements.slice(0, 2).map((a) => {
     const author = membersByUser.get(a.created_by);
-    const authorLabel = author ? `${`${author.user_first_name} ${author.user_last_name}`.trim()} · ${author.role_name}` : 'ShiftOS';
+    const authorLabel = author
+      ? `${`${author.user_first_name} ${author.user_last_name}`.trim()} · ${author.role_name}`
+      : a.author_name
+        ? `${a.author_name}${a.author_role ? ` · ${a.author_role}` : ''}`
+        : 'ShiftOS';
     return {
       id: a.id,
       title: a.title.length > 46 ? `${a.title.slice(0, 44)}…` : a.title,
@@ -588,7 +594,8 @@ export function buildManagerOverview(input: OverviewInput): ManagerOverview {
       pendingSwaps,
       employeesById,
       attendanceWeek: input.attendance.filter((r) => !r.deleted_at),
-      lastAnnouncement: liveAnnouncements[0]
+      lastAnnouncement: [...liveAnnouncements].sort((a, b) => (b.published_at ?? b.created_at).localeCompare(a.published_at ?? a.created_at))[0],
+      tasks: input.tasks.filter((t) => !t.deleted_at)
     }
   };
 }

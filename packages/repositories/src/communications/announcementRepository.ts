@@ -22,7 +22,19 @@ export interface Announcement extends TenantEntity {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  /** Joined by the list queries: who posted it and their role, for readers who can't list members. */
+  author_name?: string | null;
+  author_role?: string | null;
 }
+
+/** Every column plus the author's name and role (their membership in this organization). */
+const WITH_AUTHOR = `SELECT a.*,
+         NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), '') AS author_name,
+         r.name AS author_role
+    FROM announcements a
+    LEFT JOIN users u ON u.id = a.created_by
+    LEFT JOIN organization_memberships om ON om.user_id = a.created_by AND om.organization_id = a.organization_id AND om.deleted_at IS NULL
+    LEFT JOIN roles r ON r.id = om.role_id`;
 
 /**
  * Does NOT extend BranchScopedRepository: branch_id is nullable here (an
@@ -38,11 +50,11 @@ export class AnnouncementRepository extends TenantScopedRepository<Announcement>
   /** Published, non-expired announcements visible to someone with access to the given branches: organization-wide ones (branch_id IS NULL) plus branch-specific ones for an accessible branch. */
   async listVisibleTo(organizationId: string, branchIds: string[], options?: { limit?: number; offset?: number }): Promise<Announcement[]> {
     const params: unknown[] = [organizationId, branchIds];
-    let sql = `SELECT * FROM announcements
-                WHERE organization_id = $1 AND deleted_at IS NULL AND is_published = true
-                  AND (expires_at IS NULL OR expires_at > now())
-                  AND (branch_id IS NULL OR branch_id = ANY($2::uuid[]))
-                ORDER BY published_at DESC`;
+    let sql = `${WITH_AUTHOR}
+                WHERE a.organization_id = $1 AND a.deleted_at IS NULL AND a.is_published = true
+                  AND (a.expires_at IS NULL OR a.expires_at > now())
+                  AND (a.branch_id IS NULL OR a.branch_id = ANY($2::uuid[]))
+                ORDER BY a.published_at DESC`;
     if (typeof options?.limit === 'number') {
       params.push(options.limit);
       sql += ` LIMIT $${params.length}`;
@@ -57,10 +69,10 @@ export class AnnouncementRepository extends TenantScopedRepository<Announcement>
   /** Every announcement (published or draft) an accessible-branches caller manages: organization-wide ones plus branch-specific ones for an accessible branch. Unlike listVisibleTo, does not filter by is_published/expires_at — for content managers, not the general audience view. */
   async listManaged(organizationId: string, branchIds: string[], options?: { limit?: number; offset?: number }): Promise<Announcement[]> {
     const params: unknown[] = [organizationId, branchIds];
-    let sql = `SELECT * FROM announcements
-                WHERE organization_id = $1 AND deleted_at IS NULL
-                  AND (branch_id IS NULL OR branch_id = ANY($2::uuid[]))
-                ORDER BY created_at DESC`;
+    let sql = `${WITH_AUTHOR}
+                WHERE a.organization_id = $1 AND a.deleted_at IS NULL
+                  AND (a.branch_id IS NULL OR a.branch_id = ANY($2::uuid[]))
+                ORDER BY a.created_at DESC`;
     if (typeof options?.limit === 'number') {
       params.push(options.limit);
       sql += ` LIMIT $${params.length}`;

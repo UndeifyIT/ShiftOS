@@ -116,7 +116,7 @@ export function buildCards(input: AnnouncementsInput): AnnouncementCard[] {
         pinned: Boolean(announcement.is_pinned),
         draft: !announcement.is_published,
         time: relativeStamp(announcement.published_at ?? announcement.created_at, input.now),
-        author: author ? `${`${author.user_first_name} ${author.user_last_name}`.trim()} · ${author.role_name}` : 'ShiftOS',
+        author: authorLabel(author, announcement),
         receipts,
         acknowledged,
         pct,
@@ -183,4 +183,11 @@ export const countLine = (n: number): string => `${n} ${n === 1 ? 'announcement'
 
 export function receiptsCsvRows(title: string, receipts: Receipt[]): string[][] {
   return [['Announcement', 'Name', 'Details', 'Status'], ...receipts.map((r) => [title, r.name, r.meta, r.status])];
+}
+
+/** 'Daniel Okonkwo · Manager' — from the member list when the reader has it, else the name list_announcements joins in. */
+export function authorLabel(member: { user_first_name: string; user_last_name: string; role_name: string } | undefined, announcement: Announcement): string {
+  if (member) return `${`${member.user_first_name} ${member.user_last_name}`.trim()} · ${member.role_name}`;
+  if (announcement.author_name) return announcement.author_role ? `${announcement.author_name} · ${announcement.author_role}` : announcement.author_name;
+  return 'ShiftOS';
 }
