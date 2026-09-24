@@ -29,7 +29,18 @@ export function settingsTabs(can: (code: string) => boolean): SettingsTab[] {
   return tabs;
 }
 
-/** Handoff STNG_PERMISSIONS, each backed by the permission that grants it. */
+/** Handoff STNG_PERMISSIONS.Supervisor, each backed by the permission that grants it. */
+export const SUPERVISOR_ACCESS_CHIPS: Array<{ label: string; permission: string }> = [
+  { label: 'Manage schedules', permission: 'schedules.update' },
+  { label: 'Mark attendance', permission: 'attendance.update' },
+  { label: 'Assign tasks', permission: 'tasks.assign' },
+  { label: 'Post announcements', permission: 'announcements.create' },
+  { label: 'Approve swaps', permission: 'swaps.approve' },
+  { label: 'Organization settings', permission: 'organizations.update' },
+  { label: 'Change billing', permission: 'organizations.update' }
+];
+
+/** Handoff STNG_PERMISSIONS.Manager, each backed by the permission that grants it. */
 export const ACCESS_CHIPS: Array<{ label: string; permission: string }> = [
   { label: 'Manage schedules', permission: 'schedules.update' },
   { label: 'Mark attendance', permission: 'attendance.update' },
