@@ -36,6 +36,26 @@ describe('shift notes integration', () => {
     expect(archived.deleted_at).not.toBeNull();
   });
 
+  it('files a note under a category, keeps it out of the handover on request, and lists it for the branch', async () => {
+    const note = await ctx.call<{ id: string; category: string; include_in_handover: boolean; branch_id: string }>('create_shift_note', {
+      shiftId: SHIFT_ID,
+      note: 'Integration test: spillage in aisle 4 cleared.',
+      category: 'incident',
+      includeInHandover: false
+    });
+    expect(note.category).toBe('incident');
+    expect(note.include_in_handover).toBe(false);
+
+    const branchNotes = await ctx.call<Array<{ id: string; shift_title: string; author_name: string | null }>>('list_branch_shift_notes', { branchId: note.branch_id, days: 2 });
+    const listed = branchNotes.find((n) => n.id === note.id);
+    expect(listed?.shift_title).toBeTruthy();
+
+    const bad = await ctx.callRaw('create_shift_note', { shiftId: SHIFT_ID, note: 'x', category: 'gossip' });
+    expect(bad.success).toBe(false);
+
+    await ctx.call('archive_shift_note', { noteId: note.id });
+  });
+
   it('rejects an empty note', async () => {
     const result = await ctx.callRaw('create_shift_note', { shiftId: SHIFT_ID, note: '   ' });
     expect(result.success).toBe(false);

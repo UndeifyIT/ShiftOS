@@ -4,7 +4,8 @@ import { answerSupervisorQuestion } from '../../../apps/web/src/pages/dashboard/
 import { buildTodaysShift } from '../../../apps/web/src/pages/dashboard/supervisor/todaysShiftModel.js';
 import { buildTeamRows, filterTeam } from '../../../apps/web/src/pages/team/teamModel.js';
 import { allowedStatuses, buildAttRows, saveSteps, savedStatus, timeLines } from '../../../apps/web/src/pages/attendance/shiftAttendanceModel.js';
-import type { Task } from '../../../apps/web/src/types/domain.js';
+import type { ShiftNote, Task } from '../../../apps/web/src/types/domain.js';
+import { filterNotes, handoverState, noteCards } from '../../../apps/web/src/pages/shiftNotes/shiftNotesModel.js';
 
 const BASE = { organization_id: 'org', created_at: '2025-05-01T09:00:00Z', updated_at: '2025-05-01T09:00:00Z', deleted_at: null };
 const NOW = new Date(2025, 4, 16, 9, 0); // Friday May 16, 2025, 09:00 local
@@ -249,5 +250,45 @@ describe('Supervisor Attendance page (design handoff Supervisor/Attendance)', ()
       ['Mary Test', 'mark', 'present', null]
     ]);
     expect(saveSteps(rows, { [mary.id]: { status: 'Not Marked', note: '' } })).toEqual([]);
+  });
+});
+
+describe('Shift notes (design handoff Supervisor/Shift Notes)', () => {
+  const note = (id: string, category: ShiftNote['category'], when: Date, handover = true): ShiftNote => ({
+    ...BASE,
+    id,
+    branch_id: 'br',
+    shift_id: 's1',
+    note: `${id} body`,
+    category,
+    include_in_handover: handover,
+    created_by: 'u1',
+    created_at: when.toISOString(),
+    updated_at: when.toISOString(),
+    shift_title: 'Morning Shift',
+    shift_date: todayOf(when),
+    author_name: 'Sarah Johnson',
+    author_role: 'Supervisor'
+  });
+  const todayOf = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const notes = [
+    note('n1', 'handover', new Date(2025, 4, 16, 8, 30)),
+    note('n2', 'incident', new Date(2025, 4, 16, 8, 45), false),
+    note('n3', 'inventory', new Date(2025, 4, 15, 21, 40))
+  ];
+
+  it("keeps a note in the handover through its shift's day, then closes it", () => {
+    expect(notes.map((n) => handoverState(n, NOW))).toEqual(['In handover', 'Not in handover', 'Closed']);
+  });
+
+  it('lists newest first with category, time and author', () => {
+    const cards = noteCards(notes, NOW);
+    expect(cards.map((c) => [c.category, c.time, c.author])).toEqual([
+      ['Incident', 'Today, 08:45 AM', 'Sarah Johnson · Supervisor'],
+      ['Handover', 'Today, 08:30 AM', 'Sarah Johnson · Supervisor'],
+      ['Inventory', 'Yesterday, 09:40 PM', 'Sarah Johnson · Supervisor']
+    ]);
+    expect(filterNotes(cards, 'Inventory', '').map((c) => c.id)).toEqual(['n3']);
+    expect(filterNotes(cards, 'All', 'n1').map((c) => c.id)).toEqual(['n1']);
   });
 });

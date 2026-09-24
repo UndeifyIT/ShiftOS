@@ -503,3 +503,26 @@ export interface OperationsSummaryReport {
   hoursByEmployee: Array<{ employee_id: string; shifts: number; worked_minutes: number; overtime_minutes: number; late_minutes: number }>;
   requestActivity: Array<{ department_id: string | null; kind: 'swap' | 'leave'; raised: number; approved: number; declined: number }>;
 }
+
+export type ShiftNoteCategory = 'handover' | 'incident' | 'inventory' | 'staffing';
+
+/** A shift note (036, category and handover flag 070) as `list_branch_shift_notes` returns it — with its shift and author. */
+export interface ShiftNote {
+  id: string;
+  organization_id: string;
+  branch_id: string;
+  shift_id: string;
+  note: string;
+  category: ShiftNoteCategory;
+  include_in_handover: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  shift_title?: string;
+  shift_date?: string;
+  shift_start_time?: string;
+  shift_end_time?: string;
+  author_name?: string | null;
+  author_role?: string | null;
+}

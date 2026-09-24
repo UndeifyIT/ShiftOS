@@ -232,11 +232,12 @@
         return;
       }
       if (n.tag === 'helmet') return;
-      this_tag = n.tag.toLowerCase();
+      // toProps reads this_tag; keep our own copy, since rendering the children reassigns it.
+      const tag = (this_tag = n.tag.toLowerCase());
       const props = toProps(n.attrs, scope, key);
       const kids = n.tag === 'style' ? undefined : render(n.children, scope, key);
       if (n.tag === 'style') props.dangerouslySetInnerHTML = { __html: n.children.map((c) => c.text || '').join('') };
-      if (this_tag === 'textarea') {
+      if (tag === 'textarea') {
         const txt = (kids || []).join('');
         if (!('value' in props) && txt) props.defaultValue = txt;
         out.push(React.createElement(n.tag, props));

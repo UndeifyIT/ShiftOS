@@ -40,6 +40,7 @@ const AnnouncementsPage = lazy(() => import('./pages/announcements/Announcements
 const RequestsPage = lazy(() => import('./pages/requests/RequestsPage.js'));
 const RecentActivityPage = lazy(() => import('./pages/activity/RecentActivityPage.js'));
 const TeamPage = lazy(() => import('./pages/team/TeamPage.js'));
+const ShiftNotesPage = lazy(() => import('./pages/shiftNotes/ShiftNotesPage.js'));
 const ReportsPage = lazy(() => import('./pages/reports/ReportsPage.js'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage.js'));
 const OrganizationSettingsPage = lazy(() => import('./pages/organization/OrganizationSettingsPage.js'));
@@ -281,6 +282,7 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/admins" element={<AdminsPage />} />
         <Route path="/recent-activity" element={<RecentActivityPage />} />
         <Route path="/team" element={<TeamPage />} />
+        <Route path="/shift-notes" element={<ShiftNotesPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

@@ -6,7 +6,7 @@
  * waiting, 2 supervisor invitations, next week still a draft, and the
  * handoff's two announcements.
  */
-import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap, Task, Announcement, AnnouncementAcknowledgement } from '../../src/types/domain.js';
+import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftNote, ShiftSwap, Task, Announcement, AnnouncementAcknowledgement } from '../../src/types/domain.js';
 
 const ORG = 'org-abc-supermarket';
 const BRANCH = 'br-main';
@@ -641,6 +641,29 @@ export function createOverviewBackend(options: { staffLogins?: boolean; supervis
     return { import: record, imported, failed: [], invitesSent, inviteFailures: [] };
   };
 
+  // Shift Notes: the handoff's NOTES — two from this morning, two from last night.
+  const shiftNote = (id: string, category: ShiftNote['category'], shiftTitle: string, when: string, authorId: string, author: string, role: string, note: string, handover = true): ShiftNote => ({
+    ...stamp({ id }),
+    created_at: when,
+    updated_at: when,
+    branch_id: BRANCH,
+    shift_id: 'shf-p1',
+    note,
+    category,
+    include_in_handover: handover,
+    created_by: authorId,
+    shift_title: shiftTitle,
+    shift_date: when.slice(0, 10),
+    author_name: author,
+    author_role: role
+  });
+  const shiftNotes: ShiftNote[] = [
+    shiftNote('note-1', 'handover', 'Morning Shift', at(16, 7, 30), 'user-p1', 'Sarah Johnson', 'Supervisor', 'Cold room reading was 4°C at open — within range but higher than usual. Ask maintenance to check the seal if it climbs again.'),
+    shiftNote('note-2', 'incident', 'Morning Shift', at(16, 7, 45), 'user-p12', 'Michael Brown', 'Stock Clerk', 'Spillage in aisle 4 cleared within 10 minutes. No injuries. Two cartons of juice written off — logged against inventory.'),
+    shiftNote('note-3', 'inventory', 'Evening Shift', at(15, 21, 40), 'user-p20', 'David Wilson', 'Cleaner', 'Beverage stock ran low before close. Restock scheduled for this morning at 10:00 — assigned to Grace.'),
+    shiftNote('note-4', 'staffing', 'Evening Shift', at(15, 20, 5), 'user-p1', 'Sarah Johnson', 'Supervisor', 'Two staff finished 30 minutes early with permission — hours adjusted on their attendance records.')
+  ];
+
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
     list_employee_imports: () => imports.slice(0, 5),
     import_employees: importEmployees,
@@ -766,6 +789,12 @@ export function createOverviewBackend(options: { staffLogins?: boolean; supervis
       if (!record) throw new Error('Attendance record not found');
       record.notes = (input.notes as string | null) || null;
       return record;
+    },
+    list_branch_shift_notes: () => shiftNotes,
+    create_shift_note: (input) => {
+      const created = shiftNote(`note-${shiftNotes.length + 1}`, (input.category as ShiftNote['category']) ?? 'handover', 'Morning Shift', at(16, 7, 58), 'user-me', 'Sarah Johnson', 'Supervisor', String(input.note).trim(), input.includeInHandover !== false);
+      shiftNotes.unshift(created);
+      return created;
     },
     // Supervisor: the handoff's five tasks for today's shift (HOME.Supervisor.secondary).
     list_tasks: () => sup ? [

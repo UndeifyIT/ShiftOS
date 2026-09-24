@@ -30,7 +30,7 @@ import {
   getAnnouncement, listAnnouncements, acknowledgeAnnouncement, hasAcknowledgedAnnouncement,
   listAnnouncementAcknowledgements, remindAnnouncement
 } from './operations/announcement.js';
-import { createShiftNote, listShiftNotesForShift, archiveShiftNote } from './operations/shiftNote.js';
+import { createShiftNote, listShiftNotesForShift, listBranchShiftNotes, archiveShiftNote } from './operations/shiftNote.js';
 import {
   createDepartment,
   getDepartment,
@@ -176,6 +176,7 @@ export function createDefaultRegistry(): RpcRegistry {
 
   registry.register(createShiftNote);
   registry.register(listShiftNotesForShift);
+  registry.register(listBranchShiftNotes);
   registry.register(archiveShiftNote);
 
   registry.register(clockIn);
