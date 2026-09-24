@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
-import { HandoffModal, ModalField, ModalFields, modalControl, modalSelect } from '../../components/HandoffModal.js';
+import { HandoffModal, ModalField, ModalFields, modalControl, modalTextarea, modalSelect } from '../../components/HandoffModal.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import type { Department, Employee, LeaveRequest, Member, Schedule, Shift, ShiftAssignment, ShiftSwap } from '../../types/domain.js';
 import { OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
@@ -520,11 +520,15 @@ export default function RequestsPage(): React.ReactElement {
         <ModalFields>
           <ModalField label="Reason for declining" required full>
             <textarea
-              className={`${modalControl} h-auto min-h-[84px] resize-y py-2.5 leading-[1.5]`}
+              rows={3}
+              className={modalTextarea}
               value={note}
               placeholder="Coverage cannot move between departments"
               onChange={(event) => setNote(event.target.value)}
             />
+          </ModalField>
+          <ModalField label="Notify requester">
+            <input className={modalControl} value="Yes" readOnly />
           </ModalField>
         </ModalFields>
         {errorLine}
@@ -576,7 +580,8 @@ export default function RequestsPage(): React.ReactElement {
         <ModalFields>
           <ModalField label="Reason for declining" required full>
             <textarea
-              className={`${modalControl} h-auto min-h-[84px] resize-y py-2.5 leading-[1.5]`}
+              rows={3}
+              className={modalTextarea}
               value={note}
               placeholder="Coverage cannot be arranged for those days"
               onChange={(event) => setNote(event.target.value)}
@@ -690,7 +695,8 @@ export default function RequestsPage(): React.ReactElement {
           )}
           <ModalField label="Reason" required full>
             <textarea
-              className={`${modalControl} h-auto min-h-[84px] resize-y py-2.5 leading-[1.5]`}
+              rows={3}
+              className={modalTextarea}
               value={draft.reason}
               placeholder={draft.type === 'Shift swap' ? 'Family commitment' : 'Your supervisor sees this with the request.'}
               onChange={(event) => setDraft({ ...draft, reason: event.target.value })}

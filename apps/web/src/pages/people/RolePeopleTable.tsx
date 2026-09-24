@@ -174,7 +174,7 @@ export function ListToolbar<F extends string>({
           value={query}
           onChange={(event) => onQuery(event.target.value)}
           placeholder={searchPlaceholder}
-          className="box-border h-10 w-full rounded-[11px] border border-solid border-[#E4DED9] bg-white px-[13px] text-[13px] text-[#38312B] outline-none focus:border-[#F04E17]"
+          className="box-border h-10 w-full rounded-[11px] border border-solid border-[#E4DED9] bg-white px-[13px] text-[13px] text-[#38312B] outline-none placeholder:text-[#757575] focus:border-[#F04E17]"
         />
       </label>
       {filters.map((name) => (

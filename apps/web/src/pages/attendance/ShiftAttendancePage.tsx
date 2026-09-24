@@ -320,7 +320,7 @@ export default function ShiftAttendancePage(): React.ReactElement {
                     }}
                     placeholder="Search employees…"
                     aria-label="Search employees"
-                    className="min-w-0 flex-auto border-0 bg-transparent p-0 text-[12px] text-[#38312B] outline-none"
+                    className="min-w-0 flex-auto border-0 bg-transparent p-0 text-[12px] text-[#38312B] outline-none placeholder:text-[#757575]"
                   />
                 </span>
                 <span className="relative">

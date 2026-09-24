@@ -121,7 +121,10 @@ export function ModalField({ label, required, full, children }: { label: string;
 }
 
 export const modalControl =
-  'box-border h-[42px] w-full rounded-[11px] border border-solid border-[#E4DED9] bg-white px-3 text-[13px] text-[#38312B] outline-none focus:border-[#F04E17]';
+  'box-border h-[42px] w-full rounded-[11px] border border-solid border-[#E4DED9] bg-white px-3 text-[13px] text-[#38312B] outline-none placeholder:text-[#757575] focus:border-[#F04E17]';
+
+/** modalControl for a <textarea rows={3}> (handoff `isArea`): its height comes from the rows, as in the prototype. */
+export const modalTextarea = `${modalControl} h-auto resize-y py-2.5`;
 
 /** Handoff `modalIsConfirm`: the plain explanation a confirmation dialog shows above its buttons. */
 export function ModalConfirm({ children }: { children: React.ReactNode }): React.ReactElement {

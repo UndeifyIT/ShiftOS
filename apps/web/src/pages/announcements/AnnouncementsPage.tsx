@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
-import { HandoffModal, ModalField, ModalFields, modalControl, modalSelect } from '../../components/HandoffModal.js';
+import { HandoffModal, ModalField, ModalFields, modalControl, modalTextarea, modalSelect } from '../../components/HandoffModal.js';
 import { downloadText, toCsv } from '../../lib/spreadsheet.js';
 import { useRpcMutation, useRpcQueries, useRpcQuery } from '../../lib/useRpc.js';
 import type { Announcement, AnnouncementAcknowledgement, AnnouncementReminderResult, Department, Employee, Member } from '../../types/domain.js';
@@ -410,11 +410,16 @@ export default function AnnouncementsPage(): React.ReactElement {
           </ModalField>
           <ModalField label="Message" required full>
             <textarea
-              className={`${modalControl} h-auto min-h-[96px] resize-y py-2.5 leading-[1.5]`}
+              rows={3}
+              className={modalTextarea}
               value={draft.content}
               placeholder="What does the team need to know?"
               onChange={(event) => setDraft({ ...draft, content: event.target.value })}
             />
+          </ModalField>
+          {/* Every notice asks its readers to acknowledge it — the receipts the Announcements page tracks. */}
+          <ModalField label="Require acknowledgement">
+            <input className={modalControl} value="Yes" readOnly />
           </ModalField>
           <ModalField label="Pin to top">
             <select className={modalSelect} value={draft.pinned ? 'yes' : 'no'} onChange={(event) => setDraft({ ...draft, pinned: event.target.value === 'yes' })}>

@@ -118,7 +118,7 @@ export default function ShiftNotesPage(): React.ReactElement {
           value={text}
           onChange={(event) => setText(event.target.value)}
           placeholder="What does the next shift need to know?"
-          className="box-border w-full resize-y rounded-[11px] border border-solid border-[#E4DED9] px-3 py-2.5 text-[13px] text-[#38312B] outline-none focus:border-[#F04E17]"
+          className="box-border w-full resize-y rounded-[11px] border border-solid border-[#E4DED9] px-3 py-2.5 text-[13px] text-[#38312B] outline-none placeholder:text-[#757575] focus:border-[#F04E17]"
         />
       </label>
       <label className="mb-3.5 flex cursor-pointer items-start gap-[9px]">
