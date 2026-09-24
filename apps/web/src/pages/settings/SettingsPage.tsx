@@ -1,488 +1,808 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { getCountryOptions } from '@shiftos/geography';
 import { useSession } from '../../auth/SessionProvider.js';
-import { DashHeader, StatusPill } from '../dashboard/dashboardWidgets.js';
+import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
+import { HandoffModal } from '../../components/HandoffModal.js';
+import { removeAvatar, uploadUserAvatar, useSignedAvatarUrl } from '../../lib/avatars.js';
+import { supabase } from '../../lib/supabase.js';
+import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
+import type { Branch, Department, Employee, Organization, Role } from '../../types/domain.js';
+import { OverviewHeader } from '../dashboard/manager/ManagerOverview.js';
+import { useNow } from '../dashboard/manager/useManagerOverview.js';
+import { DialogNote } from '../people/RolePeopleTable.js';
+import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
+import { initialsOf, TONES, type Tone } from '../scheduling/grid/scheduleFormat.js';
+import {
+  ACCESS_CHIPS,
+  attendanceRules,
+  DAY_LABELS,
+  DAYS,
+  DEFAULT_HOURS,
+  deviceName,
+  hoursLine,
+  NOTIFICATION_ROWS,
+  passwordStrength,
+  PASSWORD_RULES,
+  preferenceMap,
+  readHours,
+  settingsTabs,
+  TAB_SUBS,
+  uploadedOn,
+  validHours,
+  type Day,
+  type EventChannel,
+  type EventPreferences,
+  type EventType,
+  type SettingsTab,
+  type WeekHours
+} from './settingsModel.js';
 
-const SETTINGS_TABS = ['Profile', 'Organization', 'Branch Hours', 'Notifications', 'Security', 'Billing'] as const;
+/*
+ * Settings, built to the design handoff (`ShiftOS Dashboards.dc.html`:
+ * `PAGES["Manager/Settings"]`, the settingsV2 markup at lines 2458-2685, its
+ * renderVals 5506-5660 and the operating-hours dialog at 2739-2789). Every
+ * tab reads and writes the real thing: the signed-in profile (update_profile),
+ * the organization (update_organization), the home branch's hours
+ * (branch.settings.operatingHours), per-event notification switches (067) and
+ * the account password. The prototype has no CSS reset, so the values below
+ * are what it renders (13px base, `line-height: normal`).
+ */
 
-type SettingsTab = (typeof SETTINGS_TABS)[number];
+const BUSINESS_TYPES = ['Supermarket', 'Retail Store', 'Restaurant', 'Pharmacy', 'Warehouse & Logistics', 'Hospitality', 'Healthcare', 'Manufacturing', 'Other'];
 
-const PROFILE = {
-  first: 'Daniel',
-  last: 'Okonkwo',
-  email: 'daniel@abcsupermarket.com',
-  phone: '+234 801 442 7788',
-  title: 'Operations Manager',
-  role: 'Manager'
-} as const;
-
-type OrgField = {
-  label: string;
-  value: string;
-  disabled?: boolean;
-  note?: string;
-};
-
-const ORG_FIELDS: OrgField[] = [
-  { label: 'Organization name', value: 'ABC Supermarket Ltd.' },
-  { label: 'Business type', value: 'Supermarket' },
-  { label: 'Workspace URL', value: 'abc-supermarket.shiftos.app', disabled: true, note: 'Changing this breaks existing links for your team.' },
-  { label: 'Country', value: 'Nigeria' },
-  { label: 'Time zone', value: 'Africa/Lagos (UTC +1)' },
-  { label: 'Week starts on', value: 'Monday' }
-];
-
-const RULES = [
-  { label: 'Late threshold', body: 'How long after the shift start a clock-in counts as late.', value: '10 minutes', tone: 'warn' },
-  { label: 'Absent threshold', body: 'After this, an un-clocked employee is marked absent.', value: '60 minutes', tone: 'bad' },
-  { label: 'Early clock-in window', body: 'How early staff may clock in before their shift.', value: '15 minutes', tone: 'info' },
-  { label: 'Supervisor corrections', body: 'Supervisors may correct attendance for their department.', value: 'Allowed', tone: 'ok' }
-] as const;
-
-const DANGERS = [
-  { title: 'Transfer organization ownership', body: 'Hand the Manager role to another member. You keep your account.', cta: 'Transfer' },
-  { title: 'Delete organization', body: 'Removes all people, schedules and attendance records. Export first.', cta: 'Delete' }
-] as const;
-
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
-const DAY_LABELS: Record<(typeof DAYS)[number], string> = {
-  Mon: 'Monday',
-  Tue: 'Tuesday',
-  Wed: 'Wednesday',
-  Thu: 'Thursday',
-  Fri: 'Friday',
-  Sat: 'Saturday',
-  Sun: 'Sunday'
-};
-
-const HOURS = {
-  Mon: '09:00 – 18:00',
-  Tue: '09:00 – 18:00',
-  Wed: '09:00 – 18:00',
-  Thu: '09:00 – 18:00',
-  Fri: '09:00 – 18:00',
-  Sat: 'Closed',
-  Sun: 'Closed'
-} as const;
-
-const NOTIFICATIONS = [
-  { label: 'Coverage gaps', body: 'A published shift loses its last assigned person.', channels: [true, true, false] },
-  { label: 'Unpublished schedule', body: 'A week is still in draft two days before it starts.', channels: [true, true, false] },
-  { label: 'Absences', body: 'Someone is marked absent on any shift.', channels: [true, false, false] },
-  { label: 'Leave requests', body: 'Staff submit time off needing approval.', channels: [true, true, false] },
-  { label: 'Announcement acknowledgements', body: 'Weekly digest of who hasn’t read what.', channels: [false, true, false] },
-  { label: 'Invitations', body: 'An invitation is accepted or expires unused.', channels: [true, false, false] }
-] as const;
-
-const SESSIONS = [
-  { device: 'Chrome on Windows · Lagos', meta: 'This device · last active just now', status: 'Current', tone: 'ok' },
-  { device: 'Safari on iPhone · Lagos', meta: 'Last active 2 hours ago', status: 'Active', tone: 'info' },
-  { device: 'Chrome on Android · Ibadan', meta: 'Last active 6 days ago', status: 'Idle', tone: 'warn' }
-] as const;
-
-const BILLING_STATS = [
-  { label: 'Employees', value: '20 of unlimited' },
-  { label: 'Departments', value: '6' },
-  { label: 'Next invoice', value: '₦12,000 on 1 Sep' }
-] as const;
-
-const PASSWORD_RULES = [
-  { label: 'At least 8 characters', test: (value: string) => value.length >= 8 },
-  { label: 'Includes a number', test: (value: string) => /\d/.test(value) },
-  { label: 'Includes a letter', test: (value: string) => /[A-Za-z]/.test(value) },
-  { label: 'Includes a symbol', test: (value: string) => /[^A-Za-z0-9]/.test(value) }
-] as const;
-
-const INVOICES = [
-  { period: 'August 2026', ref: 'INV-2026-08-014', amount: '₦12,000', status: 'Paid', tone: 'ok' },
-  { period: 'July 2026', ref: 'INV-2026-07-014', amount: '₦12,000', status: 'Paid', tone: 'ok' },
-  { period: 'June 2026', ref: 'INV-2026-06-014', amount: '₦12,000', status: 'Paid', tone: 'ok' },
-  { period: 'May 2026', ref: 'INV-2026-05-014', amount: '₦12,000', status: 'Refunded', tone: 'warn' }
-] as const;
-
-const TONE_PILL: Record<'ok' | 'warn' | 'bad' | 'info', string> = {
-  ok: 'bg-success-50 text-success-600',
-  warn: 'bg-warning-50 text-warning-600',
-  bad: 'bg-error-50 text-error-600',
-  info: 'bg-info-50 text-info-600'
-};
-
-function SettingPill({ tone, children }: { tone: 'ok' | 'warn' | 'bad' | 'info'; children: React.ReactNode }): React.ReactElement {
-  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${TONE_PILL[tone]}`}>{children}</span>;
+function timeZones(): string[] {
+  const supported = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
+  try {
+    return supported ? supported('timeZone') : ['Africa/Lagos', 'UTC'];
+  } catch {
+    return ['Africa/Lagos', 'UTC'];
+  }
 }
 
-export default function SettingsPage(): React.ReactElement {
-  const { hasPermission, myContext } = useSession();
-  const [tab, setTab] = useState<SettingsTab>('Profile');
-  const [channels, setChannels] = useState(() => NOTIFICATIONS.map((row) => row.channels.slice()));
-  const [photoPresent, setPhotoPresent] = useState(true);
-  const [saved, setSaved] = useState(false);
-  const [password, setPassword] = useState({ current: '', next: '', confirm: '' });
+const pill = (tone: Tone): React.CSSProperties => ({ color: TONES[tone][0], backgroundColor: TONES[tone][1] });
+const pillClass = 'inline-flex items-center gap-[5px] rounded-full px-2.5 py-1 text-[11px] font-bold';
+const card = 'rounded-[16px] border border-solid border-[#EBE7E3] bg-white';
+const h2 = 'm-0 text-[15px] font-extrabold tracking-normal';
+const control = (disabled: boolean): string =>
+  [
+    'box-border h-11 w-full appearance-none rounded-[12px] border border-solid border-[#E4DED9] px-[13px] font-[inherit] text-[13.5px] outline-none focus:border-[#F04E17]',
+    disabled ? 'bg-[#F7F4F1] text-[#857A72]' : 'bg-white text-[#38312B]'
+  ].join(' ');
 
-  const canAccessOrgSettings = hasPermission('organizations.read');
-  const isLeader = myContext?.branchAccess.isOrgWide ?? false;
-
-  const photoText = photoPresent ? 'DO' : '';
-  const passwordScore = PASSWORD_RULES.filter((rule) => rule.test(password.next)).length;
-  const passwordTone = passwordScore <= 1 ? 'text-[#C93A22]' : passwordScore === 2 ? 'text-[#B56A00]' : passwordScore === 3 ? 'text-[#1E6B45]' : 'text-[#1E6B45]';
-  const passwordLabel = password.next.length === 0 ? 'Enter a password' : passwordScore <= 1 ? 'Weak' : passwordScore === 2 ? 'Fair' : passwordScore === 3 ? 'Good' : 'Strong';
-  const passwordBarWidth = password.next.length === 0 ? '0%' : `${(passwordScore / PASSWORD_RULES.length) * 100}%`;
-  const passwordBarClass = password.next.length === 0 ? 'bg-neutral-200' : passwordScore <= 1 ? 'bg-[#C93A22]' : passwordScore === 2 ? 'bg-[#D18800]' : passwordScore === 3 ? 'bg-[#1E6B45]' : 'bg-[#1E6B45]';
-
-  const content = useMemo(() => {
-    switch (tab) {
-      case 'Profile':
-        return (
-          <>
-            <section className="rounded-[16px] border border-[#EBE7E3] bg-white p-5">
-              <h2 className="m-0 text-[15px] font-extrabold text-neutral-900">Profile photo</h2>
-              <p className="mt-[5px] text-[12.5px] text-[#857A72]">Optional. Without a photo, ShiftOS shows your initials everywhere your name appears.</p>
-              <div className="mt-4 flex flex-wrap items-center gap-4">
-                <span className={`flex h-[76px] w-[76px] items-center justify-center rounded-full text-[22px] font-extrabold ${photoPresent ? 'bg-[#F9E5DD] text-[#1F4699]' : 'border border-dashed border-neutral-300 bg-white text-neutral-400'}`}>
-                  {photoText || '+'}
-                </span>
-                <div className="min-w-0 flex-1 basis-[240px]">
-                  <p className="m-0 text-[12.5px] font-bold text-neutral-900">{photoPresent ? 'Photo on file · uploaded 4 Aug 2026' : 'No photo — your initials are shown instead.'}</p>
-                  <p className="mt-1 text-[11.5px] text-[#857A72]">JPG, PNG or WebP · max 2 MB · square images work best.</p>
-                  <div className="mt-2.5 flex flex-wrap gap-2">
-                    {photoPresent ? (
-                      <>
-                        <button type="button" className="h-[34px] cursor-pointer rounded-[10px] border border-[#EBE7E3] bg-white px-[13px] text-[12px] font-bold text-neutral-900">Replace photo</button>
-                        <button type="button" onClick={() => setPhotoPresent(false)} className="h-[34px] cursor-pointer rounded-[10px] border border-[#F3C6BD] bg-white px-[13px] text-[12px] font-bold text-[#C93A22]">Remove photo</button>
-                      </>
-                    ) : (
-                      <button type="button" onClick={() => setPhotoPresent(true)} className="h-[34px] cursor-pointer rounded-[10px] border-0 bg-brand-500 px-[13px] text-[12px] font-bold text-white">Upload photo</button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-[16px] border border-[#EBE7E3] bg-white p-5">
-              <h2 className="m-0 mb-3.5 text-[15px] font-extrabold text-neutral-900">Personal details</h2>
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-[14px]">
-                {[
-                  { label: 'First name', value: PROFILE.first },
-                  { label: 'Last name', value: PROFILE.last },
-                  { label: 'Work email', value: PROFILE.email, disabled: true, note: 'Contact support to change the email on your account.' },
-                  { label: 'Phone number', value: PROFILE.phone },
-                  { label: 'Job title', value: PROFILE.title },
-                  { label: 'Role', value: PROFILE.role, disabled: true, note: 'Granted when the organization was created.' }
-                ].map((field) => (
-                  <label key={field.label} className={field.note ? 'col-span-full' : ''}>
-                    <span className="mb-1.5 block text-[12px] font-bold text-neutral-900">{field.label}</span>
-                    <input
-                      value={field.value}
-                      disabled={field.disabled}
-                      className={`h-[44px] w-full rounded-[12px] border px-[13px] text-[13.5px] outline-none ${field.disabled ? 'border-neutral-200 bg-[#F7F4F1] text-neutral-500' : 'border-[#E4DED9] bg-white text-neutral-900 focus:border-brand-500'}`}
-                    />
-                    {field.note ? <span className="mt-1.5 block text-[11.5px] text-[#A79C93]">{field.note}</span> : null}
-                  </label>
-                ))}
-              </div>
-            </section>
-
-            {isLeader ? (
-              <section className="rounded-[16px] border border-[#EBE7E3] bg-white p-5">
-                <h2 className="m-0 text-[15px] font-extrabold text-neutral-900">Your role and access</h2>
-                <p className="mt-[5px] text-[12.5px] text-[#857A72]">Roles are granted by a manager. You can see what you have, but not change it here.</p>
-                <div className="mt-3.5 flex flex-wrap gap-2">
-                  {[
-                    { label: 'Manage schedules', on: true },
-                    { label: 'Mark attendance', on: true },
-                    { label: 'Assign tasks', on: true },
-                    { label: 'Post announcements', on: true },
-                    { label: 'View reports', on: true },
-                    { label: 'Manage members', on: true },
-                    { label: 'Change billing', on: true }
-                  ].map((item) => (
-                    <span key={item.label} className={`inline-flex items-center gap-2 rounded-full border px-[13px] py-[8px] text-[12px] font-bold ${item.on ? 'border-[#BFE6CF] bg-[#E9F7EF] text-[#1E6B45]' : 'border-neutral-200 bg-white text-neutral-400'}`}>
-                      <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-extrabold ${item.on ? 'bg-[#1E6B45] text-white' : 'border border-neutral-200 text-transparent'}`}>
-                        {item.on ? '✓' : ''}
-                      </span>
-                      {item.label}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-          </>
-        );
-      case 'Organization':
-        return (
-          <>
-            <section className="rounded-[16px] border border-[#EBE7E3] bg-white p-5">
-              <h2 className="m-0 mb-3.5 text-[15px] font-extrabold text-neutral-900">Organization details</h2>
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-[14px]">
-                {ORG_FIELDS.map((field) => (
-                  <label key={field.label} className={field.note ? 'col-span-full' : ''}>
-                    <span className="mb-1.5 block text-[12px] font-bold text-neutral-900">{field.label}</span>
-                    <input
-                      value={field.value}
-                      disabled={field.disabled}
-                      className={`h-[44px] w-full rounded-[12px] border px-[13px] text-[13.5px] outline-none ${field.disabled ? 'border-neutral-200 bg-[#F7F4F1] text-neutral-500' : 'border-[#E4DED9] bg-white text-neutral-900 focus:border-brand-500'}`}
-                    />
-                    {field.note ? <span className="mt-1.5 block text-[11.5px] text-[#A79C93]">{field.note}</span> : null}
-                  </label>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-[16px] border border-[#EBE7E3] bg-white p-5">
-              <h2 className="m-0 text-[15px] font-extrabold text-neutral-900">Attendance rules</h2>
-              <p className="mt-[5px] text-[12.5px] text-[#857A72]">These thresholds decide when ShiftOS marks someone late or absent.</p>
-              <div className="mt-3.5 flex flex-col gap-2.5">
-                {RULES.map((rule) => (
-                  <div key={rule.label} className="flex flex-wrap items-center gap-3 rounded-[13px] border border-[#F2EEEA] bg-[#FDFCFB] p-[13px_14px]">
-                    <span className="min-w-0 flex-1 basis-[240px]">
-                      <span className="block text-[12.5px] font-extrabold text-neutral-900">{rule.label}</span>
-                      <span className="mt-0.5 block text-[11.5px] text-[#857A72]">{rule.body}</span>
-                    </span>
-                    <SettingPill tone={rule.tone as 'ok' | 'warn' | 'bad' | 'info'}>{rule.value}</SettingPill>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-[16px] border border-[#F3C6BD] bg-[#FEF8F6] p-5">
-              <h2 className="m-0 text-[15px] font-extrabold text-[#8E2A17]">Danger zone</h2>
-              <p className="mt-[5px] text-[12.5px] text-[#8E2A17]">These actions cannot be undone from inside ShiftOS.</p>
-              <div className="mt-3.5 flex flex-col gap-2.5">
-                {DANGERS.map((danger) => (
-                  <div key={danger.title} className="flex flex-wrap items-center gap-3 rounded-[13px] border border-[#F3C6BD] bg-white p-[13px_14px]">
-                    <span className="min-w-0 flex-1 basis-[240px]">
-                      <span className="block text-[12.5px] font-extrabold text-neutral-900">{danger.title}</span>
-                      <span className="mt-0.5 block text-[11.5px] text-[#857A72]">{danger.body}</span>
-                    </span>
-                    <button type="button" className="h-[36px] cursor-pointer rounded-[10px] border border-[#C93A22] bg-white px-[14px] text-[12px] font-bold text-[#C93A22]">{danger.cta}</button>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </>
-        );
-      case 'Branch Hours':
-        return (
-          <section className="rounded-[16px] border border-[#EBE7E3] bg-white p-5">
-            <h2 className="m-0 mb-3.5 text-[15px] font-extrabold text-neutral-900">Weekly operating hours</h2>
-            <div className="flex flex-col gap-2">
-              {DAYS.map((day) => (
-                <div key={day} className="flex items-center gap-2 rounded-[12px] border border-[#F2EEEA] p-[10px_14px]">
-                  <span className="w-[100px] text-[12.5px] font-bold text-neutral-900">{DAY_LABELS[day]}</span>
-                  <span className="ml-auto text-[12.5px] text-[#57504A]">{HOURS[day]}</span>
-                </div>
-              ))}
-            </div>
-            <button type="button" className="mt-3.5 h-[38px] cursor-pointer rounded-[11px] border border-[#EBE7E3] bg-white px-[15px] text-[12.5px] font-bold text-neutral-900">Edit hours</button>
-          </section>
-        );
-      case 'Notifications':
-        return (
-          <section className="overflow-hidden rounded-[16px] border border-[#EBE7E3] bg-white">
-            <div className="grid grid-cols-[minmax(0,1fr)_74px_74px_74px] gap-2.5 border-b border-[#F2EEEA] px-[18px] py-[12px] text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-[#A79C93]">
-              <span>Notify me about</span>
-              <span className="text-center">In app</span>
-              <span className="text-center">Email</span>
-              <span className="text-center">WhatsApp</span>
-            </div>
-            {NOTIFICATIONS.map((item, rowIndex) => (
-              <div key={item.label} className="grid grid-cols-[minmax(0,1fr)_74px_74px_74px] items-center gap-2.5 border-b border-[#F7F4F1] px-[18px] py-[13px] last:border-b-0">
-                <span className="min-w-0">
-                  <span className="block text-[12.5px] font-bold text-neutral-900">{item.label}</span>
-                  <span className="mt-0.5 block text-[11.5px] text-[#857A72]">{item.body}</span>
-                </span>
-                {['In app', 'Email', 'WhatsApp'].map((label, index) => {
-                  const enabled = channels[rowIndex]?.[index] ?? item.channels[index];
-                  return (
-                    <span key={label} className="flex justify-center">
-                      <button
-                        type="button"
-                        aria-label={`${label} notifications for ${item.label}`}
-                        aria-checked={enabled}
-                        onClick={() => {
-                          setChannels((prev) => {
-                            const next = prev.map((row) => row.slice());
-                            next[rowIndex][index] = !next[rowIndex][index];
-                            return next;
-                          });
-                        }}
-                        className={`relative h-[22px] w-[38px] rounded-full border-0 p-0 ${enabled ? 'bg-[#F04E17]' : 'bg-[#E4DED9]'}`}
-                      >
-                        <span className={`absolute top-[3px] h-[16px] w-[16px] rounded-full bg-white shadow-sm ${enabled ? 'left-[19px]' : 'left-[3px]'}`} />
-                      </button>
-                    </span>
-                  );
-                })}
-              </div>
-            ))}
-            <p className="m-0 px-[18px] py-[13px] text-[11.5px] text-[#A79C93]">WhatsApp delivery is available on Professional and Enterprise plans.</p>
-          </section>
-        );
-      case 'Security':
-        return (
-          <>
-            <section className="rounded-[16px] border border-[#EBE7E3] bg-white p-5">
-              <h2 className="m-0 text-[15px] font-extrabold text-neutral-900">Password</h2>
-              <p className="mt-[5px] text-[12.5px] text-[#857A72]">Change the password for your ShiftOS account. This is separate from anything your organization can change.</p>
-              <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-[14px]">
-                {[
-                  { label: 'Current password', placeholder: 'Enter your current password', type: 'password', field: 'current' },
-                  { label: 'New password', placeholder: 'Create a new password', type: 'password', field: 'next' },
-                  { label: 'Confirm new password', placeholder: 'Repeat the new password', type: 'password', field: 'confirm' }
-                ].map((field) => (
-                  <label key={field.label} className={field.field === 'current' ? 'col-span-full' : ''}>
-                    <span className="mb-1.5 block text-[12px] font-bold text-neutral-900">{field.label}</span>
-                    <input
-                      type={field.type}
-                      placeholder={field.placeholder}
-                      value={password[field.field as 'current' | 'next' | 'confirm']}
-                      onChange={(event) => setPassword((prev) => ({ ...prev, [field.field]: event.target.value }))}
-                      className="h-[44px] w-full rounded-[12px] border border-[#E4DED9] bg-white px-[13px] text-[13.5px] outline-none focus:border-brand-500"
-                    />
-                  </label>
-                ))}
-              </div>
-              <div className="mt-4 rounded-[13px] border border-[#F2EEEA] bg-[#FDFCFB] p-[14px]">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="text-[12px] font-bold text-[#857A72]">Password strength</span>
-                  <span className={`text-[12px] font-extrabold ${passwordTone}`}>{passwordLabel}</span>
-                  <div className="min-w-[120px] flex-1">
-                    <div className="h-[6px] overflow-hidden rounded-full bg-[#EFEAE6]">
-                      <div className={`h-full rounded-full ${passwordBarClass}`} style={{ width: passwordBarWidth }} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {PASSWORD_RULES.map((rule) => {
-                  const met = rule.test(password.next);
-                  return (
-                    <span key={rule.label} className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-[11px] font-bold ${met ? 'border-[#BFE6CF] bg-[#E9F7EF] text-[#1E6B45]' : 'border-neutral-200 bg-white text-[#857A72]'}`}>
-                      <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] ${met ? 'bg-[#1E6B45] text-white' : 'border border-neutral-200 bg-white text-transparent'}`}>{met ? '✓' : ''}</span>
-                      {rule.label}
-                    </span>
-                  );
-                })}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button type="button" className="h-[42px] cursor-pointer rounded-[11px] bg-brand-500 px-5 text-[13px] font-bold text-white">Update password</button>
-              </div>
-            </section>
-
-            <section className="rounded-[16px] border border-[#EBE7E3] bg-white overflow-hidden">
-              <div className="flex items-center justify-between gap-3 border-b border-[#F2EEEA] px-[18px] py-[15px]">
-                <h2 className="m-0 text-[15px] font-extrabold text-neutral-900">Active sessions</h2>
-                <button type="button" className="h-[34px] cursor-pointer rounded-[10px] border border-[#F3C6BD] bg-white px-[13px] text-[12px] font-bold text-[#C93A22]">Sign out all others</button>
-              </div>
-              {SESSIONS.map((session) => (
-                <div key={session.device} className="flex flex-wrap items-center gap-3 border-b border-[#F7F4F1] px-[18px] py-[13px] last:border-b-0">
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[12.5px] font-bold text-neutral-900">{session.device}</span>
-                    <span className="mt-0.5 block text-[11.5px] text-[#857A72]">{session.meta}</span>
-                  </span>
-                  <SettingPill tone={session.tone as 'ok' | 'warn' | 'info'}>{session.status}</SettingPill>
-                </div>
-              ))}
-            </section>
-          </>
-        );
-      case 'Billing':
-        return (
-          <>
-            <section className="rounded-[16px] border border-[#F7DFD1] bg-[#FEFAF7] p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <span className="inline-flex items-center rounded-full bg-brand-500 px-[11px] py-[4px] text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-white">Professional</span>
-                  <h2 className="mt-[12px] text-[22px] font-extrabold tracking-[-0.025em] text-neutral-900">
-                    ₦12,000 <span className="text-[13px] font-semibold text-[#857A72]">/ month</span>
-                  </h2>
-                  <p className="mt-[6px] text-[12.5px] text-[#857A72]">Unlimited employees · announcements and leave requests.</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" className="h-[40px] cursor-pointer rounded-[11px] bg-brand-500 px-4 text-[12.5px] font-bold text-white">Change plan</button>
-                  <button type="button" className="h-[40px] cursor-pointer rounded-[11px] border border-[#EBE7E3] bg-white px-[15px] text-[12.5px] font-bold text-neutral-900">Cancel subscription</button>
-                </div>
-              </div>
-              <div className="mt-4 grid gap-3 border-t border-[#F7E3D6] pt-[14px] sm:grid-cols-3">
-                {BILLING_STATS.map((item) => (
-                  <div key={item.label}>
-                    <p className="m-0 text-[10.5px] font-bold uppercase tracking-[0.08em] text-[#A79C93]">{item.label}</p>
-                    <p className="mt-[3px] text-[15px] font-extrabold text-neutral-900">{item.value}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="overflow-hidden rounded-[16px] border border-[#EBE7E3] bg-white">
-              <div className="border-b border-[#F2EEEA] px-[18px] py-[15px]">
-                <h2 className="m-0 text-[15px] font-extrabold text-neutral-900">Invoices</h2>
-              </div>
-              {INVOICES.map((invoice) => (
-                <div key={invoice.ref} className="flex flex-wrap items-center gap-3 border-b border-[#F7F4F1] px-[18px] py-[13px] last:border-b-0">
-                  <span className="min-w-0 flex-1 basis-[200px]">
-                    <span className="block text-[12.5px] font-bold text-neutral-900">{invoice.period}</span>
-                    <span className="mt-0.5 block text-[11.5px] text-[#857A72]">{invoice.ref}</span>
-                  </span>
-                  <span className="text-[12.5px] font-extrabold text-neutral-900">{invoice.amount}</span>
-                  <SettingPill tone={invoice.tone as 'ok' | 'warn'}>{invoice.status}</SettingPill>
-                </div>
-              ))}
-            </section>
-          </>
-        );
-      default:
-        return null;
-    }
-  }, [tab, channels, photoPresent]);
-
-  if (!canAccessOrgSettings) {
-    return (
-      <div className="px-4 pb-10 pt-[72px] sm:px-6 lg:px-8">
-        <DashHeader title="Settings" subtitle="ABC Supermarket Ltd. · Main Branch" />
-        <div className="rounded-[16px] border border-dashed border-neutral-200 bg-white px-6 py-10 text-center">
-          <p className="text-[15px] font-extrabold text-neutral-900">Settings aren’t available for this account</p>
-          <p className="mt-2 text-[12.5px] text-neutral-500">Ask a manager to grant access.</p>
-        </div>
-      </div>
-    );
-  }
-
+function Field({ label, note, full, children }: { label: string; note?: string; full?: boolean; children: React.ReactNode }): React.ReactElement {
   return (
-    <div className="px-4 pb-10 pt-[72px] sm:px-6 lg:px-8">
-      <DashHeader title="Settings" subtitle="ABC Supermarket Ltd. · Main Branch" />
+    <label className={full ? 'col-[1/-1] block' : 'block'}>
+      <span className="mb-1.5 block text-[12px] font-bold">{label}</span>
+      {children}
+      {note ? <span className="mt-1.5 block text-[11.5px] text-[#A79C93]">{note}</span> : null}
+    </label>
+  );
+}
 
-      <div className="mt-4 flex flex-wrap items-start gap-5">
-        <nav className="sticky top-0 min-w-[180px] flex-[0_1_200px] rounded-[12px] border border-[#EBE7E3] bg-white p-1 shadow-none">
-          {SETTINGS_TABS.map((label) => {
-            const active = label === tab;
+function Toggle({ on, label, disabled, onClick }: { on: boolean; label: string; disabled?: boolean; onClick: () => void }): React.ReactElement {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="relative h-[22px] w-[38px] cursor-pointer rounded-full border-0 p-0 disabled:cursor-not-allowed disabled:opacity-60"
+      style={{ backgroundColor: on ? '#F04E17' : '#E4DED9' }}
+    >
+      <span className="absolute top-[3px] size-4 rounded-full bg-white shadow-[0_1px_3px_rgba(56,49,43,.3)]" style={{ left: on ? 19 : 3 }} />
+    </button>
+  );
+}
+
+const outlineButton = 'h-[34px] cursor-pointer rounded-[10px] border border-solid bg-white px-[13px] font-[inherit] text-[12px] font-bold';
+
+export default function SettingsPage(): React.ReactElement {
+  const now = useNow();
+  const { profile, authUser, myContext, activeOrganization, hasPermission, refresh } = useSession();
+  const { toast, show, dismiss } = useScheduleToast();
+  const tabs = settingsTabs(hasPermission);
+  const [tab, setTab] = useState<SettingsTab>('Profile');
+  const current = tabs.includes(tab) ? tab : 'Profile';
+
+  const branchId = useDefaultBranchId() ?? '';
+  const scoped = branchId ? { branchId } : undefined;
+  const { data: branches } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: hasPermission('branches.read') });
+  const branch = (branches ?? []).find((b) => b.id === branchId);
+  const orgQuery = useRpcQuery<Organization>('get_organization', undefined, { enabled: hasPermission('organizations.read') });
+  const organization = orgQuery.data;
+
+  // ---------------- Profile
+  const [first, setFirst] = useState('');
+  const [last, setLast] = useState('');
+  const [phone, setPhone] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
+  useEffect(() => {
+    if (!profile) return;
+    setFirst(profile.first_name);
+    setLast(profile.last_name);
+    setPhone(profile.phone ?? '');
+    setJobTitle(profile.job_title ?? '');
+  }, [profile]);
+  const profileDirty =
+    Boolean(profile) &&
+    (first.trim() !== profile!.first_name || last.trim() !== profile!.last_name || phone.trim() !== (profile!.phone ?? '') || jobTitle.trim() !== (profile!.job_title ?? ''));
+  const updateProfile = useRpcMutation<unknown, { firstName?: string; lastName?: string; phone?: string | null; jobTitle?: string | null; avatarUrl?: string | null }>('update_profile');
+  const photoUrl = useSignedAvatarUrl(profile?.avatar_url);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoDate = uploadedOn(profile?.avatar_url);
+  const myName = `${first} ${last}`.trim() || profile?.email || 'Me';
+
+  const changePhoto = async (file: File | undefined): Promise<void> => {
+    if (!file || !authUser) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return show('Choose a JPG, PNG or WebP image', 'error');
+    if (file.size > 2 * 1024 * 1024) return show('That photo is over 2 MB', 'error');
+    setPhotoBusy(true);
+    try {
+      const previous = profile?.avatar_url;
+      const path = await uploadUserAvatar(authUser.id, file);
+      await updateProfile.mutateAsync({ avatarUrl: path });
+      if (previous) await removeAvatar(previous);
+      await refresh();
+      show('Photo updated');
+    } catch (error) {
+      show((error as Error).message || 'Could not upload that photo', 'error');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+  const removePhoto = async (): Promise<void> => {
+    if (!profile?.avatar_url) return;
+    setPhotoBusy(true);
+    try {
+      await updateProfile.mutateAsync({ avatarUrl: null });
+      await removeAvatar(profile.avatar_url);
+      await refresh();
+      show('Photo removed · your initials are shown instead');
+    } catch (error) {
+      show((error as Error).message || 'Could not remove the photo', 'error');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  // ---------------- Organization
+  const canEditOrg = hasPermission('organizations.update');
+  const [orgName, setOrgName] = useState('');
+  const [businessType, setBusinessType] = useState('');
+  const [country, setCountry] = useState('');
+  const [timeZone, setTimeZone] = useState('');
+  useEffect(() => {
+    if (!organization) return;
+    const meta = organization.metadata ?? {};
+    setOrgName(organization.name);
+    setBusinessType(typeof meta.businessType === 'string' ? meta.businessType : '');
+    setCountry(typeof meta.country === 'string' ? meta.country : '');
+    setTimeZone(typeof meta.timeZone === 'string' ? meta.timeZone : '');
+  }, [organization]);
+  const orgMeta = organization?.metadata ?? {};
+  const orgDirty =
+    Boolean(organization) &&
+    (orgName.trim() !== organization!.name ||
+      businessType !== (orgMeta.businessType ?? '') ||
+      country !== (orgMeta.country ?? '') ||
+      timeZone !== (orgMeta.timeZone ?? ''));
+  const updateOrganization = useRpcMutation<Organization, { name: string; metadata?: Record<string, unknown> }>('update_organization', { invalidates: ['get_organization'] });
+  const countries = useMemo(() => getCountryOptions(), []);
+  const zones = useMemo(() => timeZones(), []);
+  const { data: roles } = useRpcQuery<Role[]>('list_roles', undefined, { enabled: current === 'Organization' && hasPermission('org.members.manage') });
+  const supervisorRole = (roles ?? []).find((r) => r.is_active && !r.deleted_at && /supervisor/i.test(r.name));
+  const { data: supervisorCaps } = useRpcQuery<Record<string, boolean>>('get_role_capabilities', supervisorRole ? { roleId: supervisorRole.id } : undefined, {
+    enabled: Boolean(supervisorRole)
+  });
+  const [danger, setDanger] = useState<'transfer' | 'delete' | null>(null);
+
+  // ---------------- Branch hours
+  const savedHours = readHours(branch?.settings);
+  const [hoursOpen, setHoursOpen] = useState(false);
+  const [hoursDraft, setHoursDraft] = useState<WeekHours>(DEFAULT_HOURS);
+  const updateBranch = useRpcMutation<Branch, { branchId: string; settings: Record<string, unknown> }>('update_branch', { invalidates: ['list_branches'] });
+  const setDay = (day: Day, patch: Partial<WeekHours[Day]>): void => setHoursDraft((was) => ({ ...was, [day]: { ...was[day], ...patch } }));
+  const saveHours = async (): Promise<void> => {
+    if (!branch) return;
+    if (!validHours(hoursDraft)) return show('Check your times — closing must be after opening', 'error');
+    try {
+      await updateBranch.mutateAsync({ branchId: branch.id, settings: { ...branch.settings, operatingHours: hoursDraft } });
+      setHoursOpen(false);
+      show('Operating hours saved');
+    } catch (error) {
+      show((error as Error).message, 'error');
+    }
+  };
+
+  // ---------------- Notifications
+  const prefsQuery = useRpcQuery<Array<{ event_type: EventType; channel: EventChannel; is_enabled: boolean }>>('get_my_notification_event_preferences', undefined, {
+    enabled: hasPermission('notifications.read')
+  });
+  const savedPrefs = useMemo(() => preferenceMap(prefsQuery.data), [prefsQuery.data]);
+  const [prefs, setPrefs] = useState<EventPreferences>(savedPrefs);
+  useEffect(() => setPrefs(savedPrefs), [savedPrefs]);
+  const changedPrefs = (Object.keys(prefs) as Array<keyof EventPreferences>).filter((key) => prefs[key] !== savedPrefs[key]);
+  const setPref = useRpcMutation<unknown, { eventType: EventType; channel: EventChannel; isEnabled: boolean }>('set_my_notification_event_preference', {
+    invalidates: ['get_my_notification_event_preferences']
+  });
+
+  // ---------------- Security
+  const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
+  const [pwBusy, setPwBusy] = useState(false);
+  const strength = passwordStrength(pw.next);
+  const pwValid = strength.met === PASSWORD_RULES.length && Boolean(pw.current) && pw.confirm === pw.next;
+  const mismatch = Boolean(pw.confirm) && pw.confirm !== pw.next;
+  const [signedInAt, setSignedInAt] = useState<string | null>(null);
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => {
+      const session = (data as { session: { user?: { last_sign_in_at?: string } } | null }).session;
+      setSignedInAt(session?.user?.last_sign_in_at ?? null);
+    });
+  }, []);
+  const updatePassword = async (): Promise<void> => {
+    if (!pwValid) return show('Fill in all three fields and meet every rule first.', 'error');
+    if (!profile) return;
+    setPwBusy(true);
+    try {
+      const check = await supabase.auth.signInWithPassword({ email: profile.email, password: pw.current });
+      if (check.error) throw new Error('Your current password is not right.');
+      const update = await supabase.auth.updateUser({ password: pw.next });
+      if (update.error) throw new Error(update.error.message);
+      setPw({ current: '', next: '', confirm: '' });
+      show('Password updated');
+    } catch (error) {
+      show((error as Error).message, 'error');
+    } finally {
+      setPwBusy(false);
+    }
+  };
+  const signOutOthers = async (): Promise<void> => {
+    const { error } = await supabase.auth.signOut({ scope: 'others' });
+    if (error) show(error.message, 'error');
+    else show('Signed out of every other device');
+  };
+
+  // ---------------- Billing
+  const { data: employees } = useRpcQuery<Employee[]>('list_employees', scoped, { enabled: current === 'Billing' && hasPermission('employees.read') });
+  const { data: departments } = useRpcQuery<Department[]>('list_departments', scoped, { enabled: current === 'Billing' && hasPermission('departments.read') });
+
+  // ---------------- Save changes (one button for the tab you're on)
+  const [saving, setSaving] = useState(false);
+  const save = async (): Promise<void> => {
+    if (saving) return;
+    const dirty = current === 'Profile' ? profileDirty : current === 'Organization' ? orgDirty : current === 'Notifications' ? changedPrefs.length > 0 : false;
+    if (!dirty) return show('Nothing to save — everything is up to date');
+    setSaving(true);
+    try {
+      if (current === 'Profile') {
+        if (!first.trim() || !last.trim()) throw new Error('First and last name are required.');
+        await updateProfile.mutateAsync({ firstName: first.trim(), lastName: last.trim(), phone: phone.trim() || null, jobTitle: jobTitle.trim() || null });
+        await refresh();
+      } else if (current === 'Organization') {
+        if (!orgName.trim()) throw new Error('The organization needs a name.');
+        await updateOrganization.mutateAsync({ name: orgName.trim(), metadata: { ...orgMeta, businessType, country, timeZone } });
+        await refresh();
+      } else {
+        for (const key of changedPrefs) {
+          const [eventType, channel] = key.split(':') as [EventType, EventChannel];
+          await setPref.mutateAsync({ eventType, channel, isEnabled: prefs[key] });
+        }
+      }
+      show('Settings saved');
+    } catch (error) {
+      show((error as Error).message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const subtitle = [activeOrganization?.name ?? organization?.name, branch?.name].filter(Boolean).join(' · ');
+
+  const profileTab = (
+    <>
+      <section className={`${card} p-5`}>
+        <h2 className={h2}>Profile photo</h2>
+        <p className="mb-3.5 mt-[5px] text-[12.5px] text-[#857A72]">Optional. Without a photo, ShiftOS shows your initials everywhere your name appears.</p>
+        <div className="flex flex-wrap items-center gap-4">
+          {profile?.avatar_url ? (
+            <span className="flex size-[76px] flex-none items-center justify-center overflow-hidden rounded-full bg-[#FDF0E9] text-[22px] font-extrabold text-[#C6420E]">
+              {photoUrl ? <img src={photoUrl} alt="" className="size-full object-cover" /> : initialsOf(myName)}
+            </span>
+          ) : (
+            // content-box, as in the handoff: the dashed border sits outside the 76px
+            <span className="box-content flex size-[76px] flex-none items-center justify-center rounded-full border-[1.5px] border-dashed border-[#EBE7E3] bg-white text-[20px] font-extrabold text-[#A79C93]" />
+          )}
+          <div className="min-w-0 flex-[1_1_240px]">
+            <p className="m-0 text-[12.5px] font-bold">
+              {profile?.avatar_url ? `Photo on file${photoDate ? ` · uploaded ${photoDate}` : ''}` : 'No photo — your initials are shown instead.'}
+            </p>
+            <p className="mb-0 mt-1 text-[11.5px] text-[#857A72]">JPG, PNG or WebP · max 2 MB · square images work best.</p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => void changePhoto(event.target.files?.[0])} />
+              {profile?.avatar_url ? (
+                <>
+                  <button type="button" disabled={photoBusy} onClick={() => fileInput.current?.click()} className={`${outlineButton} border-[#EBE7E3] text-[#38312B]`}>
+                    Replace photo
+                  </button>
+                  <button type="button" disabled={photoBusy} onClick={() => void removePhoto()} className={`${outlineButton} border-[#F3C6BD] text-[#C93A22]`}>
+                    Remove photo
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  disabled={photoBusy}
+                  onClick={() => fileInput.current?.click()}
+                  className="h-[34px] cursor-pointer rounded-[10px] border-0 bg-[#F04E17] px-[13px] font-[inherit] text-[12px] font-bold text-white"
+                >
+                  {photoBusy ? 'Uploading…' : 'Upload photo'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={`${card} p-5`}>
+        <h2 className={`${h2} mb-3.5`}>Personal details</h2>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3.5">
+          <Field label="First name">
+            <input type="text" className={control(false)} value={first} onChange={(event) => setFirst(event.target.value)} autoComplete="given-name" />
+          </Field>
+          <Field label="Last name">
+            <input type="text" className={control(false)} value={last} onChange={(event) => setLast(event.target.value)} autoComplete="family-name" />
+          </Field>
+          <Field label="Work email" note="Contact support to change the email on your account." full>
+            <input type="text" className={control(true)} value={profile?.email ?? ''} disabled />
+          </Field>
+          <Field label="Phone number">
+            <input type="text" className={control(false)} value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="tel" />
+          </Field>
+          <Field label="Job title">
+            <input type="text" className={control(false)} value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} autoComplete="organization-title" />
+          </Field>
+          <Field label="Role" note="Granted by your organization — ask an owner or admin to change it." full>
+            <input type="text" className={control(true)} value={myContext?.roleName ?? ''} disabled />
+          </Field>
+        </div>
+      </section>
+
+      <section className={`${card} p-5`}>
+        <h2 className={h2}>Your role and access</h2>
+        <p className="mb-3.5 mt-[5px] text-[12.5px] text-[#857A72]">Roles are granted by a manager. You can see what you have, but not change it here.</p>
+        <div className="flex flex-wrap gap-2">
+          {ACCESS_CHIPS.map((chip) => {
+            const on = hasPermission(chip.permission);
             return (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setTab(label)}
-                className={`block w-full rounded-[10px] px-[12px] py-[9px] text-left transition-colors ${active ? 'bg-[#F04E17] text-white shadow-[0_8px_18px_-12px_rgba(240,78,23,0.8)]' : 'bg-transparent text-[#857A72]'}`}
+              <span
+                key={chip.label}
+                className="inline-flex items-center gap-2 rounded-full border border-solid px-[13px] py-2 text-[12px] font-bold"
+                style={on ? { borderColor: '#BFE6CF', backgroundColor: '#E9F7EF', color: '#1E6B45' } : { borderColor: '#EBE7E3', backgroundColor: '#fff', color: '#A79C93' }}
               >
-                <span className="block text-[13px] font-bold">{label}</span>
-                <span className={`mt-0.5 block text-[10.5px] ${active ? 'text-white/80' : 'text-[#A79C93]'}`}>
-                  {label === 'Profile' ? 'Your details and photo' : label === 'Organization' ? 'Name, branding, attendance rules' : label === 'Branch Hours' ? 'Weekly hours and address' : label === 'Notifications' ? 'In-app, email and WhatsApp' : label === 'Security' ? 'Password and sessions' : 'Plan and invoices'}
+                <span
+                  className={`flex size-4 flex-none items-center justify-center rounded-full text-[9px] font-extrabold ${on ? 'bg-[#2E9E62] text-white' : 'box-content border-[1.5px] border-solid border-[#EBE7E3] text-transparent'}`}
+                >
+                  {on ? '✓' : ''}
                 </span>
-              </button>
+                {chip.label}
+              </span>
             );
           })}
-        </nav>
+        </div>
+      </section>
+    </>
+  );
 
-        <div className="min-w-0 flex-1 space-y-4">{content}</div>
+  const organizationTab = (
+    <>
+      <section className={`${card} p-5`}>
+        <h2 className={`${h2} mb-3.5`}>Organization details</h2>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3.5">
+          <Field label="Organization name">
+            <input type="text" className={control(!canEditOrg)} value={orgName} disabled={!canEditOrg} onChange={(event) => setOrgName(event.target.value)} />
+          </Field>
+          <Field label="Business type">
+            <select className={control(!canEditOrg)} value={businessType} disabled={!canEditOrg} onChange={(event) => setBusinessType(event.target.value)}>
+              <option value="">Not set</option>
+              {BUSINESS_TYPES.map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Workspace URL" note="Changing this breaks existing links for your team." full>
+            <input type="text" className={control(true)} value={organization?.slug ?? ''} disabled />
+          </Field>
+          <Field label="Country">
+            <select className={control(!canEditOrg)} value={country} disabled={!canEditOrg} onChange={(event) => setCountry(event.target.value)}>
+              <option value="">Not set</option>
+              {countries.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Time zone">
+            <select className={control(!canEditOrg)} value={timeZone} disabled={!canEditOrg} onChange={(event) => setTimeZone(event.target.value)}>
+              <option value="">Not set</option>
+              {zones.map((zone) => (
+                <option key={zone}>{zone}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Week starts on">
+            <input type="text" className={control(true)} value="Monday" disabled />
+          </Field>
+        </div>
+      </section>
+
+      <section className={`${card} p-5`}>
+        <h2 className={h2}>Attendance rules</h2>
+        <p className="mb-3.5 mt-[5px] text-[12.5px] text-[#857A72]">These thresholds decide when ShiftOS marks someone late or absent.</p>
+        <div className="flex flex-col gap-[11px]">
+          {attendanceRules(supervisorCaps ? Boolean(supervisorCaps.markAttendance) : null).map((rule) => (
+            <div key={rule.label} className="flex flex-wrap items-center gap-3 rounded-[13px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] px-3.5 py-[13px]">
+              <span className="min-w-0 flex-[1_1_240px]">
+                <span className="block text-[12.5px] font-extrabold">{rule.label}</span>
+                <span className="block text-[11.5px] text-[#857A72]">{rule.body}</span>
+              </span>
+              <span className="ml-auto inline-flex items-center gap-[5px] rounded-full px-3.5 py-[7px] text-[12px] font-bold" style={pill(rule.tone)}>
+                {rule.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {canEditOrg ? (
+        <section className="rounded-[16px] border border-solid border-[#F3C6BD] bg-[#FEF8F6] p-5">
+          <h2 className={`${h2} text-[#8E2A17]`}>Danger zone</h2>
+          <p className="mb-3.5 mt-[5px] text-[12.5px] text-[#8E2A17]">These actions cannot be undone from inside ShiftOS.</p>
+          <div className="flex flex-col gap-2.5">
+            {(
+              [
+                ['transfer', 'Transfer organization ownership', 'Hand the Manager role to another member. You keep your account.', 'Transfer'],
+                ['delete', 'Delete organization', 'Removes all people, schedules and attendance records. Export first.', 'Delete']
+              ] as const
+            ).map(([key, title, body, cta]) => (
+              <div key={key} className="flex flex-wrap items-center gap-3 rounded-[13px] border border-solid border-[#F3C6BD] bg-white px-3.5 py-[13px]">
+                <span className="min-w-0 flex-[1_1_240px]">
+                  <span className="block text-[12.5px] font-extrabold">{title}</span>
+                  <span className="block text-[11.5px] text-[#857A72]">{body}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDanger(key)}
+                  className="h-9 cursor-pointer rounded-[10px] border border-solid border-[#C93A22] bg-white px-3.5 font-[inherit] text-[12.5px] font-bold text-[#C93A22]"
+                >
+                  {cta}
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </>
+  );
+
+  const hoursTab = (
+    <section className={`${card} p-5`}>
+      <h2 className={`${h2} mb-3.5`}>Weekly operating hours</h2>
+      <div className="flex flex-col gap-2">
+        {DAYS.map((day) => (
+          <div key={day} className="flex items-center gap-2 rounded-[12px] border border-solid border-[#F2EEEA] px-3.5 py-2.5">
+            <span className="flex-[0_0_100px] text-[12.5px] font-bold">{DAY_LABELS[day]}</span>
+            <span className="ml-auto text-[12.5px] text-[#57504A]">{hoursLine(savedHours, day)}</span>
+          </div>
+        ))}
       </div>
-
-      {saved ? <p className="mt-4 text-[12px] font-medium text-success-600">Settings saved.</p> : null}
-      <div className="mt-4 flex justify-end">
+      {hasPermission('branches.update') ? (
         <button
           type="button"
-          onClick={() => setSaved(true)}
-          className="h-[42px] cursor-pointer rounded-[11px] bg-brand-500 px-5 text-[13px] font-bold text-white shadow-[0_10px_22px_-13px_rgba(240,78,23,0.75)]"
+          disabled={!branch}
+          onClick={() => {
+            setHoursDraft(savedHours ?? DEFAULT_HOURS);
+            setHoursOpen(true);
+          }}
+          className="mt-3.5 h-[38px] cursor-pointer rounded-[11px] border border-solid border-[#EBE7E3] bg-white px-[15px] font-[inherit] text-[12.5px] font-bold text-[#38312B]"
         >
-          Save changes
+          Edit hours
         </button>
+      ) : null}
+    </section>
+  );
+
+  const notificationsTab = (
+    <section className={`${card} overflow-hidden`}>
+      <div className="grid grid-cols-[minmax(0,1fr)_74px_74px_74px] gap-2.5 border-0 border-b border-solid border-[#F2EEEA] px-[18px] py-3 text-[10.5px] font-extrabold uppercase tracking-[.08em] text-[#A79C93]">
+        <span>Notify me about</span>
+        <span className="text-center">In app</span>
+        <span className="text-center">Email</span>
+        <span className="text-center">WhatsApp</span>
       </div>
+      {NOTIFICATION_ROWS.map((row) => (
+        <div key={row.event} className="grid grid-cols-[minmax(0,1fr)_74px_74px_74px] items-center gap-2.5 border-0 border-b border-solid border-[#F7F4F1] px-[18px] py-[13px]">
+          <span className="min-w-0">
+            <span className="block text-[12.5px] font-bold">{row.label}</span>
+            <span className="block text-[11.5px] text-[#857A72]">{row.body}</span>
+          </span>
+          {(['in_app', 'email'] as const).map((channel) => {
+            const key = `${row.event}:${channel}` as const;
+            return (
+              <span key={channel} className="flex justify-center">
+                <Toggle on={prefs[key]} label={`${channel === 'in_app' ? 'In app' : 'Email'} notifications for ${row.label}`} onClick={() => setPrefs((was) => ({ ...was, [key]: !was[key] }))} />
+              </span>
+            );
+          })}
+          <span className="flex justify-center">
+            <Toggle on={false} label={`WhatsApp notifications for ${row.label}`} disabled onClick={() => undefined} />
+          </span>
+        </div>
+      ))}
+      <p className="m-0 px-[18px] py-[13px] text-[11.5px] text-[#A79C93]">Email delivery starts once it’s connected for your organization. WhatsApp isn’t available yet.</p>
+    </section>
+  );
+
+  const securityTab = (
+    <>
+      <section className={`${card} p-5`}>
+        <h2 className={`${h2} mb-3.5`}>Password</h2>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3.5">
+          <Field label="Current password" full>
+            <input
+              type="password"
+              className={control(false)}
+              value={pw.current}
+              placeholder="Enter your current password"
+              autoComplete="current-password"
+              onChange={(event) => setPw({ ...pw, current: event.target.value })}
+            />
+          </Field>
+          <Field label="New password">
+            <input type="password" className={control(false)} value={pw.next} placeholder="Create a new password" autoComplete="new-password" onChange={(event) => setPw({ ...pw, next: event.target.value })} />
+          </Field>
+          <Field label="Confirm new password">
+            <input
+              type="password"
+              className={control(false)}
+              style={mismatch ? { borderColor: '#C93A22' } : undefined}
+              value={pw.confirm}
+              placeholder="Repeat the new password"
+              autoComplete="new-password"
+              onChange={(event) => setPw({ ...pw, confirm: event.target.value })}
+            />
+          </Field>
+        </div>
+        <div className="mt-4 rounded-[13px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] p-3.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="text-[12px] font-bold text-[#857A72]">Password strength</span>
+            <span className="text-[12px] font-extrabold" style={{ color: strength.color }}>
+              {strength.label}
+            </span>
+            <span className="h-1.5 min-w-[100px] flex-[1_1_120px] overflow-hidden rounded-full bg-[#EFEAE6]">
+              <span className="block h-full rounded-full" style={{ width: `${strength.met * 25}%`, backgroundColor: strength.color }} />
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-[9px]">
+          <button
+            type="button"
+            onClick={() => void updatePassword()}
+            className={[
+              'h-[42px] rounded-[11px] border-0 px-5 font-[inherit] text-[13px] font-bold text-white',
+              pwValid && !pwBusy ? 'cursor-pointer bg-[#F04E17] shadow-[0_10px_22px_-13px_rgba(240,78,23,.75)]' : 'cursor-not-allowed bg-[#F5C4AF]'
+            ].join(' ')}
+          >
+            {pwBusy ? 'Updating…' : 'Update password'}
+          </button>
+        </div>
+      </section>
+
+      <section className={`${card} overflow-hidden`}>
+        <div className="flex items-center gap-3 border-0 border-b border-solid border-[#F2EEEA] px-[18px] py-[15px]">
+          <h2 className={h2}>Active sessions</h2>
+          <button type="button" onClick={() => void signOutOthers()} className={`${outlineButton} ml-auto border-[#F3C6BD] text-[#C93A22]`}>
+            Sign out all others
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 border-0 border-b border-solid border-[#F7F4F1] px-[18px] py-[13px]">
+          <span className="min-w-0 flex-[1_1_220px]">
+            <span className="block text-[12.5px] font-bold">{deviceName(typeof navigator === 'undefined' ? '' : navigator.userAgent)}</span>
+            <span className="block text-[11.5px] text-[#857A72]">
+              This device{signedInAt ? ` · signed in ${new Date(signedInAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+            </span>
+          </span>
+          <span className={`${pillClass} ml-auto`} style={pill('ok')}>
+            Current
+          </span>
+        </div>
+        <p className="m-0 px-[18px] py-[13px] text-[11.5px] text-[#A79C93]">Other devices signed in to your account are signed out by the button above.</p>
+      </section>
+    </>
+  );
+
+  const staffCount = (employees ?? []).filter((e) => e.is_active && !e.deleted_at).length;
+  const billingTab = (
+    <>
+      <section className="rounded-[16px] border border-solid border-[#F7DFD1] bg-[#FEFAF7] p-5">
+        <div className="flex flex-wrap items-start gap-3.5">
+          <div className="min-w-0 flex-[1_1_260px]">
+            <span className="inline-flex items-center rounded-full bg-[#F04E17] px-[11px] py-1 text-[10.5px] font-extrabold uppercase tracking-[.08em] text-white">Early access</span>
+            <h2 className="mb-0 mt-3 text-[22px] font-extrabold tracking-[-0.025em]">
+              ₦0 <span className="text-[13px] font-semibold text-[#857A72]">/ month</span>
+            </h2>
+            <p className="mb-0 mt-1.5 text-[12.5px] text-[#857A72]">Every feature is included while ShiftOS is in early access — nothing is billed.</p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 border-0 border-t border-solid border-[#F7E3D6] pt-3.5">
+          {[
+            ['Employees', employees ? `${staffCount} of unlimited` : '—'],
+            ['Departments', departments ? String(departments.filter((d) => d.is_active && !d.deleted_at).length) : '—'],
+            ['Next invoice', 'None']
+          ].map(([label, value]) => (
+            <div key={label}>
+              <p className="m-0 text-[10.5px] text-[#A79C93]">{label}</p>
+              <p className="mb-0 mt-[3px] text-[15px] font-extrabold">{value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className={`${card} overflow-hidden`}>
+        <h2 className={`${h2} border-0 border-b border-solid border-[#F2EEEA] px-[18px] py-[15px]`}>Invoices</h2>
+        <p className="m-0 px-[18px] py-[13px] text-[12.5px] text-[#857A72]">No invoices yet — nothing has been billed.</p>
+      </section>
+    </>
+  );
+
+  const body: Record<SettingsTab, React.ReactNode> = {
+    Profile: profileTab,
+    Organization: organizationTab,
+    'Branch Hours': hoursTab,
+    Notifications: notificationsTab,
+    Security: securityTab,
+    Billing: billingTab
+  };
+
+  return (
+    <div className="flex min-h-full flex-col text-[13px] text-[#38312B] [line-height:normal]">
+      <OverviewHeader title="Settings" subtitle={subtitle || 'Your account'} now={now} />
+      <div className="flex flex-auto flex-col gap-[18px] bg-[#FDFCFB] px-7 pb-10 pt-[22px] max-[859px]:gap-3.5 max-[859px]:px-3.5 max-[859px]:pb-[84px] max-[859px]:pt-4">
+        <div className="flex flex-wrap items-start gap-5">
+          <nav aria-label="Settings" className="sticky top-0 flex min-w-[180px] flex-[0_1_200px] flex-col gap-0.5">
+            {tabs.map((name) => {
+              const active = name === current;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  aria-current={active ? 'page' : undefined}
+                  onClick={() => setTab(name)}
+                  className={[
+                    'block w-full cursor-pointer rounded-[11px] border-0 px-3 py-[9px] text-left font-[inherit]',
+                    active ? 'bg-[#F04E17] text-white' : 'bg-transparent text-[#857A72]'
+                  ].join(' ')}
+                >
+                  <span className="block text-[13px] font-bold">{name}</span>
+                  <span className="block text-[10.5px] font-semibold" style={{ color: active ? 'rgba(255,255,255,.78)' : '#A79C93' }}>
+                    {TAB_SUBS[name]}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+          <div className="flex min-w-0 flex-auto flex-col gap-4">
+            {body[current]}
+            <div className="flex flex-wrap justify-end gap-[9px] pt-1">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void save()}
+                className={[
+                  'h-[42px] rounded-[11px] border-0 px-5 font-[inherit] text-[13px] font-bold text-white',
+                  saving ? 'cursor-progress bg-[#F5A98A]' : 'cursor-pointer bg-[#F04E17] shadow-[0_10px_22px_-13px_rgba(240,78,23,.75)]'
+                ].join(' ')}
+              >
+                {saving ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {hoursOpen ? (
+        <div className="fixed inset-0 z-[85] flex items-center justify-center bg-[rgba(35,30,26,.5)] p-6 text-[13px] text-[#38312B] [line-height:normal]">
+          <div role="dialog" aria-modal="true" aria-label="Operating hours" className="max-h-[88vh] w-full max-w-[560px] overflow-y-auto rounded-[20px] bg-white shadow-[0_40px_90px_-40px_rgba(35,30,26,.6)]">
+            <div className="flex items-start gap-3 px-6 pt-[22px]">
+              <div className="min-w-0 flex-auto">
+                <h2 className="m-0 text-[19px] font-extrabold tracking-[-0.02em]">Operating hours</h2>
+                <p className="mb-0 mt-1.5 text-[12.5px] text-[#857A72]">Weekly hours staff and reports rely on.</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setHoursOpen(false)}
+                className="size-8 flex-none cursor-pointer rounded-[10px] border border-solid border-[#EBE7E3] bg-white font-[inherit] text-[14px] text-[#857A72]"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mx-6 mt-[18px]">
+              <p className="mb-2.5 mt-0 text-[11px] font-extrabold uppercase tracking-[.06em] text-[#A79C93]">Weekly operating hours</p>
+              <div className="flex flex-col gap-2">
+                {DAYS.map((day) => {
+                  const row = hoursDraft[day];
+                  return (
+                    <div key={day} className="flex flex-wrap items-center gap-2.5 rounded-[12px] border border-solid border-[#F2EEEA] px-3 py-2.5">
+                      <span className="flex-[0_0_84px] text-[12.5px] font-bold">{DAY_LABELS[day]}</span>
+                      {row.closed ? (
+                        <span className="flex-auto text-[12px] text-[#A79C93]">Closed all day</span>
+                      ) : (
+                        <>
+                          <input
+                            type="time"
+                            aria-label={`${DAY_LABELS[day]} opens`}
+                            value={row.open}
+                            onChange={(event) => setDay(day, { open: event.target.value })}
+                            className="h-9 rounded-[10px] border border-solid border-[#E4DED9] px-2.5 font-[inherit] text-[12.5px]"
+                          />
+                          <span className="text-[12px] text-[#A79C93]">to</span>
+                          <input
+                            type="time"
+                            aria-label={`${DAY_LABELS[day]} closes`}
+                            value={row.close}
+                            onChange={(event) => setDay(day, { close: event.target.value })}
+                            className="h-9 rounded-[10px] border border-solid border-[#E4DED9] px-2.5 font-[inherit] text-[12.5px]"
+                          />
+                        </>
+                      )}
+                      <label className="ml-auto flex cursor-pointer items-center gap-[7px] text-[11.5px] text-[#857A72]">
+                        <input type="checkbox" checked={row.closed} onChange={() => setDay(day, { closed: !row.closed })} className="size-[15px] cursor-pointer accent-[#F04E17]" />
+                        Closed
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="mt-5 flex flex-wrap justify-end gap-[9px] border-0 border-t border-solid border-[#F2EEEA] px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setHoursOpen(false)}
+                className="h-11 cursor-pointer rounded-[12px] border border-solid border-[#EBE7E3] bg-white px-[17px] font-[inherit] text-[13.5px] font-bold text-[#38312B]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={updateBranch.isPending}
+                onClick={() => void saveHours()}
+                className="h-11 cursor-pointer rounded-[12px] border-0 bg-[#F04E17] px-[19px] font-[inherit] text-[13.5px] font-extrabold text-white shadow-[0_12px_26px_-14px_rgba(240,78,23,.75)]"
+              >
+                {updateBranch.isPending ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <HandoffModal
+        open={danger !== null}
+        title={danger === 'delete' ? 'Delete organization' : 'Transfer organization ownership'}
+        subtitle="This can't be done from inside ShiftOS."
+        primary="Done"
+        onPrimary={() => setDanger(null)}
+        onClose={() => setDanger(null)}
+      >
+        <DialogNote>
+          {danger === 'delete'
+            ? 'Deleting an organization removes every person, schedule and attendance record for good, so ShiftOS support does it with you. Export your reports first, then contact support from your account email.'
+            : 'Ownership moves between two people, so ShiftOS support makes the change with both of you. Contact support from your account email with the member who should take over.'}
+        </DialogNote>
+      </HandoffModal>
+      <ScheduleToast toast={toast} onDismiss={dismiss} />
     </div>
   );
 }

@@ -87,6 +87,36 @@ describe('announcements integration', () => {
       announcement.id
     ]);
     expect(ackRows).toHaveLength(1);
+
+    // The receipts panel reads the same rows back.
+    const receipts = await ctx.call<Array<{ employee_id: string }>>('list_announcement_acknowledgements', { announcementId: announcement.id });
+    expect(receipts.map((row) => row.employee_id)).toEqual([throwaway.id]);
+  });
+
+  it('pins an announcement and reminds only the people who have not acknowledged it', async () => {
+    const pinned = await ctx.call<{ id: string; is_pinned: boolean }>('create_announcement', {
+      branchId: TEST_FIXTURES.branchId,
+      title: 'Pinned reminder test',
+      content: 'Please acknowledge',
+      isPinned: true
+    });
+    createdAnnouncementIds.push(pinned.id);
+    expect(pinned.is_pinned).toBe(true);
+
+    const draftReminder = await ctx.callRaw('remind_announcement', { announcementId: pinned.id });
+    expect(draftReminder.success).toBe(false);
+    expect(draftReminder.error?.code).toBe('VALIDATION_ERROR');
+
+    await ctx.call('publish_announcement', { announcementId: pinned.id });
+    const result = await ctx.call<{ reminded: number; undelivered: number }>('remind_announcement', { announcementId: pinned.id });
+    const [{ count }] = await ctx.client.query<{ count: string }>(
+      "SELECT count(*)::text AS count FROM employees WHERE organization_id = $1 AND branch_id = $2 AND employment_status = 'active' AND deleted_at IS NULL",
+      [TEST_FIXTURES.organizationId, TEST_FIXTURES.branchId]
+    );
+    expect(result.reminded + result.undelivered).toBe(Number(count));
+
+    const unpinned = await ctx.call<{ is_pinned: boolean }>('update_announcement', { announcementId: pinned.id, isPinned: false });
+    expect(unpinned.is_pinned).toBe(false);
   });
 
   it('rejects acknowledging an unpublished announcement', async () => {

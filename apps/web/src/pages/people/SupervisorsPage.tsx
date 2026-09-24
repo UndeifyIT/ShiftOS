@@ -291,7 +291,7 @@ export default function SupervisorsPage(): React.ReactElement {
   const headerActions = <HeaderCta label="Invite supervisor" onClick={() => setInviteOpen(true)} />;
 
   const body = (): React.ReactNode => {
-    if (membersQuery.isLoading || capabilitiesLoading) return <OverviewLoading />;
+    if (membersQuery.isLoading || capabilitiesLoading) return <OverviewLoading title="Supervisors" />;
     if (rows.length === 0) {
       return (
         <OverviewEmpty

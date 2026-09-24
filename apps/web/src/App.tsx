@@ -38,6 +38,7 @@ const ManagerDashboardPreviewPage = lazy(() => import('./pages/dashboard/Manager
 const AdminConsolePage = lazy(() => import('./pages/admin/AdminConsolePage.js'));
 const AnnouncementsPage = lazy(() => import('./pages/announcements/AnnouncementsPage.js'));
 const RequestsPage = lazy(() => import('./pages/requests/RequestsPage.js'));
+const RecentActivityPage = lazy(() => import('./pages/activity/RecentActivityPage.js'));
 const ReportsPage = lazy(() => import('./pages/reports/ReportsPage.js'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage.js'));
 const OrganizationSettingsPage = lazy(() => import('./pages/organization/OrganizationSettingsPage.js'));
@@ -54,7 +55,6 @@ const InvitationsPage = lazy(() => import('./pages/members/InvitationsPage.js'))
 const SchedulesPage = lazy(() => import('./pages/scheduling/SchedulesPage.js'));
 const ProfilePage = lazy(() => import('./pages/account/ProfilePage.js'));
 const SecurityPage = lazy(() => import('./pages/account/SecurityPage.js'));
-const ComingSoonPage = lazy(() => import('./pages/placeholder/ComingSoonPage.js'));
 const TasksPage = lazy(() => import('./pages/tasks/TasksPage.js'));
 const AttendancePage = lazy(() => import('./pages/attendance/AttendancePage.js'));
 
@@ -278,9 +278,7 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/security" element={<SecurityPage />} />
         <Route path="/supervisors" element={<SupervisorsPage />} />
         <Route path="/admins" element={<AdminsPage />} />
-        <Route path="/recent-activity" element={<ComingSoonPage page="recentActivity" />} />
-        <Route path="/reports" element={<ComingSoonPage page="reports" />} />
-        <Route path="/settings" element={<ComingSoonPage page="settings" />} />
+        <Route path="/recent-activity" element={<RecentActivityPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

@@ -1,7 +1,7 @@
 import { AnnouncementService } from '@shiftos/services';
 import type { AnnouncementType } from '@shiftos/repositories';
 import { defineRpc } from '../rpc.js';
-import { asRecord, requiredStringField, stringField, numberField } from '../parse.js';
+import { asRecord, booleanField, requiredStringField, stringField, numberField } from '../parse.js';
 
 export const createAnnouncement = defineRpc('create_announcement', async (context, rawInput: unknown) => {
   const input = asRecord(rawInput);
@@ -10,7 +10,8 @@ export const createAnnouncement = defineRpc('create_announcement', async (contex
     title: requiredStringField(input, 'title'),
     content: requiredStringField(input, 'content'),
     announcementType: stringField(input, 'announcementType') as AnnouncementType | undefined,
-    expiresAt: stringField(input, 'expiresAt') ?? null
+    expiresAt: stringField(input, 'expiresAt') ?? null,
+    isPinned: booleanField(input, 'isPinned')
   });
 });
 
@@ -21,7 +22,8 @@ export const updateAnnouncement = defineRpc('update_announcement', async (contex
     title: stringField(input, 'title'),
     content: stringField(input, 'content'),
     announcementType: stringField(input, 'announcementType') as AnnouncementType | undefined,
-    expiresAt: stringField(input, 'expiresAt') ?? (input.expiresAt === null ? null : undefined)
+    expiresAt: stringField(input, 'expiresAt') ?? (input.expiresAt === null ? null : undefined),
+    isPinned: booleanField(input, 'isPinned')
   });
 });
 
@@ -60,7 +62,18 @@ export const hasAcknowledgedAnnouncement = defineRpc('has_acknowledged_announcem
   return { acknowledged };
 });
 
+export const listAnnouncementAcknowledgements = defineRpc('list_announcement_acknowledgements', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new AnnouncementService(context).listAcknowledgements(requiredStringField(input, 'announcementId'));
+});
+
+export const remindAnnouncement = defineRpc('remind_announcement', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new AnnouncementService(context).remindOutstanding(requiredStringField(input, 'announcementId'));
+});
+
 export const announcementOperations = [
   createAnnouncement, updateAnnouncement, publishAnnouncement, archiveAnnouncement,
-  getAnnouncement, listAnnouncements, acknowledgeAnnouncement, hasAcknowledgedAnnouncement
+  getAnnouncement, listAnnouncements, acknowledgeAnnouncement, hasAcknowledgedAnnouncement,
+  listAnnouncementAcknowledgements, remindAnnouncement
 ];

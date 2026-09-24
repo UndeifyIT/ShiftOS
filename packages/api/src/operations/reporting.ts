@@ -29,4 +29,13 @@ export const getLeaveUsageReport = defineRpc('get_leave_usage_report', async (co
   );
 });
 
-export const reportingOperations = [getAttendanceSummaryReport, getTaskCompletionReport, getLeaveUsageReport];
+export const getOperationsSummaryReport = defineRpc('get_operations_summary_report', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput);
+  return new ReportingService(context).getOperationsSummary(
+    requiredStringField(input, 'startDate'),
+    requiredStringField(input, 'endDate'),
+    stringField(input, 'branchId')
+  );
+});
+
+export const reportingOperations = [getAttendanceSummaryReport, getTaskCompletionReport, getLeaveUsageReport, getOperationsSummaryReport];

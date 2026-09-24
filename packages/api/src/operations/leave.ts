@@ -55,7 +55,15 @@ export const listPendingLeave = defineRpc('list_pending_leave', async (context, 
   });
 });
 
+export const listBranchLeave = defineRpc('list_branch_leave', async (context, rawInput: unknown) => {
+  const input = asRecord(rawInput ?? {});
+  return new LeaveRequestService(context).listForBranch(stringField(input, 'branchId'), {
+    limit: numberField(input, 'limit'),
+    offset: numberField(input, 'offset')
+  });
+});
+
 export const leaveOperations = [
   createLeaveRequest, approveLeaveRequest, rejectLeaveRequest, cancelLeaveRequest,
-  getLeaveRequest, listLeaveForEmployee, listMyLeave, listPendingLeave
+  getLeaveRequest, listLeaveForEmployee, listMyLeave, listPendingLeave, listBranchLeave
 ];

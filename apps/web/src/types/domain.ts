@@ -326,12 +326,28 @@ export interface Announcement {
   announcement_type: AnnouncementType;
   visibility_type: AnnouncementVisibility;
   is_published: boolean;
+  /** Migration 066; absent on rows read before it ran. */
+  is_pinned?: boolean;
   published_at: string | null;
   expires_at: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+}
+
+/** One employee's acknowledgement of an announcement (`list_announcement_acknowledgements`). */
+export interface AnnouncementAcknowledgement {
+  id: string;
+  organization_id: string;
+  announcement_id: string;
+  employee_id: string;
+  acknowledged_at: string;
+}
+
+export interface AnnouncementReminderResult {
+  reminded: number;
+  undelivered: number;
 }
 
 export type LeaveType = 'annual_leave' | 'sick_leave' | 'emergency_leave' | 'unpaid_leave';
@@ -385,6 +401,12 @@ export interface ShiftSwap {
   decision_notes: string | null;
   created_at: string;
   updated_at: string;
+  /** Joined in by every swap listing: the shift changing hands ('YYYY-MM-DD', 'HH:MM:SS'). */
+  shift_date?: string | null;
+  shift_start_time?: string | null;
+  shift_end_time?: string | null;
+  shift_title?: string | null;
+  shift_department_id?: string | null;
 }
 
 export type NotificationPriority = 'low' | 'normal' | 'high' | 'critical';
@@ -449,4 +471,27 @@ export interface ScheduleConflict {
   date: string;
   kind: 'double_booking' | 'long_shift';
   detail: string;
+}
+
+/** `get_operations_summary_report` — one period of a branch's operations (Reports page). */
+export interface OperationsSummaryReport {
+  startDate: string;
+  endDate: string;
+  attendance: { attended: number; recorded: number };
+  departments: Array<{ department_id: string | null; attended: number; recorded: number }>;
+  scheduledMinutes: number;
+  shiftCount: number;
+  unfilledShifts: Array<{
+    shift_id: string;
+    shift_date: string;
+    start_time: string;
+    end_time: string;
+    title: string;
+    department_id: string | null;
+    paid_minutes: number;
+    assigned: number;
+  }>;
+  swapRequests: number;
+  hoursByEmployee: Array<{ employee_id: string; shifts: number; worked_minutes: number; overtime_minutes: number; late_minutes: number }>;
+  requestActivity: Array<{ department_id: string | null; kind: 'swap' | 'leave'; raised: number; approved: number; declined: number }>;
 }

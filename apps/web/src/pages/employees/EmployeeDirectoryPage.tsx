@@ -260,7 +260,7 @@ export default function EmployeeDirectoryPage(): React.ReactElement {
 
       <div className="flex flex-auto flex-col gap-[18px] bg-[#FDFCFB] px-7 pb-10 pt-[22px] max-[859px]:gap-3.5 max-[859px]:px-3.5 max-[859px]:pb-[84px] max-[859px]:pt-4">
         {loading ? (
-          <OverviewLoading />
+          <OverviewLoading title="Employees" />
         ) : employeesQuery.error ? (
           <OverviewEmpty
             title="Employees couldn't load"

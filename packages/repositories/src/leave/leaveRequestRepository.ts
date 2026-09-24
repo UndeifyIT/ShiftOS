@@ -39,6 +39,11 @@ export class LeaveRequestRepository extends BranchScopedRepository<LeaveRequest>
     return this.list(organizationId, { ...options, filters: { employee_id: employeeId }, orderBy: 'start_date desc' });
   }
 
+  /** Every leave request in the given branches, newest first — the approver's Resolved / All view. */
+  async findForBranches(organizationId: string, branchIds: string[], options?: { limit?: number; offset?: number }): Promise<LeaveRequest[]> {
+    return this.listByBranches(organizationId, branchIds, { ...options, orderBy: 'created_at desc' });
+  }
+
   async findPending(organizationId: string, branchIds: string[], options?: { limit?: number; offset?: number }): Promise<LeaveRequest[]> {
     return this.listByBranches(organizationId, branchIds, { ...options, filters: { status: 'pending' }, orderBy: 'created_at asc' });
   }

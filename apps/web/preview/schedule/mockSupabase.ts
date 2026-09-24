@@ -6,7 +6,9 @@ export const supabase = {
     getSession: noop,
     getUser: noop,
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
-    signOut: noop
+    signOut: noop,
+    signInWithPassword: noop,
+    updateUser: noop
   },
   storage: {
     from: () => ({ createSignedUrl: noop, upload: noop, remove: noop })
