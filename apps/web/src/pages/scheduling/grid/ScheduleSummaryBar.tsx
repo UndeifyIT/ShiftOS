@@ -18,6 +18,8 @@ export interface ScheduleSummaryBarProps {
   open: boolean;
   onToggle: () => void;
   onExport: () => void;
+  /** Staff's own week: the handoff keeps only You / Scheduled / Total Hours, and the summary has no export. */
+  staff?: boolean;
 }
 
 function statTile(color: string, backgroundColor: string): React.CSSProperties {
@@ -35,16 +37,21 @@ export function ScheduleSummaryBar({
   hours,
   open,
   onToggle,
-  onExport
+  onExport,
+  staff = false
 }: ScheduleSummaryBarProps): React.ReactElement {
-  const stats: Array<{ label: string; value: string; meta: string; icon: ScheduleIconName; style: React.CSSProperties }> = [
-    { label: 'On this schedule', value: String(rosterRows.length), meta: `of ${branchEmployeeCount} employees`, icon: 'users', style: statTile(HANDOFF.info, HANDOFF.infoSoft) },
+  const allStats: Array<{ label: string; value: string; meta: string; icon: ScheduleIconName; style: React.CSSProperties }> = [
+    staff
+      ? { label: 'You', value: '1', meta: 'published week', icon: 'users', style: statTile(HANDOFF.info, HANDOFF.infoSoft) }
+      : { label: 'On this schedule', value: String(rosterRows.length), meta: `of ${branchEmployeeCount} employees`, icon: 'users', style: statTile(HANDOFF.info, HANDOFF.infoSoft) },
     { label: 'Scheduled', value: String(scheduledPeople), meta: 'have shifts', icon: 'calendar', style: statTile(HANDOFF.ok, HANDOFF.okSoft) },
     { label: 'Unscheduled', value: String(Math.max(0, rosterRows.length - scheduledPeople)), meta: 'nothing assigned', icon: 'user', style: statTile(HANDOFF.warn, HANDOFF.warnSoft) },
     { label: 'Conflicts', value: String(conflictCount), meta: conflictCount ? 'needs attention' : 'all clear', icon: 'alert', style: statTile(HANDOFF.bad, HANDOFF.badSoft) },
     { label: 'Total Hours', value: durationText(totalPaidMinutes), meta: 'paid hours, breaks out', icon: 'clock', style: statTile(HANDOFF.violet, HANDOFF.violetSoft) },
     { label: 'Coverage', value: `${coverage}%`, meta: 'days with a decision', icon: 'checkCircle', style: statTile(HANDOFF.deep, HANDOFF.soft) }
   ];
+  // Handoff schedVals: `.filter((s) => role !== "Staff" || ["You", "Total Hours", "Scheduled"].indexOf(s.label) >= 0)`.
+  const stats = staff ? allStats.filter((stat) => ['You', 'Scheduled', 'Total Hours'].includes(stat.label)) : allStats;
 
   return (
     <>
@@ -132,14 +139,20 @@ export function ScheduleSummaryBar({
             })}
           </div>
           <div className="flex flex-wrap items-center gap-2.5 px-[18px] py-3">
-            <p className="m-0 text-[11.5px] text-[#A79C93]">Full-time target is 40h. Anyone over 45h or under 10h is flagged so you can rebalance before publishing.</p>
-            <button
-              type="button"
-              onClick={onExport}
-              className="ml-auto h-[34px] cursor-pointer rounded-[10px] border border-[#EBE7E3] bg-white px-[13px] text-[11.5px] font-bold text-black"
-            >
-              Export hours
-            </button>
+            <p className="m-0 text-[11.5px] text-[#A79C93]">
+              {staff
+                ? 'Paid hours on your published shifts this week. Talk to your supervisor if they look wrong.'
+                : 'Full-time target is 40h. Anyone over 45h or under 10h is flagged so you can rebalance before publishing.'}
+            </p>
+            {staff ? null : (
+              <button
+                type="button"
+                onClick={onExport}
+                className="ml-auto h-[34px] cursor-pointer rounded-[10px] border border-[#EBE7E3] bg-white px-[13px] text-[11.5px] font-bold text-black"
+              >
+                Export hours
+              </button>
+            )}
           </div>
         </section>
       ) : null}
