@@ -1,11 +1,12 @@
 import React, { Suspense, lazy, useRef } from 'react';
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { SkeletonRows, Spinner } from '@shiftos/ui';
 import { useSession } from './auth/SessionProvider.js';
 import { AppShell } from './layout/AppShell.js';
 import { useNavRole } from './layout/Sidebar.js';
 import { ErrorState } from '@shiftos/ui';
 import { useRpcQuery } from './lib/useRpc.js';
+import { usePasswordRecovery } from './lib/passwordRecovery.js';
 import type { Branch } from './types/domain.js';
 
 const LandingPage = lazy(() => import('./pages/marketing/LandingPage.js'));
@@ -139,11 +140,25 @@ function OnboardingGate(): React.ReactElement {
 
 export function App(): React.ReactElement {
   const { status, errorMessage, refresh, activeOrganization, myContext } = useSession();
+  const recovering = usePasswordRecovery();
+  const { pathname } = useLocation();
 
   if (window.location.pathname === '/manager-demo') {
     return (
       <SuspenseRoute>
         <ManagerDashboardPreviewPage />
+      </SuspenseRoute>
+    );
+  }
+
+  // A reset link signs the person in; until they've set the new password, that's all they can do. Checked
+  // before anything else — saving the password re-runs the session bootstrap, and the page must stay mounted
+  // through that to show its success panel.
+  // Typing /reset-password while normally signed in isn't a reset: that path only serves a link (or a signed-out visitor).
+  if (recovering || (pathname === '/reset-password' && (status === 'unauthenticated' || status === 'loading'))) {
+    return (
+      <SuspenseRoute>
+        <ResetPasswordPage />
       </SuspenseRoute>
     );
   }
@@ -178,7 +193,6 @@ export function App(): React.ReactElement {
           <Route path="/sign-in" element={<SignInPage />} />
           <Route path="/sign-up" element={<SignUpPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

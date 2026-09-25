@@ -25,6 +25,8 @@ export interface AuthShellProps {
   topRightPrompt: string;
   topRightLinkLabel: string;
   topRightLinkTo?: string;
+  /** Runs before following the top-right link (e.g. ending a recovery session before "Sign in"). */
+  onTopRightLink?: () => void;
   children: React.ReactNode;
 }
 
@@ -51,6 +53,7 @@ export function AuthShell({
   topRightPrompt,
   topRightLinkLabel,
   topRightLinkTo,
+  onTopRightLink,
   children
 }: AuthShellProps): React.ReactElement {
   return (
@@ -130,7 +133,7 @@ export function AuthShell({
           <p className="text-[13px] text-neutral-500">
             {topRightPrompt}{' '}
             {topRightLinkTo ? (
-              <Link to={topRightLinkTo} className="font-bold text-brand-deep transition-colors hover:text-brand-500">
+              <Link to={topRightLinkTo} onClick={onTopRightLink} className="font-bold text-brand-deep transition-colors hover:text-brand-500">
                 {topRightLinkLabel}
               </Link>
             ) : (

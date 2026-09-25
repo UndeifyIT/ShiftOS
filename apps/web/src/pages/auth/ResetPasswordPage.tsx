@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, Clock3, Lock, ShieldCheck, User } from 'lucide-react';
 import { FormField } from '@shiftos/ui';
 import { supabase } from '../../lib/supabase.js';
+import { endPasswordRecovery } from '../../lib/passwordRecovery.js';
 import { checklistFor, strengthFor } from '../../lib/password.js';
 import { isNetworkError, isRateLimitError } from '../../lib/authErrors.js';
 import { AuthShell, type AuthBenefit, type AuthHighlight } from './AuthShell.js';
@@ -46,6 +47,12 @@ export default function ResetPasswordPage(): React.ReactElement {
     void supabase.auth.getSession().then(({ data }) => setView(data.session ? 'form' : 'expired'));
   }, []);
 
+  // Leaving without resetting: end the recovery session, so the app doesn't keep bringing them back here.
+  const leave = (to: string): void => {
+    endPasswordRecovery();
+    void supabase.auth.signOut().finally(() => navigate(to, { replace: true }));
+  };
+
   const checks = useMemo(() => checklistFor(password), [password]);
   const strength = useMemo(() => strengthFor(checks), [checks]);
 
@@ -72,6 +79,7 @@ export default function ResetPasswordPage(): React.ReactElement {
         await supabase.auth.signOut({ scope: 'others' });
       }
       setView('success');
+      // Keeps the success panel up until they choose to continue (App leaves recovery mode then).
     } catch (err) {
       if (isNetworkError(err)) setView('network-error');
       else if (isRateLimitError(err)) setError('Too many requests. Please wait a few minutes and try again.');
@@ -92,6 +100,7 @@ export default function ResetPasswordPage(): React.ReactElement {
       topRightPrompt="Remember your password?"
       topRightLinkLabel="Sign in"
       topRightLinkTo="/sign-in"
+      onTopRightLink={() => leave('/sign-in')}
     >
       {view === 'checking' ? (
         <div className="py-16 text-center text-sm text-neutral-400">Checking your link…</div>
@@ -111,9 +120,9 @@ export default function ResetPasswordPage(): React.ReactElement {
           title="This link has expired"
           body="For your security, password reset links expire after 20 minutes."
           ctaLabel="Request new link"
-          onCta={() => navigate('/forgot-password')}
+          onCta={() => leave('/forgot-password')}
           secondaryLabel="Back to sign in"
-          onSecondary={() => navigate('/sign-in')}
+          onSecondary={() => leave('/sign-in')}
         />
       ) : view === 'success' ? (
         <AuthStatusPanel
@@ -125,8 +134,12 @@ export default function ResetPasswordPage(): React.ReactElement {
               ? 'Your password has been changed and all other devices have been signed out.'
               : 'Your password has been changed.'
           }
-          ctaLabel="Continue to sign in →"
-          onCta={() => navigate('/sign-in')}
+          ctaLabel="Continue to ShiftOS →"
+          onCta={() => {
+            // The reset link already signed them in: with the password saved, straight into the app.
+            endPasswordRecovery();
+            navigate('/', { replace: true });
+          }}
         />
       ) : (
         <>
