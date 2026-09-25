@@ -55,7 +55,7 @@ function MobileTabBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }): Rea
             }
           >
             <item.icon className="size-[18px]" aria-hidden="true" />
-            <span className="text-[10px] font-bold">{item.label}</span>
+            <span className="whitespace-nowrap text-[10px] font-bold">{item.label}</span>
           </NavLink>
         ))}
         {hasMore ? (
