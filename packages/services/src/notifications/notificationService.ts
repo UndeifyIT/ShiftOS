@@ -3,7 +3,9 @@ import {
   NotificationPreferenceRepository,
   NotificationDeliveryAttemptRepository,
   NotificationEventPreferenceRepository,
+  OrganizationMembershipRepository,
   NOTIFICATION_EVENT_CHANNELS,
+  NOTIFICATION_EVENT_DEFAULTS,
   NOTIFICATION_EVENT_TYPES,
   UserRepository,
   type NotificationEventPreference,
@@ -81,13 +83,13 @@ export class NotificationService {
     return this.preferences.setEnabled(this.context.organizationId, this.context.userId, channel, isEnabled);
   }
 
-  /** Every event × channel switch for the caller (067) — ones never set are reported as enabled, the default. */
+  /** Every event × channel switch for the caller (067, 071) — ones never set are reported with the event's default. */
   async getMyEventPreferences(): Promise<Array<{ event_type: NotificationEventType; channel: 'in_app' | 'email'; is_enabled: boolean }>> {
     await this.context.requirePermission('notifications.read');
     const rows = await new NotificationEventPreferenceRepository(this.context.client).findForUser(this.context.organizationId, this.context.userId);
     const saved = new Map(rows.map((row) => [`${row.event_type}:${row.channel}`, row.is_enabled]));
     return NOTIFICATION_EVENT_TYPES.flatMap((event_type) =>
-      NOTIFICATION_EVENT_CHANNELS.map((channel) => ({ event_type, channel, is_enabled: saved.get(`${event_type}:${channel}`) ?? true }))
+      NOTIFICATION_EVENT_CHANNELS.map((channel) => ({ event_type, channel, is_enabled: saved.get(`${event_type}:${channel}`) ?? NOTIFICATION_EVENT_DEFAULTS[event_type][channel] }))
     );
   }
 
@@ -118,6 +120,32 @@ export async function notifyEvent(
     return;
   }
   await notify(client, organizationId, targetUserId, title, content, priority);
+}
+
+/**
+ * notifyEvent() for everyone who runs a branch in the way this event is about
+ * — every member whose role grants `permission` there (e.g. leave.approve for
+ * a new leave request) — except `excludeUserId`, the person whose action it
+ * was, who doesn't need telling. Each recipient's own switch still applies.
+ */
+export async function notifyBranchEvent(
+  client: DatabaseClient,
+  organizationId: string,
+  branchId: string,
+  permission: string,
+  eventType: NotificationEventType,
+  title: string,
+  content: string,
+  options: { excludeUserId?: string | null; priority?: NotificationPriority } = {}
+): Promise<number> {
+  const recipients = await new OrganizationMembershipRepository(client).findUserIdsWithBranchPermission(organizationId, branchId, permission);
+  let sent = 0;
+  for (const userId of recipients) {
+    if (userId === options.excludeUserId) continue;
+    await notifyEvent(client, organizationId, userId, eventType, title, content, options.priority);
+    sent += 1;
+  }
+  return sent;
 }
 
 /**

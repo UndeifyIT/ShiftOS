@@ -6,6 +6,7 @@
  * waiting, 2 supervisor invitations, next week still a draft, and the
  * handoff's two announcements.
  */
+import { EVENT_DEFAULTS } from '../../src/pages/settings/settingsModel.js';
 import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftNote, ShiftSwap, Task, Announcement, AnnouncementAcknowledgement } from '../../src/types/domain.js';
 
 const ORG = 'org-abc-supermarket';
@@ -699,8 +700,8 @@ export function createOverviewBackend(options: { staffLogins?: boolean; supervis
     update_branch: (input) => Object.assign(branch, { settings: input.settings ?? branch.settings }),
     update_profile: () => ({ id: 'user-me' }),
     get_my_notification_event_preferences: () =>
-      ['swap_updates', 'leave_decisions', 'announcement_reminders'].flatMap((event_type) =>
-        ['in_app', 'email'].map((channel) => ({ event_type, channel, is_enabled: eventPrefs[`${event_type}:${channel}`] ?? !(event_type === 'announcement_reminders' && channel === 'email') }))
+      Object.entries(EVENT_DEFAULTS).flatMap(([event_type, channels]) =>
+        (['in_app', 'email'] as const).map((channel) => ({ event_type, channel, is_enabled: eventPrefs[`${event_type}:${channel}`] ?? channels[channel] }))
       ),
     set_my_notification_event_preference: (input) => {
       eventPrefs[`${input.eventType}:${input.channel}`] = Boolean(input.isEnabled);

@@ -4,6 +4,7 @@ import {
   deviceName,
   hoursLine,
   passwordStrength,
+  notificationRows,
   preferenceMap,
   readHours,
   settingsTabs,
@@ -40,11 +41,18 @@ describe('Settings model (design handoff Manager/Settings)', () => {
     expect(validHours({ ...DEFAULT_HOURS, Tue: { open: '18:00', close: '09:00', closed: true } })).toBe(true);
   });
 
-  it('defaults every notification switch on, then applies saved ones', () => {
+  it("starts each switch at the handoff's default, then applies saved ones", () => {
     const map = preferenceMap([{ event_type: 'leave_decisions', channel: 'email', is_enabled: false }]);
     expect(map['leave_decisions:email']).toBe(false);
     expect(map['swap_updates:in_app']).toBe(true);
-    expect(Object.keys(map)).toHaveLength(6);
+    expect(map['absences:email']).toBe(false);
+    expect(map['announcement_digest:in_app']).toBe(false);
+    expect(Object.keys(map)).toHaveLength(18);
+  });
+
+  it('shows the handoff six rows to people who run a branch, and staff their own three', () => {
+    expect(notificationRows(true).map((r) => r.label)).toEqual(['Coverage gaps', 'Unpublished schedule', 'Absences', 'Leave requests', 'Announcement acknowledgements', 'Invitations']);
+    expect(notificationRows(false).map((r) => r.event)).toEqual(['swap_updates', 'leave_decisions', 'announcement_reminders']);
   });
 
   it('rates passwords with the shared rules, reads upload dates and names devices', () => {

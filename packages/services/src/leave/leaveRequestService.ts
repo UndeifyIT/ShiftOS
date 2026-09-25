@@ -8,7 +8,7 @@ import {
 import { ValidationError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
 import { assertNonEmptyString, assertUuid, assertOneOf, assertValidDateRange } from '../validation.js';
-import { notifyEvent } from '../notifications/notificationService.js';
+import { notifyBranchEvent, notifyEvent } from '../notifications/notificationService.js';
 
 const LEAVE_TYPES: readonly LeaveType[] = ['annual_leave', 'sick_leave', 'emergency_leave', 'unpaid_leave'];
 
@@ -67,7 +67,7 @@ export class LeaveRequestService {
     // total_days is a GENERATED ALWAYS STORED column ((end_date - start_date) + 1,
     // migration 008) — Postgres rejects an explicit value for it, so it is
     // deliberately not part of this insert payload.
-    return this.leaveRequests.insert(this.context.organizationId, {
+    const created = await this.leaveRequests.insert(this.context.organizationId, {
       branch_id: employee.branch_id,
       employee_id: employee.id,
       requested_by: this.context.userId,
@@ -78,6 +78,20 @@ export class LeaveRequestService {
       reason: input.reason.trim(),
       created_by: this.context.userId
     } as Partial<LeaveRequest>);
+
+    // Settings → Notifications "Leave requests": whoever can approve it in this branch.
+    const days = input.startDate === input.endDate ? input.startDate : `${input.startDate} to ${input.endDate}`;
+    await notifyBranchEvent(
+      this.context.client,
+      this.context.organizationId,
+      employee.branch_id,
+      'leave.approve',
+      'leave_requests',
+      `${employee.first_name} ${employee.last_name} requested time off`,
+      `${days} · ${input.reason.trim()}`,
+      { excludeUserId: this.context.userId }
+    );
+    return created;
   }
 
   async approveLeaveRequest(leaveRequestId: string): Promise<LeaveRequest> {

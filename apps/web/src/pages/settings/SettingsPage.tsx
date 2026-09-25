@@ -22,7 +22,7 @@ import {
   DEFAULT_HOURS,
   deviceName,
   hoursLine,
-  NOTIFICATION_ROWS,
+  notificationRows,
   passwordStrength,
   PASSWORD_RULES,
   preferenceMap,
@@ -532,7 +532,7 @@ export default function SettingsPage(): React.ReactElement {
         <span className="text-center">Email</span>
         <span className="text-center">WhatsApp</span>
       </div>
-      {NOTIFICATION_ROWS.map((row) => (
+      {notificationRows(navRole === 'Manager' || navRole === 'Supervisor' || navRole === 'Admin').map((row) => (
         <div key={row.event} className="grid grid-cols-[minmax(0,1fr)_74px_74px_74px] items-center gap-2.5 border-0 border-b border-solid border-[#F7F4F1] px-[18px] py-[13px]">
           <span className="min-w-0">
             <span className="block text-[12.5px] font-bold">{row.label}</span>
