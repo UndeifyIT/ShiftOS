@@ -1,692 +1,706 @@
 import React, { useMemo, useState } from 'react';
 import { useSession } from '../../auth/SessionProvider.js';
+import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
+import { HandoffModal, ModalField, ModalFields, modalControl } from '../../components/HandoffModal.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import { AuthBanner } from '../auth/AuthInputs.js';
-import { DashHeader, InitialsAvatar, StatusPill } from '../dashboard/dashboardWidgets.js';
-import { ObSelect } from '../onboarding/OnboardingFields.js';
-import type { Branch, Employee, LeaveRequest, Schedule, Shift, ShiftAssignment, ShiftSwap } from '../../types/domain.js';
+import type { Department, Employee, LeaveRequest, Member, Schedule, Shift, ShiftAssignment, ShiftSwap } from '../../types/domain.js';
+import { OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
+import { LEAVE_TYPE_LABEL, weekdayDayMonth } from '../dashboard/manager/overviewModel.js';
+import { useNow } from '../dashboard/manager/useManagerOverview.js';
+import { DialogNote, HeaderCta } from '../people/RolePeopleTable.js';
+import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
+import { avatarTone, fullName, initialsOf, todayDateString, TONES, type Tone } from '../scheduling/grid/scheduleFormat.js';
+import {
+  applyFilter,
+  buildLeaveViews,
+  buildSwapViews,
+  countLabel,
+  REQUEST_FILTERS,
+  REQUEST_TABS,
+  requestsSubtitle,
+  type LeaveView,
+  type RequestFilter,
+  type RequestTab,
+  type SwapStep,
+  type SwapView
+} from './requestsModel.js';
 
-/**
- * Requests, recreated from `ShiftOS Dashboards.dc.html`'s kindRequests
- * renderer: a Swaps/Leave segmented control over role-aware views.
- * - Swaps: staff see their own + open swap cards (respond accept/decline);
- *   managers/supervisors see the pending-approval queue (approve/reject).
- * - Leave: staff see "my leave" + a request form; approvers see the pending
- *   queue with approve/reject.
- * Swap cards show the design's "Gives up → arrow → Takes over" layout where
- * the backend returns the counterpart employee (open swaps have no target).
+/*
+ * Requests, built to the design handoff (`ShiftOS Dashboards.dc.html`:
+ * `PAGES["Manager/Requests"]`, "REQUESTS: SWAPS + TIME OFF" at lines
+ * 1286-1405, renderVals 5055-5106, and the approveSwap / declineSwap /
+ * reviewLeave / declineLeave / requestLeave dialogs). Approvers (swaps.approve /
+ * leave.approve) see the branch's whole history — list_branch_shift_swaps and
+ * list_branch_leave — and decide from here; everyone else sees their own
+ * requests, answers swaps aimed at them and raises new ones. The prototype has
+ * no CSS reset, so the values below are what it renders (13px base,
+ * `line-height: normal`).
  */
 
-const SWAP_TONES: Record<string, 'ok' | 'warn' | 'bad' | 'info' | 'primary' | 'violet' | 'neutral'> = {
-  pending: 'warn',
-  accepted: 'info',
-  declined: 'neutral',
-  approved: 'ok',
-  rejected: 'bad',
-  cancelled: 'neutral'
-};
+const pill = (tone: Tone): React.CSSProperties => ({ color: TONES[tone][0], backgroundColor: TONES[tone][1] });
+const pillClass = 'inline-flex items-center gap-[5px] rounded-full px-2.5 py-1 text-[11px] font-bold';
 
-const LEAVE_TONES: Record<string, 'ok' | 'warn' | 'bad' | 'neutral'> = {
-  pending: 'warn',
-  approved: 'ok',
-  rejected: 'bad',
-  cancelled: 'neutral'
-};
+function tabClass(selected: boolean): string {
+  return [
+    'cursor-pointer rounded-[9px] border-0 px-[11px] py-1.5 font-[inherit] text-[11.5px] font-bold',
+    selected ? 'bg-white text-[#38312B] shadow-[0_1px_2px_rgba(56,49,43,.12)]' : 'bg-transparent text-[#A79C93]'
+  ].join(' ');
+}
 
-const LEAVE_TYPES = [
-  { value: 'annual_leave', label: 'Annual leave' },
-  { value: 'sick_leave', label: 'Sick leave' },
-  { value: 'emergency_leave', label: 'Emergency leave' },
-  { value: 'unpaid_leave', label: 'Unpaid leave' }
-];
+function chipClass(selected: boolean): string {
+  return [
+    'h-[34px] cursor-pointer rounded-[9px] border border-solid px-[13px] font-[inherit] text-[11.5px] font-bold',
+    selected ? 'border-[#F04E17] bg-[#FDF0E9] text-[#C6420E]' : 'border-[#EBE7E3] bg-white text-[#857A72]'
+  ].join(' ');
+}
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: 'Pending',
-  accepted: 'Accepted',
-  declined: 'Declined',
-  approved: 'Approved',
-  rejected: 'Rejected',
-  cancelled: 'Cancelled'
-};
-
-export default function RequestsPage(): React.ReactElement {
-  const { profile, myContext, hasPermission } = useSession();
-  const canApproveSwaps = hasPermission('swaps.approve');
-  const canRespondSwaps = hasPermission('swaps.respond');
-  const canRequestSwaps = hasPermission('swaps.request');
-  const canApproveLeave = hasPermission('leave.approve');
-  const canCreateLeave = hasPermission('leave.create');
-  const canReadEmployees = hasPermission('employees.read');
-
-  const [tab, setTab] = useState<'swaps' | 'leave'>('swaps');
-
-  // Also used below to resolve requester/target employee names on the swap
-  // and leave lists — without this, an approver sees only a truncated
-  // employee_id ("Employee cd7523ef…") with no way to tell who's asking.
-  const { data: employees } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canReadEmployees });
-  const myEmployee = useMemo(
-    () =>
-      (employees ?? []).find(
-        (e) => e.email && profile?.email && e.email.toLowerCase() === profile.email.toLowerCase()
-      ) ?? null,
-    [employees, profile]
-  );
-
+function Avatar({ name }: { name: string }): React.ReactElement {
+  const unmatched = name === 'Unmatched';
   return (
-    <div className="px-4 pb-10 pt-[72px] sm:px-6 lg:px-8">
-      <DashHeader title="Requests" subtitle="Swap requests and time off, in one approval path." />
+    <span className="flex size-[30px] flex-none items-center justify-center rounded-full text-[10.5px] font-extrabold" style={avatarTone(name)}>
+      {unmatched ? '?' : initialsOf(name)}
+    </span>
+  );
+}
 
-      <div className="mb-4 flex flex-wrap items-center gap-2.5">
-        <div className="inline-flex gap-0.5 rounded-xl bg-[#F6F3F0] p-1">
-          {(
-            [
-              { id: 'swaps', label: 'Swap requests' },
-              { id: 'leave', label: 'Time off' }
-            ] as const
-          ).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={[
-                'cursor-pointer rounded-lg px-[11px] py-1.5 text-[11.5px] font-bold transition-colors',
-                tab === t.id ? 'bg-white text-neutral-900 shadow-[0_1px_3px_rgba(56,49,43,0.16)]' : 'text-neutral-400 hover:text-neutral-600'
-              ].join(' ')}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+function StepDot({ step, index }: { step: SwapStep; index: number }): React.ReactElement {
+  const style =
+    step.state === 'failed'
+      ? 'bg-[#C93A22] text-white'
+      : step.state === 'done'
+        ? 'bg-[#2E9E62] text-white'
+        : 'box-content border-[1.5px] border-solid border-[#EBE7E3] text-[#A79C93]'; // content-box, as in the handoff: its border sits outside the 16px
+  return (
+    <span className={`flex size-4 flex-none items-center justify-center rounded-full text-[9px] font-extrabold ${style}`}>
+      {step.state === 'failed' ? '✕' : step.state === 'done' ? '✓' : String(index + 1)}
+    </span>
+  );
+}
+
+function SwapSide({ label, name, role, line, meta }: { label: string; name: string; role: string; line: string; meta: string }): React.ReactElement {
+  return (
+    // 238px: the handoff's 210px basis is content-box (no CSS reset), so its 13px padding and 1px border sit outside it.
+    <div className="min-w-0 flex-[1_1_238px] rounded-[13px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] p-[13px]">
+      <p className="m-0 text-[10.5px] font-extrabold uppercase tracking-[.1em] text-[#A79C93]">{label}</p>
+      <div className="mt-[9px] flex items-center gap-2.5">
+        <Avatar name={name} />
+        <span className="min-w-0">
+          <span className="block text-[12.5px] font-extrabold">{name}</span>
+          <span className="block text-[11px] text-[#A79C93]">{role}</span>
+        </span>
       </div>
-
-      {tab === 'swaps' ? (
-        <SwapsTab canApprove={canApproveSwaps} canRespond={canRespondSwaps} canRequest={canRequestSwaps} employees={employees ?? []} />
-      ) : (
-        <LeaveTab
-          canApprove={canApproveLeave}
-          canCreate={canCreateLeave}
-          myEmployeeId={myEmployee?.id ?? null}
-          contextKey={myContext?.organizationId ?? 'none'}
-          employees={employees ?? []}
-        />
-      )}
+      <p className="mb-0 mt-2.5 text-[12.5px] font-bold">{line}</p>
+      <p className="mb-0 mt-[3px] text-[11.5px] text-[#857A72]">{meta}</p>
     </div>
   );
 }
 
-/* ---------------- Swaps ---------------- */
-
-function SwapsTab({
-  canApprove,
-  canRespond,
-  canRequest,
-  employees
-}: {
-  canApprove: boolean;
-  canRespond: boolean;
-  canRequest: boolean;
-  employees: Employee[];
-}): React.ReactElement {
-  const [error, setError] = useState<string | null>(null);
-
-  // Approvers work the pending queue; everyone else sees their own + open swaps.
-  const approvalsQuery = useRpcQuery<ShiftSwap[]>('list_pending_shift_swap_approvals', undefined, { enabled: canApprove });
-  const mineQuery = useRpcQuery<ShiftSwap[]>('list_my_shift_swaps', undefined, { enabled: !canApprove });
-  const openQuery = useRpcQuery<ShiftSwap[]>('list_open_shift_swaps', undefined, { enabled: !canApprove });
-
-  const approveMutation = useRpcMutation<unknown, { swapId: string; decisionNotes?: string }>('approve_shift_swap', {
-    invalidates: ['list_pending_shift_swap_approvals', 'list_my_shift_swaps', 'list_open_shift_swaps'],
-    onSuccess: () => setError(null),
-    onError: (err) => setError(err.message)
-  });
-  const rejectMutation = useRpcMutation<unknown, { swapId: string; decisionNotes?: string }>('reject_shift_swap', {
-    invalidates: ['list_pending_shift_swap_approvals', 'list_my_shift_swaps', 'list_open_shift_swaps'],
-    onSuccess: () => setError(null),
-    onError: (err) => setError(err.message)
-  });
-  const respondMutation = useRpcMutation<unknown, { swapId: string; accept: boolean }>('respond_to_shift_swap', {
-    invalidates: ['list_my_shift_swaps', 'list_open_shift_swaps'],
-    onSuccess: () => setError(null),
-    onError: (err) => setError(err.message)
-  });
-
-  // An open swap the caller created themselves is a genuine member of both
-  // list_my_shift_swaps and list_open_shift_swaps (it's simultaneously
-  // "mine" and "unassigned") -- deduping by id rather than filtering one
-  // list out entirely, since a non-open swap someone else opened should
-  // still only ever come from openQuery.
-  const queue =
-    canApprove
-      ? (approvalsQuery.data ?? [])
-      : Array.from(new Map([...(mineQuery.data ?? []), ...(openQuery.data ?? [])].map((swap) => [swap.id, swap])).values());
-
+/** `showPendingOutcome`: the requester's own view spells out who a pending swap is waiting on; the approver's (handoff) doesn't. */
+function SwapCard({ view, actions, showPendingOutcome }: { view: SwapView; actions: React.ReactNode; showPendingOutcome: boolean }): React.ReactElement {
+  const highlight = view.awaitingApproval && Boolean(actions);
   return (
-    <div>
-      {error ? <AuthBanner tone="bad" title={error} /> : null}
-      {(canApprove ? approvalsQuery.isLoading : mineQuery.isLoading || openQuery.isLoading) ? (
-        <p className="text-sm text-neutral-500">Loading swap requests…</p>
-      ) : queue.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-neutral-300 bg-white px-6 py-10 text-center">
-          <p className="text-[15px] font-extrabold text-neutral-900">No swap requests in this view</p>
-          <p className="mx-auto mt-1.5 max-w-[400px] text-[12.5px] text-neutral-500">
-            Swaps only exist against published shifts. When someone requests one, it lands here for approval.
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {queue.map((swap) => (
-            <SwapCard
-              key={swap.id}
-              swap={swap}
-              mode={canApprove ? 'approve' : swap.requested_by_employee_id ? 'respond' : 'view'}
-              canRespond={canRespond}
-              onApprove={() => approveMutation.mutate({ swapId: swap.id })}
-              onReject={() => rejectMutation.mutate({ swapId: swap.id })}
-              onRespond={(accept) => respondMutation.mutate({ swapId: swap.id, accept })}
-              busy={approveMutation.isPending || rejectMutation.isPending || respondMutation.isPending}
-              employees={employees}
-            />
-          ))}
-        </div>
-      )}
-      {canRequest ? <RequestSwapComposer onError={setError} /> : null}
-    </div>
-  );
-}
-
-function SwapCard({
-  swap,
-  mode,
-  canRespond,
-  onApprove,
-  onReject,
-  onRespond,
-  busy,
-  employees
-}: {
-  swap: ShiftSwap;
-  mode: 'approve' | 'respond' | 'view';
-  canRespond: boolean;
-  onApprove: () => void;
-  onReject: () => void;
-  onRespond: (accept: boolean) => void;
-  busy: boolean;
-  employees: Employee[];
-}): React.ReactElement {
-  const actionable =
-    mode === 'approve'
-      ? swap.status === 'pending' || swap.status === 'accepted'
-      : canRespond && (swap.status === 'pending' || swap.status === 'accepted');
-  const closed = !actionable;
-
-  // Falls back to a truncated id only if the employee record can't be
-  // found (e.g. archived) — the common case resolves a real name so an
-  // approver can actually tell who they're approving a swap for.
-  const employeeName = (employeeId: string): string => {
-    const employee = employees.find((e) => e.id === employeeId);
-    return employee ? `${employee.first_name} ${employee.last_name}` : `Employee ${employeeId.slice(0, 8)}…`;
-  };
-
-  return (
-    <article className="rounded-2xl border border-neutral-200 bg-white p-4">
+    <article
+      className="rounded-[16px] border border-solid px-[18px] py-[17px]"
+      style={{ borderColor: highlight ? '#F3DFB8' : '#EBE7E3', backgroundColor: highlight ? '#FEFCF7' : '#fff' }}
+    >
       <div className="flex flex-wrap items-center gap-2.5">
-        <StatusPill tone={SWAP_TONES[swap.status] ?? 'neutral'}>{STATUS_LABEL[swap.status] ?? swap.status}</StatusPill>
-        <span className="text-[11.5px] text-neutral-400">Swap request</span>
-        <span className="ml-auto text-[11.5px] text-neutral-400">
-          {new Date(swap.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+        <span className={pillClass} style={pill(view.tone)}>
+          {view.status}
         </span>
+        <span className="text-[11.5px] text-[#A79C93]">{view.ref}</span>
+        <span className="ml-auto text-[11.5px] text-[#A79C93]">{view.age}</span>
       </div>
 
-      <div className="mt-3.5 flex flex-wrap gap-3.5">
-        <div className="min-w-[200px] flex-[1_1_220px] rounded-[13px] border border-neutral-100 p-3.5">
-          <p className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-neutral-400">Gives up</p>
-          <div className="mt-[9px] flex items-center gap-2.5">
-            <InitialsAvatar name={employeeName(swap.requested_by_employee_id)} size={28} />
-            <span className="min-w-0">
-              <span className="block truncate text-[12.5px] font-extrabold text-neutral-900">
-                {swap.requested_by_employee_id === swap.target_employee_id ? '—' : employeeName(swap.requested_by_employee_id)}
-              </span>
-              <span className="block text-[11px] text-neutral-400">Assignment {swap.shift_assignment_id.slice(0, 8)}…</span>
-            </span>
-          </div>
-        </div>
-
-        <span
-          aria-hidden="true"
-          className="flex size-[30px] shrink-0 items-center justify-center self-center rounded-full bg-brand-soft text-[13px] font-extrabold text-brand-deep"
-        >
-          →
+      <div className="mt-[13px] flex flex-wrap items-stretch gap-2.5">
+        <SwapSide label="Gives up" name={view.fromName} role={view.fromRole} line={view.shiftLine} meta={view.shiftMeta} />
+        <span aria-hidden="true" className="flex size-[30px] flex-[0_0_30px] items-center justify-center self-center rounded-full bg-[#FDF0E9] text-[13px] font-extrabold text-[#C6420E]">
+          ⇄
         </span>
-
-        <div className="min-w-[200px] flex-[1_1_220px] rounded-[13px] border border-neutral-100 p-3.5">
-          <p className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-neutral-400">Takes over</p>
-          <div className="mt-[9px] flex items-center gap-2.5">
-            <InitialsAvatar name={swap.target_employee_id ? employeeName(swap.target_employee_id) : 'Open shift'} size={28} />
-            <span className="min-w-0">
-              <span className="block truncate text-[12.5px] font-extrabold text-neutral-900">
-                {swap.target_employee_id ? employeeName(swap.target_employee_id) : 'Open — anyone can take it'}
-              </span>
-              <span className="block text-[11px] text-neutral-400">{swap.responded_at ? `Responded ${new Date(swap.responded_at).toLocaleDateString()}` : 'Awaiting response'}</span>
-            </span>
-          </div>
-        </div>
+        <SwapSide label="Takes over" name={view.toName} role={view.toRole} line={view.shiftLine} meta={view.shiftMeta} />
       </div>
 
-      {swap.notes ? (
-        <p className="mt-3 text-[12.5px] text-neutral-600">
-          <strong className="font-extrabold">Reason:</strong> {swap.notes}
-        </p>
-      ) : null}
+      <p className="mb-0 mt-3 text-[12.5px] text-[#57504A] [text-wrap:pretty]">
+        <strong className="font-extrabold">Reason:</strong> {view.reason}
+      </p>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-neutral-100 pt-[11px]">
-        {actionable ? (
-          <span className="ml-auto flex flex-wrap gap-[7px]">
-            {mode === 'approve' ? (
-              <>
-                <button
-                  type="button"
-                  onClick={onApprove}
-                  disabled={busy}
-                  className="h-9 cursor-pointer rounded-[10px] bg-success-500 px-[15px] text-[12.5px] font-bold text-white transition-colors hover:bg-success-600 disabled:opacity-60"
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  onClick={onReject}
-                  disabled={busy}
-                  className="h-9 cursor-pointer rounded-[10px] border border-[#F3C6BD] bg-white px-3.5 text-[12.5px] font-bold text-error-600 transition-colors hover:bg-error-50 disabled:opacity-60"
-                >
-                  Reject
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => onRespond(true)}
-                  disabled={busy}
-                  className="h-9 cursor-pointer rounded-[10px] bg-success-500 px-[15px] text-[12.5px] font-bold text-white transition-colors hover:bg-success-600 disabled:opacity-60"
-                >
-                  Accept
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onRespond(false)}
-                  disabled={busy}
-                  className="h-9 cursor-pointer rounded-[10px] border border-[#F3C6BD] bg-white px-3.5 text-[12.5px] font-bold text-error-600 transition-colors hover:bg-error-50 disabled:opacity-60"
-                >
-                  Decline
-                </button>
-              </>
-            )}
-          </span>
-        ) : (
-          <span className="ml-auto text-[11.5px] font-bold text-neutral-400">
-            {swap.decision_at ? `Decided ${new Date(swap.decision_at).toLocaleDateString()}` : STATUS_LABEL[swap.status] ?? swap.status}
-          </span>
-        )}
+      <div className="mt-3 flex flex-wrap items-center gap-[9px] border-0 border-t border-solid border-[#F2EEEA] pt-[11px]">
+        <ol className="m-0 flex flex-[1_1_260px] list-none flex-wrap gap-2 p-0">
+          {view.steps.map((step, index) => (
+            <li key={step.label} className="flex items-center gap-1.5 text-[11px] font-bold text-[#857A72]">
+              <StepDot step={step} index={index} />
+              {step.label}
+            </li>
+          ))}
+        </ol>
+        {actions ?? (view.outcome && (view.filter === 'Resolved' || showPendingOutcome) ? <span className="ml-auto text-[11.5px] font-bold text-[#A79C93]">{view.outcome}</span> : null)}
       </div>
     </article>
   );
 }
 
-/** Minimal request-a-swap composer: pick one of your upcoming assigned shifts and add a note. */
-function RequestSwapComposer({ onError }: { onError: (message: string) => void }): React.ReactElement | null {
-  const { profile, hasPermission } = useSession();
-  const canReadEmployees = hasPermission('employees.read');
-  const canReadSchedules = hasPermission('schedules.read');
-  const [open, setOpen] = useState(false);
-  const [assignmentId, setAssignmentId] = useState('');
-  const [notes, setNotes] = useState('');
+const approveButton = 'h-9 cursor-pointer rounded-[10px] border-0 bg-[#2E9E62] px-[15px] font-[inherit] text-[12.5px] font-bold text-white disabled:opacity-60';
+const declineButton = 'h-9 cursor-pointer rounded-[10px] border border-solid border-[#F3C6BD] bg-white px-3.5 font-[inherit] text-[12.5px] font-bold text-[#C93A22] disabled:opacity-60';
 
-  const { data: employees } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: canReadEmployees });
-  const myEmployee = useMemo(
-    () => (employees ?? []).find((e) => e.email && profile?.email && e.email.toLowerCase() === profile.email.toLowerCase()) ?? null,
-    [employees, profile]
-  );
-  const { data: schedules } = useRpcQuery<Schedule[]>('list_schedules', myEmployee ? { branchId: myEmployee.branch_id } : undefined, {
-    enabled: Boolean(myEmployee) && canReadSchedules
-  });
-  const currentSchedule = [...(schedules ?? [])].filter((s) => s.status === 'published').sort((a, b) => b.start_date.localeCompare(a.start_date))[0];
-  const { data: myShifts } = useRpcQuery<Shift[]>(
-    'list_shifts_for_employee_in_schedule',
-    currentSchedule && myEmployee ? { scheduleId: currentSchedule.id, employeeId: myEmployee.id } : undefined,
-    { enabled: Boolean(currentSchedule && myEmployee) }
-  );
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = (myShifts ?? []).filter((s) => s.shift_date >= today).slice(0, 8);
-
-  // Resolve this employee's own assignment per shift — clock-in endpoints
-  // key off the assignment id, and so does request_shift_swap, not the
-  // shift id the dropdown lists shifts by. Batched in one call (the same
-  // listForShifts() query listShiftsForEmployeeInSchedule already runs
-  // server-side, just not discarded before it reaches the client this
-  // time) rather than one list_assignments_for_shift call per shift.
-  const { data: myAssignments } = useRpcQuery<ShiftAssignment[]>(
-    'list_my_shift_assignments_in_schedule',
-    currentSchedule ? { scheduleId: currentSchedule.id } : undefined,
-    { enabled: Boolean(currentSchedule && myEmployee) }
-  );
-  const assignmentIdByShiftId = useMemo(
-    () => new Map((myAssignments ?? []).map((a) => [a.shift_id, a.id])),
-    [myAssignments]
-  );
-
-  const requestMutation = useRpcMutation<unknown, { shiftAssignmentId: string; targetEmployeeId?: string | null; notes?: string | null }>(
-    'request_shift_swap',
-    {
-      invalidates: ['list_my_shift_swaps', 'list_open_shift_swaps'],
-      onSuccess: () => {
-        setOpen(false);
-        setNotes('');
-        setAssignmentId('');
-      },
-      onError: (err) => onError(err.message)
-    }
-  );
-
-  if (!myEmployee || upcoming.length === 0) {
-    return null;
-  }
-
+function LeaveTable({ rows, foot, action, footAction }: { rows: LeaveView[]; foot: string; action: (row: LeaveView) => React.ReactNode; footAction?: React.ReactNode }): React.ReactElement {
   return (
-    <div className="mt-4">
-      {open ? (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!assignmentId) {
-              onError("Couldn't resolve your assignment for that shift.");
-              return;
-            }
-            requestMutation.mutate({ shiftAssignmentId: assignmentId, notes: notes.trim() || null });
-          }}
-          className="rounded-2xl border border-neutral-200 bg-white p-4"
-        >
-          <h2 className="text-[14.5px] font-extrabold">Request a swap</h2>
-          <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3.5">
-            <label className="block">
-              <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">Your shift</span>
-              <ObSelect
-                value={assignmentId}
-                onChange={(e) => setAssignmentId(e.target.value)}
-                placeholder="Select a shift"
-                options={upcoming
-                  .filter((shift) => assignmentIdByShiftId.has(shift.id))
-                  .map((shift) => ({
-                    value: assignmentIdByShiftId.get(shift.id)!,
-                    label: `${new Date(shift.shift_date).toLocaleDateString()} · ${shift.start_time}–${shift.end_time}`
-                  }))}
-              />
-            </label>
-          </div>
-          <label className="mt-3.5 block">
-            <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">Note to your supervisor (optional)</span>
-            <textarea
-              rows={2}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Why you need the swap…"
-              className="w-full resize-y rounded-xl border border-neutral-300 px-[13px] py-2.5 text-[13.5px] outline-none transition-colors focus:border-brand-500"
-            />
-          </label>
-          <div className="mt-3.5 flex gap-2.5">
-            <button
-              type="submit"
-              disabled={requestMutation.isPending}
-              className="h-10 cursor-pointer rounded-[11px] bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:bg-[#F5A98A]"
-            >
-              {requestMutation.isPending ? 'Sending…' : 'Send request'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="h-10 cursor-pointer rounded-[11px] border border-neutral-200 bg-white px-4 text-[13px] font-bold text-neutral-700 transition-colors hover:border-neutral-300"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="h-10 cursor-pointer rounded-[11px] border border-neutral-200 bg-white px-4 text-[13px] font-bold text-neutral-700 transition-colors hover:border-brand-300"
-        >
-          + Request a swap
-        </button>
-      )}
-    </div>
+    <section className="overflow-hidden rounded-[16px] border border-solid border-[#EBE7E3] bg-white">
+      <div className="flex gap-3 border-0 border-b border-solid border-[#F2EEEA] px-[18px] py-[11px] text-[10.5px] font-extrabold uppercase tracking-[.08em] text-[#A79C93]">
+        <span className="min-w-0 flex-[1_1_170px]">Employee</span>
+        <span className="flex-[0_0_130px]">Dates</span>
+        <span className="min-w-0 flex-[1_1_150px]">Type &amp; reason</span>
+        <span className="flex-[0_0_96px]">Status</span>
+        <span className="flex-[0_0_104px] text-right">Action</span>
+      </div>
+      {rows.length === 0 ? <p className="m-0 border-0 border-b border-solid border-[#F7F4F1] px-[18px] py-3.5 text-[12.5px] text-[#A79C93]">No leave requests in this filter.</p> : null}
+      {rows.map((row) => (
+        <div key={row.leave.id} className="flex flex-wrap items-center gap-x-3 gap-y-2.5 border-0 border-b border-solid border-[#F7F4F1] px-[18px] py-3">
+          <span className="flex min-w-0 flex-[1_1_170px] items-center gap-[11px]">
+            <Avatar name={row.name} />
+            <span className="min-w-0">
+              <span className="block truncate text-[12.5px] font-bold">{row.name}</span>
+              <span className="block text-[11px] text-[#A79C93]">{row.dept}</span>
+            </span>
+          </span>
+          <span className="min-w-0 flex-[0_0_130px]">
+            <span className="block text-[12.5px] font-bold">{row.dates}</span>
+            <span className="block text-[11px] text-[#A79C93]">{row.days}</span>
+          </span>
+          <span className="min-w-0 flex-[1_1_150px]">
+            <span className="block text-[12.5px] font-bold">{row.type}</span>
+            <span className="block text-[11px] text-[#857A72]">{row.reason}</span>
+          </span>
+          <span className="flex-[0_0_96px]">
+            <span className={pillClass} style={pill(row.tone)}>
+              {row.status}
+            </span>
+          </span>
+          <span className="ml-auto flex-[0_0_104px] text-right">{action(row)}</span>
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center gap-3 px-[18px] py-3">
+        <p className="m-0 flex-[1_1_260px] text-[11.5px] text-[#A79C93]">{foot}</p>
+        {footAction}
+      </div>
+    </section>
   );
 }
 
-/* ---------------- Leave ---------------- */
+const rowButton = (primary: boolean): string =>
+  [
+    'h-8 cursor-pointer rounded-[9px] px-3 font-[inherit] text-[11.5px] font-bold',
+    primary ? 'border-0 bg-[#F04E17] text-white' : 'border border-solid border-[#EBE7E3] bg-white text-[#38312B]'
+  ].join(' ');
 
-function LeaveTab({
-  canApprove,
-  canCreate,
-  myEmployeeId,
-  contextKey,
-  employees
-}: {
-  canApprove: boolean;
-  canCreate: boolean;
-  myEmployeeId: string | null;
-  contextKey: string;
-  employees: Employee[];
-}): React.ReactElement {
-  const [error, setError] = useState<string | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
-  const [leaveType, setLeaveType] = useState('annual_leave');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [reason, setReason] = useState('');
+type Dialog =
+  | { kind: 'approveSwap'; view: SwapView }
+  | { kind: 'declineSwap'; view: SwapView }
+  | { kind: 'reviewLeave'; view: LeaveView }
+  | { kind: 'declineLeave'; view: LeaveView }
+  | { kind: 'viewLeave'; view: LeaveView }
+  | { kind: 'newRequest' };
 
-  const pendingQuery = useRpcQuery<LeaveRequest[]>('list_pending_leave', undefined, { enabled: canApprove });
-  const mineQuery = useRpcQuery<LeaveRequest[]>('list_my_leave', undefined, { enabled: !canApprove && Boolean(myEmployeeId) });
+interface NewRequestDraft {
+  type: 'Time off' | 'Shift swap';
+  employeeId: string;
+  leaveType: LeaveRequest['leave_type'];
+  startDate: string;
+  endDate: string;
+  assignmentId: string;
+  targetId: string;
+  reason: string;
+}
 
-  const approveMutation = useRpcMutation<unknown, { leaveRequestId: string }>('approve_leave_request', {
-    invalidates: ['list_pending_leave', 'list_my_leave'],
-    onSuccess: () => setError(null),
-    onError: (err) => setError(err.message)
+export default function RequestsPage(): React.ReactElement {
+  const now = useNow();
+  const { profile, hasPermission } = useSession();
+  const { toast, show, dismiss } = useScheduleToast();
+  const canApproveSwaps = hasPermission('swaps.approve');
+  const canApproveLeave = hasPermission('leave.approve');
+  const isApprover = canApproveSwaps || canApproveLeave;
+  const canRespond = hasPermission('swaps.respond');
+  const canRequestSwap = hasPermission('swaps.request');
+  const canCreateLeave = hasPermission('leave.create');
+
+  const branchId = useDefaultBranchId() ?? '';
+  const scoped = branchId ? { branchId } : undefined;
+  const { data: employees } = useRpcQuery<Employee[]>('list_employees', scoped, { enabled: hasPermission('employees.read') });
+  const { data: departments } = useRpcQuery<Department[]>('list_departments', scoped, { enabled: Boolean(branchId) && hasPermission('departments.read') });
+  const { data: members } = useRpcQuery<Member[]>('list_members', undefined, { enabled: hasPermission('org.members.manage') });
+
+  const branchSwaps = useRpcQuery<ShiftSwap[]>('list_branch_shift_swaps', scoped, { enabled: canApproveSwaps });
+  const mySwaps = useRpcQuery<ShiftSwap[]>('list_my_shift_swaps', undefined, { enabled: !canApproveSwaps && hasPermission('swaps.read') });
+  const openSwaps = useRpcQuery<ShiftSwap[]>('list_open_shift_swaps', undefined, { enabled: !canApproveSwaps && hasPermission('swaps.read') });
+  const branchLeave = useRpcQuery<LeaveRequest[]>('list_branch_leave', scoped, { enabled: canApproveLeave });
+  const myLeave = useRpcQuery<LeaveRequest[]>('list_my_leave', undefined, { enabled: !canApproveLeave && hasPermission('leave.read') });
+
+  const me = useMemo(
+    () => (employees ?? []).find((e) => e.email && profile?.email && e.email.toLowerCase() === profile.email.toLowerCase()) ?? null,
+    [employees, profile]
+  );
+  const ctx = { employees: employees ?? [], departments: departments ?? [], members: members ?? [], now, meId: isApprover ? null : me?.id ?? null };
+  const swapViews = buildSwapViews(canApproveSwaps ? branchSwaps.data ?? [] : [...(mySwaps.data ?? []), ...(openSwaps.data ?? [])], ctx);
+  const leaveViews = buildLeaveViews(canApproveLeave ? branchLeave.data ?? [] : myLeave.data ?? [], ctx);
+
+  const [tab, setTab] = useState<RequestTab>('Swap requests');
+  const [filter, setFilter] = useState<RequestFilter>('Pending');
+  const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [note, setNote] = useState('');
+  const [dialogError, setDialogError] = useState<string | null>(null);
+
+  const shownSwaps = applyFilter(swapViews, filter);
+  const shownLeave = applyFilter(leaveViews, filter);
+
+  const open = (next: Dialog): void => {
+    setNote('');
+    setDialogError(null);
+    setDialog(next);
+  };
+  const close = (): void => setDialog(null);
+  const fail = (error: Error): void => setDialogError(error.message);
+  const done = (message: string, after?: () => void): void => {
+    setDialog(null);
+    show(message);
+    after?.();
+  };
+  const swapInvalidates = ['list_branch_shift_swaps', 'list_my_shift_swaps', 'list_open_shift_swaps', 'list_pending_shift_swap_approvals'];
+  const leaveInvalidates = ['list_branch_leave', 'list_my_leave', 'list_pending_leave'];
+
+  const approveSwap = useRpcMutation<unknown, { swapId: string }>('approve_shift_swap', {
+    invalidates: swapInvalidates,
+    onSuccess: () => done('Swap approved · schedule updated'),
+    onError: fail
   });
-  const rejectMutation = useRpcMutation<unknown, { leaveRequestId: string; reason: string }>('reject_leave_request', {
-    invalidates: ['list_pending_leave', 'list_my_leave'],
-    onSuccess: () => setError(null),
-    onError: (err) => setError(err.message)
+  const rejectSwap = useRpcMutation<unknown, { swapId: string; decisionNotes?: string }>('reject_shift_swap', {
+    invalidates: swapInvalidates,
+    onSuccess: () => done('Swap declined · requester notified'),
+    onError: fail
   });
-  const createMutation = useRpcMutation<
-    LeaveRequest,
-    { employeeId: string; leaveType: string; startDate: string; endDate: string; reason: string }
-  >('create_leave_request', {
-    invalidates: ['list_my_leave', 'list_pending_leave'],
-    onSuccess: () => {
-      setFormOpen(false);
-      setReason('');
-      setError(null);
-    },
-    onError: (err) => setError(err.message)
+  const respondSwap = useRpcMutation<unknown, { swapId: string; accept: boolean }>('respond_to_shift_swap', {
+    invalidates: swapInvalidates,
+    onSuccess: (_result, input) => show(input.accept ? 'Swap accepted · waiting on your supervisor' : 'Swap declined · requester notified'),
+    onError: (error) => show(error.message, 'error')
+  });
+  const approveLeave = useRpcMutation<unknown, { leaveRequestId: string }>('approve_leave_request', {
+    invalidates: leaveInvalidates,
+    onSuccess: () => done(`${dialog && dialog.kind === 'reviewLeave' ? `${dialog.view.name}'s leave approved · ${dialog.view.dates}` : 'Leave approved'}`, () => setFilter('Resolved')),
+    onError: fail
+  });
+  const rejectLeave = useRpcMutation<unknown, { leaveRequestId: string; reason: string }>('reject_leave_request', {
+    invalidates: leaveInvalidates,
+    onSuccess: () => done(`${dialog && 'view' in dialog ? `${(dialog.view as LeaveView).name}'s leave declined` : 'Leave declined'} · requester notified`, () => setFilter('Resolved')),
+    onError: fail
   });
 
-  const rows = canApprove ? (pendingQuery.data ?? []) : (mineQuery.data ?? []);
-  void contextKey;
+  // ---- New request (approvers: time off for someone in the branch; everyone else: a swap or time off of their own)
+  const emptyDraft = (): NewRequestDraft => ({
+    type: isApprover || !canRequestSwap ? 'Time off' : 'Shift swap',
+    employeeId: isApprover ? '' : me?.id ?? '',
+    leaveType: 'annual_leave',
+    startDate: '',
+    endDate: '',
+    assignmentId: '',
+    targetId: '',
+    reason: ''
+  });
+  const [draft, setDraft] = useState<NewRequestDraft>(emptyDraft);
+  const createLeave = useRpcMutation<LeaveRequest, { employeeId: string; leaveType: string; startDate: string; endDate: string; reason: string }>('create_leave_request', {
+    invalidates: leaveInvalidates,
+    onSuccess: () =>
+      done(isApprover ? 'Leave request recorded · pending approval' : 'Leave request sent · pending approval', () => {
+        setTab('Time off');
+        setFilter('Pending');
+      }),
+    onError: fail
+  });
+  const requestSwap = useRpcMutation<unknown, { shiftAssignmentId: string; targetEmployeeId?: string | null; notes?: string | null }>('request_shift_swap', {
+    invalidates: swapInvalidates,
+    onSuccess: () =>
+      done('Request submitted to your supervisor', () => {
+        setTab('Swap requests');
+        setFilter('Pending');
+      }),
+    onError: fail
+  });
 
-  // Falls back to a truncated id only if the employee record can't be
-  // found (e.g. archived) — the common case resolves a real name so an
-  // approver can actually tell who's requesting time off.
-  const employeeName = (employeeId: string): string => {
-    const employee = employees.find((e) => e.id === employeeId);
-    return employee ? `${employee.first_name} ${employee.last_name}` : `Employee ${employeeId.slice(0, 8)}…`;
+  // My upcoming shifts, for a swap request of my own.
+  const today = todayDateString(now);
+  const { data: schedules } = useRpcQuery<Schedule[]>('list_schedules', scoped, { enabled: !isApprover && canRequestSwap && Boolean(me) && hasPermission('schedules.read') });
+  const current = [...(schedules ?? [])].filter((s) => s.status === 'published' && s.end_date >= today).sort((a, b) => a.start_date.localeCompare(b.start_date))[0];
+  const { data: myShifts } = useRpcQuery<Shift[]>('list_shifts_for_employee_in_schedule', current && me ? { scheduleId: current.id, employeeId: me.id } : undefined, {
+    enabled: Boolean(current && me)
+  });
+  const { data: myAssignments } = useRpcQuery<ShiftAssignment[]>('list_my_shift_assignments_in_schedule', current ? { scheduleId: current.id } : undefined, {
+    enabled: Boolean(current && me)
+  });
+  const shiftChoices = (myShifts ?? [])
+    .filter((shift) => shift.shift_date >= today)
+    .flatMap((shift) => {
+      const assignment = (myAssignments ?? []).find((a) => a.shift_id === shift.id);
+      return assignment ? [{ id: assignment.id, label: `${weekdayDayMonth(shift.shift_date)} · ${shift.start_time.slice(0, 5)} – ${shift.end_time.slice(0, 5)}` }] : [];
+    });
+  const colleagues = (employees ?? []).filter((e) => e.is_active && !e.deleted_at && e.employment_status === 'active' && e.id !== me?.id);
+
+  const submitNewRequest = (): void => {
+    if (!draft.reason.trim()) return setDialogError('Add a reason — your supervisor sees it with the request.');
+    if (draft.type === 'Shift swap') {
+      if (!draft.assignmentId) return setDialogError('Pick the shift you want to give up.');
+      requestSwap.mutate({ shiftAssignmentId: draft.assignmentId, targetEmployeeId: draft.targetId || null, notes: draft.reason.trim() });
+      return;
+    }
+    if (!draft.employeeId) return setDialogError(isApprover ? 'Choose who the time off is for.' : 'No employee record is linked to your account.');
+    if (!draft.startDate || !draft.endDate) return setDialogError('Pick the first and last day.');
+    if (draft.endDate < draft.startDate) return setDialogError('The last day can’t be before the first day.');
+    createLeave.mutate({ employeeId: draft.employeeId, leaveType: draft.leaveType, startDate: draft.startDate, endDate: draft.endDate, reason: draft.reason.trim() });
   };
 
-  return (
-    <div>
-      {error ? <AuthBanner tone="bad" title={error} /> : null}
+  const busy = approveSwap.isPending || rejectSwap.isPending || approveLeave.isPending || rejectLeave.isPending || createLeave.isPending || requestSwap.isPending;
+  const loading = tab === 'Swap requests' ? (canApproveSwaps ? branchSwaps.isLoading : mySwaps.isLoading) : canApproveLeave ? branchLeave.isLoading : myLeave.isLoading;
+  const canNewRequest = canCreateLeave || (!isApprover && canRequestSwap);
 
-      {canCreate && !canApprove ? (
-        <div className="mb-4">
-          {formOpen ? (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!myEmployeeId) {
-                  setError('No employee record is linked to your account.');
-                  return;
-                }
-                if (!startDate || !endDate || !reason.trim()) {
-                  setError('Pick your dates and give a reason.');
-                  return;
-                }
-                if (endDate < startDate) {
-                  setError('The end date can’t be before the start date.');
-                  return;
-                }
-                createMutation.mutate({ employeeId: myEmployeeId, leaveType, startDate, endDate, reason: reason.trim() });
-              }}
-              className="rounded-2xl border border-neutral-200 bg-white p-4"
-            >
-              <h2 className="text-[14.5px] font-extrabold">Request time off</h2>
-              <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3.5">
-                <label className="block">
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">Type</span>
-                  <ObSelect value={leaveType} onChange={(e) => setLeaveType(e.target.value)} options={LEAVE_TYPES} />
-                </label>
-                <label className="block">
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">First day</span>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="h-[44px] w-full rounded-xl border border-neutral-300 px-[13px] text-[13.5px] outline-none transition-colors focus:border-brand-500"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">Last day</span>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="h-[44px] w-full rounded-xl border border-neutral-300 px-[13px] text-[13.5px] outline-none transition-colors focus:border-brand-500"
-                  />
-                </label>
+  const swapActions = (view: SwapView): React.ReactNode => {
+    if (canApproveSwaps && view.awaitingApproval) {
+      return (
+        <span className="ml-auto flex flex-wrap gap-[7px]">
+          <button type="button" disabled={busy} onClick={() => open({ kind: 'approveSwap', view })} className={approveButton}>
+            Approve swap
+          </button>
+          <button type="button" disabled={busy} onClick={() => open({ kind: 'declineSwap', view })} className={declineButton}>
+            Decline
+          </button>
+        </span>
+      );
+    }
+    const aimedAtMe = !canApproveSwaps && canRespond && view.swap.status === 'pending' && me && view.swap.requested_by_employee_id !== me.id && (view.swap.target_employee_id === me.id || !view.swap.target_employee_id);
+    if (aimedAtMe) {
+      return (
+        <span className="ml-auto flex flex-wrap gap-[7px]">
+          <button type="button" disabled={respondSwap.isPending} onClick={() => respondSwap.mutate({ swapId: view.swap.id, accept: true })} className={approveButton}>
+            {view.swap.target_employee_id ? 'Accept swap' : 'Take this shift'}
+          </button>
+          {view.swap.target_employee_id ? (
+            <button type="button" disabled={respondSwap.isPending} onClick={() => respondSwap.mutate({ swapId: view.swap.id, accept: false })} className={declineButton}>
+              Decline
+            </button>
+          ) : null}
+        </span>
+      );
+    }
+    if (!canApproveSwaps && view.awaitingApproval) return <span className="ml-auto text-[11.5px] font-bold text-[#A79C93]">Waiting on your supervisor</span>;
+    return null;
+  };
+
+  const body = (): React.ReactNode => {
+    if (loading) return <OverviewLoading title="Requests" />;
+    return (
+      <>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="inline-flex gap-0.5 rounded-[11px] bg-[#F6F3F0] p-[3px]">
+            {REQUEST_TABS.map((name) => (
+              <button key={name} type="button" aria-pressed={tab === name} onClick={() => setTab(name)} className={tabClass(tab === name)}>
+                {name}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {REQUEST_FILTERS.map((name) => (
+              <button key={name} type="button" aria-pressed={filter === name} onClick={() => setFilter(name)} className={chipClass(filter === name)}>
+                {name}
+              </button>
+            ))}
+          </div>
+          <span className="ml-auto text-[12px] text-[#A79C93]">{countLabel(tab === 'Swap requests' ? shownSwaps.length : shownLeave.length, tab)}</span>
+        </div>
+
+        {tab === 'Swap requests' ? (
+          <div className="flex flex-col gap-3">
+            {shownSwaps.map((view) => (
+              <SwapCard key={view.swap.id} view={view} actions={swapActions(view)} showPendingOutcome={!canApproveSwaps} />
+            ))}
+            {shownSwaps.length === 0 ? (
+              <div className="rounded-[16px] border border-dashed border-[#E4DED9] bg-white px-6 py-10 text-center">
+                <p className="m-0 text-[15px] font-extrabold">No swap requests in this filter</p>
+                <p className="mx-auto mb-0 mt-[7px] max-w-[400px] text-[12.5px] text-[#857A72]">Swaps only exist against published shifts. When someone requests one, it lands here for approval.</p>
               </div>
-              <label className="mt-3.5 block">
-                <span className="mb-1.5 block text-[12.5px] font-bold text-neutral-900">Reason</span>
-                <textarea
-                  rows={2}
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="e.g. Graduation ceremony"
-                  className="w-full resize-y rounded-xl border border-neutral-300 px-[13px] py-2.5 text-[13.5px] outline-none transition-colors focus:border-brand-500"
-                />
-              </label>
-              <div className="mt-3.5 flex gap-2.5">
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="h-10 cursor-pointer rounded-[11px] bg-brand-500 px-4 text-[13px] font-bold text-white transition-colors hover:bg-brand-600 disabled:bg-[#F5A98A]"
-                >
-                  {createMutation.isPending ? 'Sending…' : 'Send request'}
+            ) : null}
+          </div>
+        ) : (
+          <LeaveTable
+            rows={shownLeave}
+            foot={
+              canApproveLeave
+                ? 'Approving a leave request records the decision and notifies the requester. Check the schedule for anyone rostered in that range.'
+                : "Decisions come from your supervisor. You'll be notified as soon as one is made."
+            }
+            action={(row) =>
+              canApproveLeave && row.filter === 'Pending' ? (
+                <button type="button" onClick={() => open({ kind: 'reviewLeave', view: row })} className={rowButton(true)}>
+                  Review
                 </button>
+              ) : (
+                <button type="button" onClick={() => open({ kind: 'viewLeave', view: row })} className={rowButton(false)}>
+                  View
+                </button>
+              )
+            }
+            footAction={
+              !canApproveLeave && canCreateLeave ? (
                 <button
                   type="button"
-                  onClick={() => setFormOpen(false)}
-                  className="h-10 cursor-pointer rounded-[11px] border border-neutral-200 bg-white px-4 text-[13px] font-bold text-neutral-700 transition-colors hover:border-neutral-300"
+                  onClick={() => {
+                    setDraft({ ...emptyDraft(), type: 'Time off' });
+                    open({ kind: 'newRequest' });
+                  }}
+                  className="h-9 cursor-pointer rounded-[10px] border-0 bg-[#F04E17] px-[15px] font-[inherit] text-[12.5px] font-bold text-white hover:bg-[#DC4611]"
                 >
-                  Cancel
+                  Request time off
                 </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setFormOpen(true)}
-              className="h-10 cursor-pointer rounded-[11px] bg-brand-500 px-4 text-[13px] font-bold text-white shadow-[0_10px_22px_-13px_rgba(240,78,23,0.75)] transition-colors hover:bg-brand-600"
-            >
-              + Request time off
-            </button>
-          )}
-        </div>
-      ) : null}
+              ) : null
+            }
+          />
+        )}
+      </>
+    );
+  };
 
-      {(canApprove ? pendingQuery.isLoading : mineQuery.isLoading) ? (
-        <p className="text-sm text-neutral-500">Loading leave requests…</p>
-      ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-neutral-300 bg-white px-6 py-10 text-center">
-          <p className="text-[15px] font-extrabold text-neutral-900">No leave requests here</p>
-          <p className="mx-auto mt-1.5 max-w-[400px] text-[12.5px] text-neutral-500">
-            {canApprove ? 'Nothing is waiting on your approval.' : 'Time off you request will show up here with its approval state.'}
-          </p>
-        </div>
-      ) : (
-        <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-          <div className="flex gap-3 border-b border-neutral-100 px-[18px] py-[11px] text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-neutral-400">
-            <span className="min-w-0 flex-[1_1_170px]">Employee</span>
-            <span className="flex-[0_0_150px]">Dates</span>
-            <span className="min-w-0 flex-[1_1_150px]">Type &amp; reason</span>
-            <span className="flex-[0_0_96px]">Status</span>
-            {canApprove ? <span className="flex-[0_0_104px] text-right">Action</span> : null}
-          </div>
-          {rows.map((request) => (
-            <div
-              key={request.id}
-              className="flex flex-wrap items-center gap-x-3 gap-y-2.5 border-b border-neutral-50 px-[18px] py-3 last:border-b-0"
-            >
-              <span className="flex min-w-0 flex-[1_1_170px] items-center gap-[11px]">
-                <InitialsAvatar name={canApprove ? employeeName(request.employee_id) : 'You'} size={28} />
-                <span className="min-w-0">
-                  <span className="block truncate text-[12.5px] font-bold text-neutral-900">
-                    {canApprove ? employeeName(request.employee_id) : 'You'}
-                  </span>
-                  <span className="block truncate text-[11px] text-neutral-400">#{request.employee_id.slice(0, 8)}</span>
-                </span>
-              </span>
-              <span className="flex-[0_0_150px]">
-                <span className="block text-[12.5px] font-bold text-neutral-900">
-                  {new Date(request.start_date).toLocaleDateString()} – {new Date(request.end_date).toLocaleDateString()}
-                </span>
-                <span className="block text-[11px] text-neutral-400">{request.total_days} day{request.total_days === 1 ? '' : 's'}</span>
-              </span>
-              <span className="min-w-0 flex-[1_1_150px]">
-                <span className="block text-[12.5px] font-bold text-neutral-900">
-                  {LEAVE_TYPES.find((t) => t.value === request.leave_type)?.label ?? request.leave_type}
-                </span>
-                <span className="block truncate text-[11px] text-neutral-500">{request.reason}</span>
-              </span>
-              <span className="flex-[0_0_96px]">
-                <StatusPill tone={LEAVE_TONES[request.status] ?? 'neutral'}>{STATUS_LABEL[request.status] ?? request.status}</StatusPill>
-              </span>
-              {canApprove ? (
-                <span className="ml-auto flex flex-[0_0_104px] justify-end gap-[7px]">
-                  {request.status === 'pending' ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => approveMutation.mutate({ leaveRequestId: request.id })}
-                        disabled={approveMutation.isPending || rejectMutation.isPending}
-                        className="h-8 cursor-pointer rounded-[9px] bg-success-500 px-3 text-[11.5px] font-bold text-white transition-colors hover:bg-success-600 disabled:opacity-60"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => rejectMutation.mutate({ leaveRequestId: request.id, reason: 'Not approved this time' })}
-                        disabled={approveMutation.isPending || rejectMutation.isPending}
-                        className="h-8 cursor-pointer rounded-[9px] border border-[#F3C6BD] bg-white px-2.5 text-[11.5px] font-bold text-error-600 transition-colors hover:bg-error-50 disabled:opacity-60"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  ) : (
-                    <span className="text-[11px] text-neutral-400">—</span>
-                  )}
-                </span>
+  const leaveDialog = dialog && (dialog.kind === 'reviewLeave' || dialog.kind === 'declineLeave' || dialog.kind === 'viewLeave') ? dialog.view : null;
+  const swapDialog = dialog && (dialog.kind === 'approveSwap' || dialog.kind === 'declineSwap') ? dialog.view : null;
+  const errorLine = dialogError ? <p className="mx-[22px] mb-0 mt-3 text-[12.5px] font-bold text-[#C93A22]">{dialogError}</p> : null;
+
+  return (
+    <div className="flex min-h-full flex-col text-[13px] text-[#38312B] [line-height:normal]">
+      <OverviewHeader
+        title={isApprover ? 'Swap & leave requests' : 'My requests'}
+        subtitle={isApprover ? requestsSubtitle(swapViews, leaveViews) : `${swapViews.filter((v) => v.filter === 'Pending').length} swaps and ${leaveViews.filter((v) => v.filter === 'Pending').length} leave requests pending`}
+        now={now}
+        actions={
+          canNewRequest ? (
+            <HeaderCta
+              label="New request"
+              onClick={() => {
+                setDraft(emptyDraft());
+                open({ kind: 'newRequest' });
+              }}
+            />
+          ) : null
+        }
+      />
+      <div className="flex flex-auto flex-col gap-[18px] bg-[#FDFCFB] px-7 pb-10 pt-[22px] max-[859px]:gap-3.5 max-[859px]:px-3.5 max-[859px]:pb-[84px] max-[859px]:pt-4">{body()}</div>
+
+      <HandoffModal
+        open={dialog?.kind === 'approveSwap'}
+        title="Approve this swap?"
+        subtitle={swapDialog ? `${swapDialog.ref} · ${swapDialog.fromName} ⇄ ${swapDialog.toName}` : ''}
+        primary={approveSwap.isPending ? 'Approving…' : 'Approve swap'}
+        primaryDisabled={busy}
+        onPrimary={() => swapDialog && approveSwap.mutate({ swapId: swapDialog.swap.id })}
+        onClose={close}
+      >
+        <DialogNote>
+          {swapDialog
+            ? `The shift moves to ${swapDialog.toName} immediately and ${swapDialog.fromName} is notified. Attendance for ${swapDialog.shiftLine.split(' · ')[0]} will expect ${swapDialog.toName} instead of ${swapDialog.fromName}.`
+            : ''}
+        </DialogNote>
+        {errorLine}
+      </HandoffModal>
+
+      <HandoffModal
+        open={dialog?.kind === 'declineSwap'}
+        title="Decline this swap?"
+        subtitle={swapDialog ? `${swapDialog.ref} · ${swapDialog.fromName} ⇄ ${swapDialog.toName}` : ''}
+        primary={rejectSwap.isPending ? 'Declining…' : 'Decline swap'}
+        tone="danger"
+        primaryDisabled={busy}
+        onPrimary={() => {
+          if (!swapDialog) return;
+          if (!note.trim()) return setDialogError('Give the requester a reason.');
+          rejectSwap.mutate({ swapId: swapDialog.swap.id, decisionNotes: note.trim() });
+        }}
+        onClose={close}
+      >
+        <ModalFields>
+          <ModalField label="Reason for declining" required full>
+            <textarea
+              className={`${modalControl} h-auto min-h-[84px] resize-y py-2.5 leading-[1.5]`}
+              value={note}
+              placeholder="Coverage cannot move between departments"
+              onChange={(event) => setNote(event.target.value)}
+            />
+          </ModalField>
+        </ModalFields>
+        {errorLine}
+      </HandoffModal>
+
+      <HandoffModal
+        open={dialog?.kind === 'reviewLeave'}
+        title="Review leave request"
+        subtitle={leaveDialog ? `${leaveDialog.name} · ${leaveDialog.dates} · ${leaveDialog.type}` : ''}
+        primary={approveLeave.isPending ? 'Approving…' : 'Approve leave'}
+        primaryDisabled={busy}
+        onPrimary={() => leaveDialog && approveLeave.mutate({ leaveRequestId: leaveDialog.leave.id })}
+        secondary={{ label: 'Decline', disabled: busy, onClick: () => leaveDialog && open({ kind: 'declineLeave', view: leaveDialog }) }}
+        onClose={close}
+      >
+        {leaveDialog ? (
+          <ModalFields>
+            <ModalField label="Employee" required>
+              <input className={modalControl} value={`${leaveDialog.name} · ${leaveDialog.dept}`} readOnly />
+            </ModalField>
+            <ModalField label="Dates" required>
+              <input className={modalControl} value={`${leaveDialog.dates} · ${leaveDialog.days}`} readOnly />
+            </ModalField>
+            <ModalField label="Type" required>
+              <input className={modalControl} value={leaveDialog.type} readOnly />
+            </ModalField>
+            <ModalField label="Reason given">
+              <input className={modalControl} value={leaveDialog.reason} readOnly />
+            </ModalField>
+          </ModalFields>
+        ) : null}
+        {errorLine}
+      </HandoffModal>
+
+      <HandoffModal
+        open={dialog?.kind === 'declineLeave'}
+        title="Decline this leave request?"
+        subtitle="The requester is notified with your note."
+        primary={rejectLeave.isPending ? 'Declining…' : 'Decline leave'}
+        tone="danger"
+        primaryDisabled={busy}
+        onPrimary={() => {
+          if (!leaveDialog) return;
+          if (!note.trim()) return setDialogError('Give the requester a reason.');
+          rejectLeave.mutate({ leaveRequestId: leaveDialog.leave.id, reason: note.trim() });
+        }}
+        onClose={close}
+      >
+        <ModalFields>
+          <ModalField label="Reason for declining" required full>
+            <textarea
+              className={`${modalControl} h-auto min-h-[84px] resize-y py-2.5 leading-[1.5]`}
+              value={note}
+              placeholder="Coverage cannot be arranged for those days"
+              onChange={(event) => setNote(event.target.value)}
+            />
+          </ModalField>
+        </ModalFields>
+        {errorLine}
+      </HandoffModal>
+
+      <HandoffModal
+        open={dialog?.kind === 'viewLeave'}
+        title="Leave request"
+        subtitle={leaveDialog ? `${leaveDialog.name} · ${leaveDialog.dates} · ${leaveDialog.type}` : ''}
+        primary="Done"
+        onPrimary={close}
+        onClose={close}
+      >
+        {leaveDialog ? (
+          <ModalFields>
+            <ModalField label="Status">
+              <input className={modalControl} value={leaveDialog.status} readOnly />
+            </ModalField>
+            <ModalField label="Dates">
+              <input className={modalControl} value={`${leaveDialog.dates} · ${leaveDialog.days}`} readOnly />
+            </ModalField>
+            <ModalField label="Reason given" full>
+              <input className={modalControl} value={leaveDialog.reason} readOnly />
+            </ModalField>
+            {leaveDialog.leave.manager_notes ? (
+              <ModalField label="Decision note" full>
+                <input className={modalControl} value={leaveDialog.leave.manager_notes} readOnly />
+              </ModalField>
+            ) : null}
+          </ModalFields>
+        ) : null}
+      </HandoffModal>
+
+      <HandoffModal
+        open={dialog?.kind === 'newRequest'}
+        title={draft.type === 'Time off' && !isApprover ? 'Request time off' : 'New request'}
+        subtitle={isApprover ? 'Record time off for someone in your branch — it waits for approval like any other request.' : 'Raise a swap or time-off request. It goes to your supervisor for approval.'}
+        primary={createLeave.isPending || requestSwap.isPending ? 'Submitting…' : 'Submit request'}
+        primaryDisabled={busy}
+        onPrimary={submitNewRequest}
+        onClose={close}
+      >
+        <ModalFields>
+          {!isApprover && canRequestSwap && canCreateLeave ? (
+            <ModalField label="Request type" required>
+              <select className={modalControl} value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value as NewRequestDraft['type'] })}>
+                <option>Shift swap</option>
+                <option>Time off</option>
+              </select>
+            </ModalField>
+          ) : null}
+          {draft.type === 'Shift swap' ? (
+            <>
+              <ModalField label="Your shift" required>
+                <select className={modalControl} value={draft.assignmentId} onChange={(event) => setDraft({ ...draft, assignmentId: event.target.value })}>
+                  <option value="">{shiftChoices.length ? 'Choose a shift' : 'No upcoming shifts'}</option>
+                  {shiftChoices.map((choice) => (
+                    <option key={choice.id} value={choice.id}>
+                      {choice.label}
+                    </option>
+                  ))}
+                </select>
+              </ModalField>
+              <ModalField label="Swap with">
+                <select className={modalControl} value={draft.targetId} onChange={(event) => setDraft({ ...draft, targetId: event.target.value })}>
+                  <option value="">Anyone in the branch</option>
+                  {colleagues.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {fullName(person)}
+                    </option>
+                  ))}
+                </select>
+              </ModalField>
+            </>
+          ) : (
+            <>
+              {isApprover ? (
+                <ModalField label="Employee" required>
+                  <select className={modalControl} value={draft.employeeId} onChange={(event) => setDraft({ ...draft, employeeId: event.target.value })}>
+                    <option value="">Choose a person</option>
+                    {(employees ?? [])
+                      .filter((e) => e.is_active && !e.deleted_at)
+                      .map((person) => (
+                        <option key={person.id} value={person.id}>
+                          {fullName(person)}
+                        </option>
+                      ))}
+                  </select>
+                </ModalField>
               ) : null}
-            </div>
-          ))}
-        </section>
-      )}
+              <ModalField label="Leave type" required>
+                <select className={modalControl} value={draft.leaveType} onChange={(event) => setDraft({ ...draft, leaveType: event.target.value as LeaveRequest['leave_type'] })}>
+                  {Object.entries(LEAVE_TYPE_LABEL).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </ModalField>
+              <ModalField label="First day" required>
+                <input type="date" className={modalControl} value={draft.startDate} onChange={(event) => setDraft({ ...draft, startDate: event.target.value, endDate: draft.endDate || event.target.value })} />
+              </ModalField>
+              <ModalField label="Last day" required>
+                <input type="date" className={modalControl} value={draft.endDate} min={draft.startDate || undefined} onChange={(event) => setDraft({ ...draft, endDate: event.target.value })} />
+              </ModalField>
+            </>
+          )}
+          <ModalField label="Reason" required full>
+            <textarea
+              className={`${modalControl} h-auto min-h-[84px] resize-y py-2.5 leading-[1.5]`}
+              value={draft.reason}
+              placeholder={draft.type === 'Shift swap' ? 'Family commitment' : 'Your supervisor sees this with the request.'}
+              onChange={(event) => setDraft({ ...draft, reason: event.target.value })}
+            />
+          </ModalField>
+        </ModalFields>
+        {errorLine}
+      </HandoffModal>
+
+      <ScheduleToast toast={toast} onDismiss={dismiss} />
     </div>
   );
 }

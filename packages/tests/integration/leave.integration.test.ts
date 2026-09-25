@@ -34,6 +34,10 @@ describe('leave requests integration', () => {
     const approved = await ctx.call<{ status: string; approved_at: string | null }>('approve_leave_request', { leaveRequestId: leave.id });
     expect(approved.status).toBe('approved');
     expect(approved.approved_at).not.toBeNull();
+
+    // Decided requests stay in the approver's branch-wide list (Resolved / All).
+    const branchLeave = await ctx.call<Array<{ id: string; status: string }>>('list_branch_leave', { branchId: TEST_FIXTURES.branchId });
+    expect(branchLeave.find((row) => row.id === leave.id)?.status).toBe('approved');
   });
 
   it('rejects an overlapping request for the same employee (DB exclusion constraint)', async () => {

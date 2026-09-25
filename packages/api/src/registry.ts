@@ -27,7 +27,8 @@ import {
 } from './operations/task.js';
 import {
   createAnnouncement, updateAnnouncement, publishAnnouncement, archiveAnnouncement,
-  getAnnouncement, listAnnouncements, acknowledgeAnnouncement, hasAcknowledgedAnnouncement
+  getAnnouncement, listAnnouncements, acknowledgeAnnouncement, hasAcknowledgedAnnouncement,
+  listAnnouncementAcknowledgements, remindAnnouncement
 } from './operations/announcement.js';
 import { createShiftNote, listShiftNotesForShift, archiveShiftNote } from './operations/shiftNote.js';
 import {
@@ -47,23 +48,26 @@ import {
   getShiftSwap,
   listMyShiftSwaps,
   listOpenShiftSwaps,
-  listPendingShiftSwapApprovals
+  listPendingShiftSwapApprovals,
+  listBranchShiftSwaps
 } from './operations/shiftSwap.js';
-import { getAttendanceSummaryReport, getTaskCompletionReport, getLeaveUsageReport } from './operations/reporting.js';
+import { getAttendanceSummaryReport, getTaskCompletionReport, getLeaveUsageReport, getOperationsSummaryReport } from './operations/reporting.js';
 import {
   clockIn, clockOut, markAttendanceAbsent, getAttendanceRecord, listAttendanceForEmployee,
   listMyAttendance, listAttendanceForBranchAndRange, recordAttendanceCorrection, listAttendanceCorrections
 } from './operations/attendance.js';
 import {
   createLeaveRequest, approveLeaveRequest, rejectLeaveRequest, cancelLeaveRequest,
-  getLeaveRequest, listLeaveForEmployee, listMyLeave, listPendingLeave
+  getLeaveRequest, listLeaveForEmployee, listMyLeave, listPendingLeave, listBranchLeave
 } from './operations/leave.js';
 import {
   listMyNotifications,
   markNotificationRead,
   markAllNotificationsRead,
   getMyNotificationPreferences,
-  setMyNotificationPreference
+  setMyNotificationPreference,
+  getMyNotificationEventPreferences,
+  setMyNotificationEventPreference
 } from './operations/notification.js';
 import { askAssistant } from './operations/assistant.js';
 
@@ -167,6 +171,8 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(listAnnouncements);
   registry.register(acknowledgeAnnouncement);
   registry.register(hasAcknowledgedAnnouncement);
+  registry.register(listAnnouncementAcknowledgements);
+  registry.register(remindAnnouncement);
 
   registry.register(createShiftNote);
   registry.register(listShiftNotesForShift);
@@ -190,12 +196,15 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(listLeaveForEmployee);
   registry.register(listMyLeave);
   registry.register(listPendingLeave);
+  registry.register(listBranchLeave);
 
   registry.register(listMyNotifications);
   registry.register(markNotificationRead);
   registry.register(markAllNotificationsRead);
   registry.register(getMyNotificationPreferences);
   registry.register(setMyNotificationPreference);
+  registry.register(getMyNotificationEventPreferences);
+  registry.register(setMyNotificationEventPreference);
   registry.register(askAssistant);
 
   registry.register(createDepartment);
@@ -214,10 +223,12 @@ export function createDefaultRegistry(): RpcRegistry {
   registry.register(listMyShiftSwaps);
   registry.register(listOpenShiftSwaps);
   registry.register(listPendingShiftSwapApprovals);
+  registry.register(listBranchShiftSwaps);
 
   registry.register(getAttendanceSummaryReport);
   registry.register(getTaskCompletionReport);
   registry.register(getLeaveUsageReport);
+  registry.register(getOperationsSummaryReport);
 
   return registry;
 }

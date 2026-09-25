@@ -65,6 +65,25 @@ describe('reporting integration', () => {
     expect(Array.isArray(summary)).toBe(true);
   });
 
+  it('returns the operations summary the Reports page reads, with totals that add up', async () => {
+    const report = await ctx.call<{
+      attendance: { attended: number; recorded: number };
+      departments: Array<{ attended: number; recorded: number }>;
+      scheduledMinutes: number;
+      shiftCount: number;
+      unfilledShifts: Array<{ assigned: number }>;
+      swapRequests: number;
+      hoursByEmployee: unknown[];
+      requestActivity: Array<{ kind: string; raised: number }>;
+    }>('get_operations_summary_report', { startDate: '2020-01-01', endDate: '2030-01-01', branchId: TEST_FIXTURES.branchId });
+    expect(report.attendance.attended).toBe(report.departments.reduce((sum, row) => sum + row.attended, 0));
+    expect(report.attendance.attended).toBeLessThanOrEqual(report.attendance.recorded);
+    expect(report.unfilledShifts.every((row) => row.assigned === 0)).toBe(true);
+    expect(report.unfilledShifts.length).toBeLessThanOrEqual(report.shiftCount);
+    expect(report.swapRequests).toBe(report.requestActivity.filter((row) => row.kind === 'swap').reduce((sum, row) => sum + row.raised, 0));
+    expect(Array.isArray(report.hoursByEmployee)).toBe(true);
+  });
+
   it('rejects reports for a branch the caller does not have access to', async () => {
     const result = await ctx.callRaw(
       'get_attendance_summary_report',

@@ -8,7 +8,7 @@ import {
 import { ValidationError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
 import { assertNonEmptyString, assertUuid, assertOneOf, assertValidDateRange } from '../validation.js';
-import { notify } from '../notifications/notificationService.js';
+import { notifyEvent } from '../notifications/notificationService.js';
 
 const LEAVE_TYPES: readonly LeaveType[] = ['annual_leave', 'sick_leave', 'emergency_leave', 'unpaid_leave'];
 
@@ -89,10 +89,11 @@ export class LeaveRequestService {
       throw new ValidationError(`Cannot approve a leave request in status "${before.status}"`);
     }
     const updated = await this.leaveRequests.approve(this.context.organizationId, leaveRequestId, this.context.userId);
-    await notify(
+    await notifyEvent(
       this.context.client,
       this.context.organizationId,
       before.requested_by,
+      'leave_decisions',
       'Leave request approved',
       `Your ${before.leave_type.replace('_', ' ')} request for ${formatLeaveDate(before.start_date)} to ${formatLeaveDate(before.end_date)} was approved.`
     );
@@ -110,10 +111,11 @@ export class LeaveRequestService {
       throw new ValidationError(`Cannot reject a leave request in status "${before.status}"`);
     }
     const updated = await this.leaveRequests.reject(this.context.organizationId, leaveRequestId, this.context.userId, managerNotes.trim());
-    await notify(
+    await notifyEvent(
       this.context.client,
       this.context.organizationId,
       before.requested_by,
+      'leave_decisions',
       'Leave request rejected',
       `Your ${before.leave_type.replace('_', ' ')} request for ${formatLeaveDate(before.start_date)} to ${formatLeaveDate(before.end_date)} was rejected: ${managerNotes.trim()}`,
       'high'
@@ -171,6 +173,13 @@ export class LeaveRequestService {
     await this.context.requirePermission('leave.approve');
     const branchIds = this.context.resolveBranchScope(requestedBranchId);
     return this.leaveRequests.findPending(this.context.organizationId, branchIds, options);
+  }
+
+  /** Every leave request in a branch, decided ones included — same permission as the pending queue. */
+  async listForBranch(requestedBranchId?: string, options?: { limit?: number; offset?: number }): Promise<LeaveRequest[]> {
+    await this.context.requirePermission('leave.approve');
+    const branchIds = this.context.resolveBranchScope(requestedBranchId);
+    return this.leaveRequests.findForBranches(this.context.organizationId, branchIds, options);
   }
 
   private async getScoped(leaveRequestId: string): Promise<LeaveRequest> {

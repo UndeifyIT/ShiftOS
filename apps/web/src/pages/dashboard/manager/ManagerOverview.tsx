@@ -483,7 +483,8 @@ export function ManagerOverviewBody({ overview, now }: { overview: Overview; now
 }
 
 /** Handoff isLoading view. */
-export function OverviewLoading(): React.ReactElement {
+/** Handoff isLoading view; the caption reads 'Loading {page title}…'. */
+export function OverviewLoading({ title = 'Branch overview' }: { title?: string }): React.ReactElement {
   return (
     <>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(196px,1fr))] gap-3.5">
@@ -508,7 +509,7 @@ export function OverviewLoading(): React.ReactElement {
         </div>
       </div>
       <p className="m-0 text-[12px] text-[#A79C93]" aria-live="polite">
-        Loading Branch overview…
+        Loading {title}…
       </p>
     </>
   );

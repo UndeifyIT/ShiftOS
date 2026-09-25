@@ -34,9 +34,13 @@ const OnboardingWizardShell = lazy(() =>
 );
 
 const RoleDashboard = lazy(() => import('./pages/dashboard/RoleDashboard.js'));
+const ManagerDashboardPreviewPage = lazy(() => import('./pages/dashboard/ManagerDashboardPreviewPage.js'));
 const AdminConsolePage = lazy(() => import('./pages/admin/AdminConsolePage.js'));
 const AnnouncementsPage = lazy(() => import('./pages/announcements/AnnouncementsPage.js'));
 const RequestsPage = lazy(() => import('./pages/requests/RequestsPage.js'));
+const RecentActivityPage = lazy(() => import('./pages/activity/RecentActivityPage.js'));
+const ReportsPage = lazy(() => import('./pages/reports/ReportsPage.js'));
+const SettingsPage = lazy(() => import('./pages/settings/SettingsPage.js'));
 const OrganizationSettingsPage = lazy(() => import('./pages/organization/OrganizationSettingsPage.js'));
 const BranchListPage = lazy(() => import('./pages/branches/BranchListPage.js'));
 const BranchDetailPage = lazy(() => import('./pages/branches/BranchDetailPage.js'));
@@ -52,7 +56,6 @@ const InvitationsPage = lazy(() => import('./pages/members/InvitationsPage.js'))
 const SchedulesPage = lazy(() => import('./pages/scheduling/SchedulesPage.js'));
 const ProfilePage = lazy(() => import('./pages/account/ProfilePage.js'));
 const SecurityPage = lazy(() => import('./pages/account/SecurityPage.js'));
-const ComingSoonPage = lazy(() => import('./pages/placeholder/ComingSoonPage.js'));
 const TasksPage = lazy(() => import('./pages/tasks/TasksPage.js'));
 const AttendancePage = lazy(() => import('./pages/attendance/AttendancePage.js'));
 
@@ -134,6 +137,14 @@ function OnboardingGate(): React.ReactElement {
 export function App(): React.ReactElement {
   const { status, errorMessage, refresh, activeOrganization, myContext } = useSession();
 
+  if (window.location.pathname === '/manager-demo') {
+    return (
+      <SuspenseRoute>
+        <ManagerDashboardPreviewPage />
+      </SuspenseRoute>
+    );
+  }
+
   if (status === 'loading') {
     return <FullPageSpinner />;
   }
@@ -158,6 +169,7 @@ export function App(): React.ReactElement {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/request-demo" element={<DemoPage />} />
           <Route path="/demo" element={<Navigate to="/request-demo" replace />} />
+          <Route path="/manager-demo" element={<ManagerDashboardPreviewPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/sign-in" element={<SignInPage />} />
@@ -243,6 +255,8 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/admin" element={<AdminConsolePage />} />
         <Route path="/announcements" element={<AnnouncementsPage />} />
         <Route path="/requests" element={<RequestsPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/organization" element={<OrganizationSettingsPage />} />
         <Route path="/branches" element={<BranchListPage />} />
         <Route path="/branches/new" element={<BranchDetailPage />} />
@@ -266,8 +280,11 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/supervisors" element={<SupervisorsPage />} />
         <Route path="/admins" element={<AdminsPage />} />
         <Route path="/recent-activity" element={<RecentActivityPage />} />
+<<<<<<< HEAD
         <Route path="/reports" element={<ComingSoonPage page="reports" />} />
         <Route path="/settings" element={<ComingSoonPage page="settings" />} />
+=======
+>>>>>>> origin/main
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

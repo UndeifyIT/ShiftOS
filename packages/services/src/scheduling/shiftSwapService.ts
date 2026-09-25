@@ -5,12 +5,13 @@ import {
   EmployeeRepository,
   UserRepository,
   AttendanceRecordRepository,
-  type ShiftSwapRequest
+  type ShiftSwapRequest,
+  type ShiftSwapWithShift
 } from '@shiftos/repositories';
 import { ValidationError, AuthorizationError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
 import { assertUuid } from '../validation.js';
-import { notify } from '../notifications/notificationService.js';
+import { notifyEvent } from '../notifications/notificationService.js';
 
 /**
  * Shift swap requests (backend completion pass, second phase). See
@@ -232,6 +233,17 @@ export class ShiftSwapService {
     return all;
   }
 
+  /**
+   * Every swap in a branch, whatever its status, with the shift each one
+   * moves — the approver's full Requests view (Pending / Resolved / All).
+   * Same permission as the pending queue.
+   */
+  async listBranchSwaps(requestedBranchId?: string): Promise<ShiftSwapWithShift[]> {
+    await this.context.requirePermission('swaps.approve');
+    const branchIds = this.context.resolveBranchScope(requestedBranchId);
+    return this.swaps.listForBranchesWithShift(this.context.organizationId, branchIds);
+  }
+
   private async notifyRequester(swap: ShiftSwapRequest, outcome: 'accepted' | 'declined' | 'approved' | 'rejected'): Promise<void> {
     const requester = await this.employees.getByIdOrThrow(this.context.organizationId, swap.requested_by_employee_id).catch(() => null);
     if (!requester?.email) {
@@ -253,7 +265,7 @@ export class ShiftSwapService {
       approved: 'Your shift swap request was approved and the shift has been reassigned.',
       rejected: 'Your shift swap request was reviewed and rejected.'
     };
-    await notify(this.context.client, this.context.organizationId, requesterUser.id, titles[outcome], bodies[outcome]);
+    await notifyEvent(this.context.client, this.context.organizationId, requesterUser.id, 'swap_updates', titles[outcome], bodies[outcome]);
   }
 
   private async resolveMyEmployee() {

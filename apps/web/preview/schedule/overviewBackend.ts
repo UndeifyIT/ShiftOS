@@ -6,7 +6,11 @@
  * waiting, 2 supervisor invitations, next week still a draft, and the
  * handoff's two announcements.
  */
+<<<<<<< HEAD
 import type { Announcement, AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap, Task } from '../../src/types/domain.js';
+=======
+import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap, Task, Announcement, AnnouncementAcknowledgement } from '../../src/types/domain.js';
+>>>>>>> origin/main
 
 const ORG = 'org-abc-supermarket';
 const BRANCH = 'br-main';
@@ -49,6 +53,7 @@ const PEOPLE: Array<[string, string, string, string, boolean, number | null]> = 
 
 const emailOf = (first: string, last: string): string => `${first}.${last}@abc.example`.toLowerCase();
 
+<<<<<<< HEAD
 /**
  * `?data=edge` serves the same screens with the shapes real databases
  * actually contain â€” a member whose user row has no email, an employee with
@@ -60,6 +65,10 @@ const MESSY = new URLSearchParams(window.location.search).get('data') === 'edge'
 
 export function createOverviewBackend() {
   // Employees page preview: handoff-style phone numbers, one person on leave and two inactive (EMP_STATS 17 active Â· 1 on leave).
+=======
+export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
+  // Employees page preview: handoff-style phone numbers, one person on leave and two inactive (EMP_STATS 17 active · 1 on leave).
+>>>>>>> origin/main
   const STATUS_OF: Record<string, Employee['employment_status']> = { p10: 'on_leave', p14: 'inactive', p15: 'inactive' };
   const employees: Employee[] = PEOPLE.map(([id, first, last, departmentId], index) => ({
     ...stamp({
@@ -169,6 +178,75 @@ export function createOverviewBackend() {
     ...PEOPLE.filter(([, , , , supervisor]) => supervisor).map(([id, first, last]) =>
       stamp({ id: `mem-${id}`, user_id: `user-${id}`, role_id: 'role-supervisor', joined_at: CREATED, is_active: true, user_email: emailOf(first, last), user_first_name: first, user_last_name: last, role_name: 'Supervisor' })
     )
+  ];
+
+  // Announcements preview: staff have ShiftOS logins too — all but David Wilson, the handoff's "Not delivered" row.
+  if (options.staffLogins) {
+    for (const [id, first, last, , supervisor] of PEOPLE) {
+      if (supervisor || id === 'p20') continue;
+      members.push(
+        stamp({ id: `mem-${id}`, user_id: `user-${id}`, role_id: 'role-employee', joined_at: CREATED, is_active: true, user_email: emailOf(first, last), user_first_name: first, user_last_name: last, role_name: 'Employee' })
+      );
+    }
+  }
+
+  // Announcements: the handoff's three notices and who has acknowledged each (ANNOUNCEMENTS + RECIPIENTS).
+  const announcement = (id: string, title: string, content: string, published: string, author: string, branch: string | null, pinned = false): Announcement => ({
+    ...stamp({ id }),
+    created_at: published,
+    branch_id: branch,
+    title,
+    content,
+    announcement_type: branch ? 'operational' : 'policy',
+    visibility_type: branch ? 'branch' : 'organization',
+    is_published: true,
+    is_pinned: pinned,
+    published_at: published,
+    expires_at: null,
+    created_by: author
+  });
+  const announcements: Announcement[] = [
+    announcement(
+      'ann-stocktake',
+      'Stocktake weekend — we close at 6 PM Saturday',
+      "We close early on Saturday for the monthly stocktake. Supervisors should confirm their team's finish times by Friday afternoon.",
+      at(15, 17, 40),
+      'user-me',
+      BRANCH,
+      true
+    ),
+    announcement(
+      'ann-promotion',
+      'New promotion display goes live Friday',
+      "Ensure all displays are updated and shelves are stocked before 10 AM. Ask Sarah if you're unsure where stock goes.",
+      at(16, 7, 30),
+      'user-p1',
+      BRANCH
+    ),
+    announcement(
+      'ann-threshold',
+      'Late threshold moves to 10 minutes from 1 June',
+      'The grace period shortens from 15 to 10 minutes. Please brief your teams before the change takes effect.',
+      at(12, 9, 0),
+      'user-me',
+      null
+    )
+  ];
+  const ack = (announcementId: string, employeeId: string, when: string): AnnouncementAcknowledgement => ({
+    id: `ack-${announcementId}-${employeeId}`,
+    organization_id: ORG,
+    announcement_id: announcementId,
+    employee_id: employeeId,
+    acknowledged_at: when
+  });
+  const acknowledgements: AnnouncementAcknowledgement[] = [
+    ack('ann-stocktake', 'p1', at(15, 18, 42)),
+    ack('ann-stocktake', 'p7', at(15, 19, 10)),
+    ack('ann-stocktake', 'p16', at(16, 6, 55)),
+    ...['p2', 'p3', 'p4', 'p5', 'p6', 'p9', 'p11', 'p12', 'p13', 'p17', 'p18', 'p19'].map((id, index) => ack('ann-stocktake', id, at(16, 7, index + 1))),
+    ack('ann-promotion', 'p2', at(16, 7, 33)),
+    ack('ann-promotion', 'p12', at(16, 7, 35)),
+    ...PEOPLE.filter(([id]) => !['p10', 'p14', 'p15', 'p20'].includes(id)).map(([id], index) => ack('ann-threshold', id, at(12 + (index % 3), 9, index)))
   ];
 
   const shifts: Shift[] = [];
@@ -334,6 +412,32 @@ export function createOverviewBackend() {
       cancelled_at: null
     }) as LeaveRequest;
 
+  const task = (id: string, title: string, patch: Partial<Task>): Task =>
+    ({
+      ...stamp({ id }),
+      branch_id: BRANCH,
+      title,
+      description: null,
+      due_date: '2025-05-16',
+      due_time: null,
+      priority: 'normal',
+      task_status: 'assigned',
+      assigned_supervisor_id: 'p12',
+      assigned_by: 'user-me',
+      assigned_at: null,
+      completed_at: null,
+      completed_by: null,
+      completion_notes: null,
+      verified_at: null,
+      verified_by: null,
+      verification_notes: null,
+      verification_status: 'pending',
+      created_by: 'user-me',
+      updated_by: null,
+      version: 1,
+      ...patch
+    }) as Task;
+
   const swap = (id: string, assignmentId: string, from: string, to: string): ShiftSwap => ({
     id,
     organization_id: ORG,
@@ -351,6 +455,114 @@ export function createOverviewBackend() {
     created_at: at(14, 10, 0),
     updated_at: at(14, 12, 0)
   });
+
+  const withShift = (row: ShiftSwap, date: string, start: string, end: string, title: string, departmentId: string, patch: Partial<ShiftSwap> = {}): ShiftSwap => ({
+    ...row,
+    shift_date: date,
+    shift_start_time: `${start}:00`,
+    shift_end_time: `${end}:00`,
+    shift_title: title,
+    shift_department_id: departmentId,
+    ...patch
+  });
+  const branchSwaps: ShiftSwap[] = [
+    withShift(swap('sw-0148', 'asg-p2', 'p2', 'p12'), '2025-05-19', '14:00', '22:00', 'Evening Shift', 'dep-sales', {
+      notes: "Family commitment on Monday evening. Michael has agreed to take the shift and I'll cover his Wednesday morning.",
+      created_at: at(14, 7, 58),
+      responded_at: at(14, 18, 0)
+    }),
+    withShift(swap('sw-0151', 'asg-p16', 'p16', 'p8'), '2025-05-24', '08:00', '16:00', 'Morning Shift', 'dep-frontend', {
+      status: 'pending',
+      notes: 'Swapping so I can attend a wedding on Saturday morning.',
+      responded_by_employee_id: null,
+      responded_at: null,
+      created_at: at(16, 3, 58)
+    }),
+    withShift(swap('sw-0139', 'asg-p12', 'p12', 'p20'), '2025-05-16', '22:00', '06:00', 'Night Shift', 'dep-warehouse', {
+      status: 'approved',
+      notes: 'Medical appointment early Saturday morning.',
+      decision_by: 'user-p1',
+      decision_at: at(12, 11, 0),
+      created_at: at(10, 9, 0)
+    }),
+    withShift(swap('sw-0132', 'asg-p8', 'p8', 'p17'), '2025-05-10', '08:00', '16:00', 'Morning Shift', 'dep-frontend', {
+      status: 'rejected',
+      notes: 'Wanted to switch departments for one shift.',
+      decision_by: 'user-me',
+      decision_at: at(9, 15, 0),
+      decision_notes: 'Bakery cover cannot move to Front End',
+      created_at: at(8, 9, 0)
+    })
+  ];
+  const branchLeave: LeaveRequest[] = [
+    leave('lv-1', 'p8', '2025-06-02', '2025-06-04', 'annual_leave', 'Family travel', 13),
+    leave('lv-2', 'p16', '2025-05-28', '2025-05-28', 'unpaid_leave', 'Personal appointment', 14),
+    leave('lv-3', 'p2', '2025-06-09', '2025-06-09', 'annual_leave', 'Graduation ceremony', 15),
+    { ...leave('lv-4', 'p17', '2025-05-14', '2025-05-21', 'sick_leave', 'Medical certificate attached', 12), status: 'approved', approved_by: 'user-me', approved_at: at(12, 10, 0) },
+    { ...leave('lv-5', 'p20', '2025-05-19', '2025-05-20', 'annual_leave', 'Short break', 11), status: 'rejected', rejected_by: 'user-me', rejected_at: at(12, 10, 0), manager_notes: 'Facilities is short that week' }
+  ];
+  const operationsReport = (current: boolean) => {
+    // [department, attended, recorded] — Sales Floor 95%, Bakery 88%, Front End 78%, Warehouse 60% this period.
+    const rates: Array<[string, number, number]> = current
+      ? [['dep-sales', 190, 200], ['dep-bakery', 132, 150], ['dep-frontend', 117, 150], ['dep-warehouse', 60, 100]]
+      : [['dep-sales', 186, 200], ['dep-bakery', 126, 150], ['dep-frontend', 111, 150], ['dep-warehouse', 58, 100]];
+    const gapCount = current ? 11 : 15;
+    return {
+      startDate: current ? '2025-04-17' : '2025-03-18',
+      endDate: current ? '2025-05-16' : '2025-04-16',
+      attendance: { attended: rates.reduce((n, r) => n + r[1], 0), recorded: rates.reduce((n, r) => n + r[2], 0) },
+      departments: rates.map(([department_id, attended, recorded]) => ({ department_id, attended, recorded })),
+      scheduledMinutes: (current ? 6240 : 6060) * 60,
+      shiftCount: 780,
+      unfilledShifts: Array.from({ length: gapCount }, (_, i) => ({
+        shift_id: `gap-${i}`,
+        shift_date: `2025-05-${String(1 + i).padStart(2, '0')}`,
+        start_time: '14:30:00',
+        end_time: '22:30:00',
+        title: 'Evening Shift',
+        department_id: i % 2 ? 'dep-warehouse' : 'dep-frontend',
+        paid_minutes: 420,
+        assigned: 0
+      })),
+      swapRequests: current ? 18 : 12,
+      hoursByEmployee: PEOPLE.map(([id]) => ({ employee_id: id, shifts: 20, worked_minutes: 20 * 450, overtime_minutes: 30, late_minutes: id === 'p8' ? 40 : 0 })),
+      requestActivity: [
+        { department_id: 'dep-sales', kind: 'swap', raised: 7, approved: 5, declined: 1 },
+        { department_id: 'dep-frontend', kind: 'swap', raised: 11, approved: 8, declined: 2 },
+        { department_id: 'dep-bakery', kind: 'leave', raised: 3, approved: 2, declined: 0 }
+      ]
+    };
+  };
+  const branch = stamp({
+    id: BRANCH,
+    name: 'Main Branch',
+    address: null,
+    settings: {
+      timeZone: 'Africa/Lagos',
+      operatingHours: Object.fromEntries(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => [d, { open: '09:00', close: '18:00', closed: false }]))
+    } as Record<string, unknown>,
+    is_active: true
+  });
+  const organization = stamp({
+    id: ORG,
+    name: 'ABC Supermarket Ltd.',
+    slug: 'abc-supermarket',
+    metadata: { businessType: 'Supermarket', country: 'NG', timeZone: 'Africa/Lagos', onboardingCompletedAt: CREATED } as Record<string, unknown>,
+    is_active: true
+  });
+  const eventPrefs: Record<string, boolean> = {};
+  const decideLeave = (id: string, status: 'approved' | 'rejected', notes: string | null): LeaveRequest => {
+    const row = branchLeave.find((l) => l.id === id);
+    if (!row) throw new Error('Leave request not found');
+    Object.assign(row, { status, manager_notes: notes });
+    return row;
+  };
+  const decideSwap = (id: string, status: 'approved' | 'rejected', notes: string | null): ShiftSwap => {
+    const row = branchSwaps.find((s) => s.id === id);
+    if (!row) throw new Error('Swap not found');
+    Object.assign(row, { status, decision_by: 'user-me', decision_at: at(16, 7, 58), decision_notes: notes });
+    return row;
+  };
 
   const invitation = (id: string, email: string): Invitation => ({
     id,
@@ -626,7 +838,20 @@ export function createOverviewBackend() {
     update_role_permissions: (input) => input.capabilities,
     list_invitable_roles: () =>
       ['Employee', 'Supervisor', 'Admin'].map((name) => stamp({ id: `role-${name.toLowerCase()}`, name, description: null, is_system: true, is_active: true, grants_org_wide_branch_access: false })),
-    list_branches: () => [stamp({ id: BRANCH, name: 'Main Branch', address: null, settings: {}, is_active: true })],
+    list_branches: () => [branch],
+    // Settings: the organization, the branch's hours and the notification switches.
+    get_organization: () => organization,
+    update_organization: (input) => Object.assign(organization, { name: input.name, metadata: input.metadata ?? organization.metadata }),
+    update_branch: (input) => Object.assign(branch, { settings: input.settings ?? branch.settings }),
+    update_profile: () => ({ id: 'user-me' }),
+    get_my_notification_event_preferences: () =>
+      ['swap_updates', 'leave_decisions', 'announcement_reminders'].flatMap((event_type) =>
+        ['in_app', 'email'].map((channel) => ({ event_type, channel, is_enabled: eventPrefs[`${event_type}:${channel}`] ?? !(event_type === 'announcement_reminders' && channel === 'email') }))
+      ),
+    set_my_notification_event_preference: (input) => {
+      eventPrefs[`${input.eventType}:${input.channel}`] = Boolean(input.isEnabled);
+      return { event_type: input.eventType, channel: input.channel, is_enabled: input.isEnabled };
+    },
     list_employees: () => employees,
     get_employee: (input) => {
       const employee = employees.find((e) => e.id === input.employeeId);
@@ -683,6 +908,7 @@ export function createOverviewBackend() {
       leave('lv-3', 'p2', '2025-06-09', '2025-06-09', 'annual_leave', 'Graduation ceremony', 15)
     ],
     list_pending_shift_swap_approvals: () => [swap('sw-1', 'asg-p8', 'p8', 'p11'), swap('sw-2', 'asg-p9', 'p9', 'p10')],
+<<<<<<< HEAD
     list_announcements: () => announcements,
     create_announcement: (input) => {
       const row: Announcement = {
@@ -790,6 +1016,53 @@ export function createOverviewBackend() {
       row.completion_notes = null;
       return row;
     }
+=======
+    // Requests: the handoff's SWAPS and LEAVE — two swaps and three leave requests waiting, and some already decided.
+    // Reports: the handoff's last 30 days (91% attendance, 6,240 hours, 11 gaps, 18 swaps) and the 30 before.
+    get_operations_summary_report: (input) => operationsReport(String(input.endDate) === '2025-05-16'),
+    list_branch_shift_swaps: () => branchSwaps,
+    list_branch_leave: () => branchLeave,
+    approve_shift_swap: (input) => decideSwap(String(input.swapId), 'approved', null),
+    reject_shift_swap: (input) => decideSwap(String(input.swapId), 'rejected', (input.decisionNotes as string) ?? null),
+    approve_leave_request: (input) => decideLeave(String(input.leaveRequestId), 'approved', null),
+    reject_leave_request: (input) => decideLeave(String(input.leaveRequestId), 'rejected', String(input.reason ?? '')),
+    create_leave_request: (input) => {
+      const created = leave(`lv-${branchLeave.length + 1}`, String(input.employeeId), String(input.startDate), String(input.endDate), input.leaveType as LeaveRequest['leave_type'], String(input.reason), 16);
+      branchLeave.unshift(created);
+      return created;
+    },
+    list_announcements: () => announcements,
+    list_announcement_acknowledgements: (input) => acknowledgements.filter((row) => row.announcement_id === input.announcementId),
+    has_acknowledged_announcement: (input) => ({ acknowledged: acknowledgements.some((row) => row.announcement_id === input.announcementId && row.employee_id === 'p1') }),
+    create_announcement: (input) => {
+      const created: Announcement = {
+        ...announcement(`ann-${announcements.length + 1}`, String(input.title), String(input.content), at(16, 7, 58), 'user-me', (input.branchId as string | null) ?? null, Boolean(input.isPinned)),
+        is_published: false,
+        published_at: null
+      };
+      announcements.unshift(created);
+      return created;
+    },
+    publish_announcement: (input) => {
+      const row = announcements.find((a) => a.id === input.announcementId);
+      if (!row) throw new Error('Announcement not found');
+      Object.assign(row, { is_published: true, published_at: at(16, 7, 58) });
+      return row;
+    },
+    remind_announcement: (input) => {
+      const row = announcements.find((a) => a.id === input.announcementId);
+      const acked = new Set(acknowledgements.filter((a) => a.announcement_id === input.announcementId).map((a) => a.employee_id));
+      const logins = new Set(members.map((m) => m.user_email));
+      const outstanding = employees.filter((e) => e.employment_status === 'active' && (!row?.branch_id || e.branch_id === row.branch_id) && !acked.has(e.id));
+      const reached = outstanding.filter((e) => e.email && logins.has(e.email)).length;
+      return { reminded: reached, undelivered: outstanding.length - reached };
+    },
+    // Recent Activity: the handoff's two task events — one completed, one assigned, both Michael Brown's.
+    list_tasks: () => [
+      task('tsk-cold-room', 'Check Cold Room Temperature', { assigned_at: at(16, 6, 50), completed_at: at(16, 7, 46), completed_by: null, task_status: 'completed' }),
+      task('tsk-walkthrough', 'Morning Store Walkthrough', { assigned_at: at(16, 7, 20) })
+    ]
+>>>>>>> origin/main
   };
 
   return async function callRpc<TOutput>(operation: string, _organizationId?: string, input?: unknown): Promise<TOutput> {

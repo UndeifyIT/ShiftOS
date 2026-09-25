@@ -2,19 +2,22 @@ import {
   NotificationRepository,
   NotificationPreferenceRepository,
   NotificationDeliveryAttemptRepository,
+  NotificationEventPreferenceRepository,
+  NOTIFICATION_EVENT_CHANNELS,
+  NOTIFICATION_EVENT_TYPES,
   UserRepository,
+  type NotificationEventPreference,
+  type NotificationEventType,
   type Notification,
   type NotificationPriority,
   type NotificationChannel,
   type NotificationPreference
 } from '@shiftos/repositories';
-import { AuthorizationError, ValidationError } from '@shiftos/errors';
+import { AuthorizationError } from '@shiftos/errors';
 import type { DatabaseClient } from '@shiftos/database';
 import type { ApplicationContext } from '../applicationContext.js';
 import { assertUuid, assertOneOf } from '../validation.js';
 import type { NotificationDeliveryProviders, DeliveryChannel } from './deliveryProvider.js';
-
-const DELIVERY_CHANNELS: readonly DeliveryChannel[] = ['email', 'push', 'sms'];
 
 /**
  * Notifications service (backend completion pass). notifications (016) had a
@@ -77,6 +80,44 @@ export class NotificationService {
     await this.context.requirePermission('notifications.read');
     return this.preferences.setEnabled(this.context.organizationId, this.context.userId, channel, isEnabled);
   }
+
+  /** Every event × channel switch for the caller (067) — ones never set are reported as enabled, the default. */
+  async getMyEventPreferences(): Promise<Array<{ event_type: NotificationEventType; channel: 'in_app' | 'email'; is_enabled: boolean }>> {
+    await this.context.requirePermission('notifications.read');
+    const rows = await new NotificationEventPreferenceRepository(this.context.client).findForUser(this.context.organizationId, this.context.userId);
+    const saved = new Map(rows.map((row) => [`${row.event_type}:${row.channel}`, row.is_enabled]));
+    return NOTIFICATION_EVENT_TYPES.flatMap((event_type) =>
+      NOTIFICATION_EVENT_CHANNELS.map((channel) => ({ event_type, channel, is_enabled: saved.get(`${event_type}:${channel}`) ?? true }))
+    );
+  }
+
+  async setMyEventPreference(eventType: string, channel: string, isEnabled: boolean): Promise<NotificationEventPreference> {
+    assertOneOf(eventType, NOTIFICATION_EVENT_TYPES, 'eventType');
+    assertOneOf(channel, NOTIFICATION_EVENT_CHANNELS, 'channel');
+    await this.context.requirePermission('notifications.read');
+    return new NotificationEventPreferenceRepository(this.context.client).setEnabled(this.context.organizationId, this.context.userId, eventType, channel, isEnabled);
+  }
+}
+
+/**
+ * notify() for one of the events a person can switch off in Settings →
+ * Notifications (067): skipped when they've turned that event's in-app
+ * notifications off, otherwise exactly notify().
+ */
+export async function notifyEvent(
+  client: DatabaseClient,
+  organizationId: string,
+  targetUserId: string,
+  eventType: NotificationEventType,
+  title: string,
+  content: string,
+  priority: NotificationPriority = 'normal'
+): Promise<void> {
+  const wanted = await new NotificationEventPreferenceRepository(client).isEnabled(organizationId, targetUserId, eventType, 'in_app');
+  if (!wanted) {
+    return;
+  }
+  await notify(client, organizationId, targetUserId, title, content, priority);
 }
 
 /**

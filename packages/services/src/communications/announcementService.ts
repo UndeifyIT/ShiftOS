@@ -4,12 +4,14 @@ import {
   EmployeeRepository,
   UserRepository,
   type Announcement,
+  type AnnouncementAcknowledgement,
   type AnnouncementType,
   type AnnouncementVisibility,
   type Employee
 } from '@shiftos/repositories';
 import { ValidationError, NotFoundError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
+import { notifyEvent } from '../notifications/notificationService.js';
 import { assertNonEmptyString, assertUuid, assertOneOf } from '../validation.js';
 import { notify } from '../notifications/notificationService.js';
 
@@ -22,10 +24,15 @@ export interface CreateAnnouncementInput {
   content: string;
   announcementType?: AnnouncementType;
   expiresAt?: string | null;
+<<<<<<< HEAD
   /** 067 — sits at the top of the list, in its own card. */
   isPinned?: boolean;
   /** 067 — whether recipients are asked to acknowledge it. */
   requiresAcknowledgement?: boolean;
+=======
+  /** Migration 066: pin it to the top of the list. */
+  isPinned?: boolean;
+>>>>>>> origin/main
 }
 
 export interface UpdateAnnouncementInput {
@@ -34,6 +41,7 @@ export interface UpdateAnnouncementInput {
   announcementType?: AnnouncementType;
   expiresAt?: string | null;
   isPinned?: boolean;
+<<<<<<< HEAD
   requiresAcknowledgement?: boolean;
 }
 
@@ -44,6 +52,15 @@ export interface AnnouncementReceipt {
   departmentId: string | null;
   email: string | null;
   acknowledgedAt: string | null;
+=======
+}
+
+export interface AnnouncementReminderResult {
+  /** Outstanding recipients sent an in-app reminder. */
+  reminded: number;
+  /** Outstanding recipients with no ShiftOS login to remind (no user with their email). */
+  undelivered: number;
+>>>>>>> origin/main
 }
 
 /** Communications service (backend completion pass) — the announcements domain had a full table/repository layer (014) but no permission codes, service, or API until now. */
@@ -83,8 +100,12 @@ export class AnnouncementService {
       announcement_type: input.announcementType ?? 'general',
       visibility_type: visibilityType,
       is_published: false,
+<<<<<<< HEAD
       is_pinned: input.isPinned ?? false,
       requires_acknowledgement: input.requiresAcknowledgement ?? false,
+=======
+      is_pinned: input.isPinned === true,
+>>>>>>> origin/main
       expires_at: input.expiresAt ?? null,
       created_by: this.context.userId
     } as Partial<Announcement>);
@@ -108,7 +129,10 @@ export class AnnouncementService {
     if (input.announcementType !== undefined) changes.announcement_type = input.announcementType;
     if (input.expiresAt !== undefined) changes.expires_at = input.expiresAt;
     if (input.isPinned !== undefined) changes.is_pinned = input.isPinned;
+<<<<<<< HEAD
     if (input.requiresAcknowledgement !== undefined) changes.requires_acknowledgement = input.requiresAcknowledgement;
+=======
+>>>>>>> origin/main
 
     if (Object.keys(changes).length === 0) {
       throw new ValidationError('No changes supplied');
@@ -175,6 +199,60 @@ export class AnnouncementService {
       return;
     }
     await this.acknowledgements.acknowledge(this.context.organizationId, announcementId, employee.id);
+  }
+
+  /**
+   * Who has acknowledged one announcement — the handoff's acknowledgement
+   * receipts. Content managers only (announcements.update), the same people
+   * who see drafts in listAnnouncements.
+   */
+  async listAcknowledgements(announcementId: string): Promise<AnnouncementAcknowledgement[]> {
+    assertUuid(announcementId, 'announcementId');
+    await this.context.requirePermission('announcements.update');
+    const announcement = await this.getScoped(announcementId);
+    return this.acknowledgements.listForAnnouncement(this.context.organizationId, announcement.id);
+  }
+
+  /**
+   * The handoff's "Remind unread": an in-app notification to every active
+   * employee in the announcement's audience who hasn't acknowledged it yet. An
+   * employee with no ShiftOS login (no user with their email) can't be
+   * reached and is counted as undelivered instead.
+   */
+  async remindOutstanding(announcementId: string): Promise<AnnouncementReminderResult> {
+    assertUuid(announcementId, 'announcementId');
+    await this.context.requirePermission('announcements.update');
+    const announcement = await this.getScoped(announcementId);
+    if (!announcement.is_published) {
+      throw new ValidationError('Publish the announcement before sending reminders');
+    }
+
+    const branchIds = announcement.branch_id ? [announcement.branch_id] : this.context.resolveBranchScope();
+    const audience = await this.employees.findActiveEmployees(this.context.organizationId, branchIds);
+    const acknowledged = new Set(
+      (await this.acknowledgements.listForAnnouncement(this.context.organizationId, announcement.id)).map((row) => row.employee_id)
+    );
+
+    const result: AnnouncementReminderResult = { reminded: 0, undelivered: 0 };
+    for (const employee of audience) {
+      if (acknowledged.has(employee.id)) continue;
+      const user = employee.email ? await this.users.findByEmail(employee.email) : null;
+      if (!user) {
+        result.undelivered += 1;
+        continue;
+      }
+      await notifyEvent(
+        this.context.client,
+        this.context.organizationId,
+        user.id,
+        'announcement_reminders',
+        `Reminder: ${announcement.title}`,
+        'Please read this announcement and acknowledge it in ShiftOS.'
+      );
+      result.reminded += 1;
+    }
+    await this.context.audit('remind_announcement', 'announcement', announcement.id, null, { ...result });
+    return result;
   }
 
   async hasAcknowledged(announcementId: string): Promise<boolean> {
