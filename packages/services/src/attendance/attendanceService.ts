@@ -83,6 +83,65 @@ export class AttendanceService {
     } as Partial<AttendanceRecord>);
   }
 
+  /**
+   * A supervisor or manager marking someone else's attendance from the
+   * Attendance screen (design handoff "Supervisor/Attendance"). clockIn and
+   * clockOut are deliberately self-service — they resolve the caller's own
+   * employee row — and markAbsent only covers absences, so marking a team
+   * member present or late had no operation at all.
+   *
+   * Overwriting a record that was already marked leaves an
+   * attendance_corrections row, the same audit trail recordCorrection writes,
+   * and requires attendance.correct on top of attendance.update: changing a
+   * recorded attendance after the fact is the thing that permission exists
+   * for. The clock times are written; late_minutes/worked_minutes stay
+   * database-owned (trg_attendance_records_validate recomputes them).
+   */
+  async markAttendance(input: {
+    shiftAssignmentId: string;
+    status: Extract<AttendanceStatus, 'present' | 'late' | 'absent' | 'no_show' | 'scheduled'>;
+    at?: string | null;
+    notes?: string | null;
+  }): Promise<AttendanceRecord> {
+    assertUuid(input.shiftAssignmentId, 'shiftAssignmentId');
+    await this.context.requirePermission('attendance.update');
+
+    const before = await this.getOrCreateForAssignment(input.shiftAssignmentId);
+    const marksArrival = input.status === 'present' || input.status === 'late';
+    const clockIn = marksArrival ? input.at ?? before.clock_in_at ?? new Date().toISOString() : null;
+
+    if (before.attendance_status !== 'scheduled') {
+      await this.context.requirePermission('attendance.correct');
+    }
+
+    const updated = await this.records.patch(this.context.organizationId, before.id, {
+      attendance_status: input.status,
+      clock_in_at: clockIn,
+      // An arrival keeps whatever clock-out it already had; anything else clears it.
+      clock_out_at: marksArrival ? before.clock_out_at : null,
+      notes: input.notes === undefined ? before.notes : input.notes?.trim() || null,
+      updated_by: this.context.userId
+    } as Partial<AttendanceRecord>);
+
+    if (before.attendance_status !== 'scheduled') {
+      await this.corrections.record(this.context.organizationId, {
+        attendance_record_id: before.id,
+        original_status: before.attendance_status,
+        original_clock_in: before.clock_in_at,
+        original_clock_out: before.clock_out_at,
+        corrected_status: input.status,
+        corrected_clock_in: clockIn,
+        corrected_clock_out: updated.clock_out_at,
+        reason: `Marked ${input.status.replace('_', ' ')} from the attendance screen`,
+        approved_by: this.context.userId,
+        approved_at: new Date().toISOString()
+      });
+    }
+
+    await this.context.audit('mark_attendance', 'attendance_record', before.id, { status: before.attendance_status }, { status: input.status });
+    return updated;
+  }
+
   async getRecord(recordId: string): Promise<AttendanceRecord> {
     assertUuid(recordId, 'recordId');
     await this.context.requirePermission('attendance.read');

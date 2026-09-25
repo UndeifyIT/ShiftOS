@@ -5,6 +5,8 @@ import type { BranchEntity } from '../base/branchScopedRepository.js';
 export type TaskStatus = 'draft' | 'assigned' | 'in_progress' | 'completed' | 'verified' | 'cancelled';
 export type TaskPriority = 'low' | 'normal' | 'high' | 'critical';
 export type TaskVerificationStatus = 'pending' | 'verified' | 'rework_required';
+/** How often a task comes back (066). Completing a repeating task creates its next occurrence. */
+export type TaskRecurrence = 'none' | 'daily' | 'weekdays' | 'weekly';
 
 export interface Task extends BranchEntity {
   title: string;
@@ -12,6 +14,7 @@ export interface Task extends BranchEntity {
   due_date: string | null;
   due_time: string | null;
   priority: TaskPriority;
+  recurrence: TaskRecurrence;
   task_status: TaskStatus;
   assigned_supervisor_id: string | null;
   assigned_by: string | null;

@@ -4,6 +4,7 @@ import { PermissionDenied } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import { uploadEmployeeAvatar } from '../../lib/avatars.js';
+import { emailKey, roleNameByEmail } from '../../lib/members.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import type { Branch, Department, Employee, Member, Role } from '../../types/domain.js';
 import { OverviewHeader } from '../dashboard/manager/ManagerOverview.js';
@@ -110,11 +111,11 @@ export default function AddEmployeePage(): React.ReactElement {
     [roles]
   );
   const managerOptions = useMemo(() => {
-    const roleByEmail = new Map((members ?? []).filter((m) => m.is_active && !m.deleted_at).map((m) => [m.user_email.toLowerCase(), m.role_name]));
+    const roleByEmail = roleNameByEmail(members ?? []);
     return (employees ?? [])
       .filter((e) => e.employment_status === 'active' && !e.deleted_at)
       .map((e) => {
-        const role = e.email ? roleByEmail.get(e.email.toLowerCase()) : undefined;
+        const role = roleByEmail.get(emailKey(e.email) ?? '');
         return { value: e.id, label: `${e.first_name} ${e.last_name}${role ? ` (${role})` : ''}`, rank: role && /manager|supervisor|owner/i.test(role) ? 0 : 1 };
       })
       .sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label));

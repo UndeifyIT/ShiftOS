@@ -242,6 +242,8 @@ export interface ShiftAssignment {
 export type TaskStatus = 'draft' | 'assigned' | 'in_progress' | 'completed' | 'verified' | 'cancelled';
 export type TaskPriority = 'low' | 'normal' | 'high' | 'critical';
 export type TaskVerificationStatus = 'pending' | 'verified' | 'rework_required';
+/** How often a task comes back (066); completing a repeating task creates its next occurrence. */
+export type TaskRecurrence = 'none' | 'daily' | 'weekdays' | 'weekly';
 
 export interface Task {
   id: string;
@@ -252,6 +254,7 @@ export interface Task {
   due_date: string | null;
   due_time: string | null;
   priority: TaskPriority;
+  recurrence: TaskRecurrence;
   task_status: TaskStatus;
   assigned_supervisor_id: string | null;
   assigned_by: string | null;
@@ -326,8 +329,15 @@ export interface Announcement {
   announcement_type: AnnouncementType;
   visibility_type: AnnouncementVisibility;
   is_published: boolean;
+<<<<<<< HEAD
+  /** Pinned posts sort above the rest and are highlighted (067). */
+  is_pinned: boolean;
+  /** Whether recipients are asked to acknowledge this one (067). */
+  requires_acknowledgement: boolean;
+=======
   /** Migration 066; absent on rows read before it ran. */
   is_pinned?: boolean;
+>>>>>>> origin/main
   published_at: string | null;
   expires_at: string | null;
   created_by: string;

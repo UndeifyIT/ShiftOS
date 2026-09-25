@@ -21,6 +21,7 @@ export * from './workforce/departmentService.js';
 export * from './scheduling/shiftSwapService.js';
 export * from './reporting/reportingService.js';
 export * from './tasks/taskService.js';
+export * from './tasks/taskRecurrence.js';
 export * from './communications/announcementService.js';
 export * from './attendance/attendanceService.js';
 export * from './leave/leaveRequestService.js';

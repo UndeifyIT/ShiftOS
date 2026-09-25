@@ -4,6 +4,7 @@ import { PermissionDenied } from '@shiftos/ui';
 import { useSession } from '../../auth/SessionProvider.js';
 import { isRateLimitError } from '../../lib/authErrors.js';
 import { uploadEmployeeAvatar, useSignedAvatarUrl } from '../../lib/avatars.js';
+import { memberForEmail } from '../../lib/members.js';
 import { supabase } from '../../lib/supabase.js';
 import { useDismiss } from '../../lib/useDismiss.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
@@ -163,14 +164,11 @@ export default function EmployeeProfilePage(): React.ReactElement {
     if (employee) setForm(formFrom(employee));
   }, [employee]);
 
-  const member = useMemo(
-    () => (employee?.email ? (members ?? []).find((m) => m.is_active && !m.deleted_at && m.user_email.toLowerCase() === employee.email!.toLowerCase()) : undefined),
-    [members, employee]
-  );
+  const member = useMemo(() => memberForEmail(members ?? [], employee?.email), [members, employee]);
   const role = member?.role_name ?? NO_ACCOUNT_ROLE;
   const departmentName = (departments ?? []).find((d) => d.id === employee?.department_id)?.name ?? 'Unassigned';
   const manager = (colleagues ?? []).find((c) => c.id === employee?.reports_to_employee_id);
-  const managerRole = manager?.email ? (members ?? []).find((m) => m.user_email.toLowerCase() === manager.email!.toLowerCase())?.role_name : undefined;
+  const managerRole = memberForEmail(members ?? [], manager?.email)?.role_name;
 
   const today = todayDateString(now);
   const dayRange = rangeFor(range, today);

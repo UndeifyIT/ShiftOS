@@ -5,6 +5,7 @@
  * announcement and activity previews, and the Shifty nudge. Pure — every
  * number here is derived from the rows passed in, and `now` is injected.
  */
+import { emailKey } from '../../../lib/members.js';
 import type {
   AnnouncementType,
   Announcement,
@@ -308,7 +309,8 @@ export function buildManagerOverview(input: OverviewInput): ManagerOverview {
   const supervisorEmails = new Set(
     input.members
       .filter((m) => m.is_active && !m.deleted_at && /supervisor/i.test(m.role_name))
-      .map((m) => m.user_email.toLowerCase())
+      .map((m) => emailKey(m.user_email))
+      .filter((email): email is string => email !== null)
   );
   const isSupervisor = (employee: Employee | undefined): boolean => Boolean(employee?.email && supervisorEmails.has(employee.email.toLowerCase()));
   const supervisorCount = employees.filter(isSupervisor).length;

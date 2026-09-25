@@ -4,6 +4,7 @@
  * DEPTS) built from the branch's real people. Pure — filtering, paging and
  * the department breakdown are all derived from the rows passed in.
  */
+import { emailKey, roleNameByEmail } from '../../../lib/members.js';
 import type { Department, Employee, EmploymentStatus, Member } from '../../../types/domain.js';
 import type { Tone } from '../../scheduling/grid/scheduleFormat.js';
 
@@ -84,13 +85,11 @@ export function addedLabel(iso: string): string {
 
 export function buildRows(employees: Employee[], departments: Department[], members: Member[]): DirectoryRow[] {
   const departmentName = new Map(departments.map((d) => [d.id, d.name]));
-  const roleByEmail = new Map(
-    members.filter((m) => m.is_active && !m.deleted_at && m.user_email).map((m) => [m.user_email.toLowerCase(), m.role_name])
-  );
+  const roleByEmail = roleNameByEmail(members);
   return employees
     .filter((e) => !e.deleted_at)
     .map((employee) => {
-      const role = (employee.email && roleByEmail.get(employee.email.toLowerCase())) || NO_ACCOUNT_ROLE;
+      const role = roleByEmail.get(emailKey(employee.email) ?? '') || NO_ACCOUNT_ROLE;
       return {
         employee,
         name: `${employee.first_name} ${employee.last_name}`.trim(),

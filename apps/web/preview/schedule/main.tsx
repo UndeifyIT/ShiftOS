@@ -9,7 +9,10 @@ import { SessionProvider } from './mockSession.js';
 import '../../src/styles/global.css';
 
 const params = new URLSearchParams(window.location.search);
-const initialPath = params.get('path') ?? `/schedules?week=${params.get('week') ?? '2025-05-12'}`;
+// Lands on the Manager overview so the sidebar can be walked; the schedule
+// builder is `?path=/schedules` (and `?week=` still picks its week).
+const week = params.get('week');
+const initialPath = params.get('path') ?? (week ? `/schedules?week=${week}` : '/');
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

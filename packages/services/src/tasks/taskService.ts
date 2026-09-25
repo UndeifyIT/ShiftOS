@@ -4,12 +4,14 @@ import {
   EmployeeRepository,
   type Task,
   type TaskPriority,
+  type TaskRecurrence,
   type TaskVerificationStatus,
   type TaskHistoryEntry
 } from '@shiftos/repositories';
 import { ValidationError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
 import { assertNonEmptyString, assertUuid, assertOneOf } from '../validation.js';
+import { nextTaskOccurrence, TASK_RECURRENCES } from './taskRecurrence.js';
 
 const TASK_PRIORITIES: readonly TaskPriority[] = ['low', 'normal', 'high', 'critical'];
 const VERIFICATION_STATUSES: readonly TaskVerificationStatus[] = ['verified', 'rework_required'];
@@ -23,6 +25,7 @@ export interface CreateTaskInput {
   dueDate?: string | null;
   dueTime?: string | null;
   priority?: TaskPriority;
+  recurrence?: TaskRecurrence;
 }
 
 export interface UpdateTaskInput {
@@ -31,6 +34,7 @@ export interface UpdateTaskInput {
   dueDate?: string | null;
   dueTime?: string | null;
   priority?: TaskPriority;
+  recurrence?: TaskRecurrence;
 }
 
 /**
@@ -61,6 +65,9 @@ export class TaskService {
     if (input.priority !== undefined) {
       assertOneOf(input.priority, TASK_PRIORITIES, 'priority');
     }
+    if (input.recurrence !== undefined) {
+      assertOneOf(input.recurrence, TASK_RECURRENCES, 'recurrence');
+    }
     if (input.dueDate && Number.isNaN(Date.parse(input.dueDate))) {
       throw new ValidationError('Invalid dueDate', ['dueDate must be a valid date']);
     }
@@ -72,6 +79,7 @@ export class TaskService {
       due_date: input.dueDate ?? null,
       due_time: input.dueTime ?? null,
       priority: input.priority ?? 'normal',
+      recurrence: input.recurrence ?? 'none',
       created_by: this.context.userId
     } as Partial<Task>);
 
@@ -106,6 +114,7 @@ export class TaskService {
 
     if (input.title !== undefined) assertNonEmptyString(input.title, 'title');
     if (input.priority !== undefined) assertOneOf(input.priority, TASK_PRIORITIES, 'priority');
+    if (input.recurrence !== undefined) assertOneOf(input.recurrence, TASK_RECURRENCES, 'recurrence');
     if (input.dueDate && Number.isNaN(Date.parse(input.dueDate))) {
       throw new ValidationError('Invalid dueDate', ['dueDate must be a valid date']);
     }
@@ -116,6 +125,7 @@ export class TaskService {
     if (input.dueDate !== undefined) changes.due_date = input.dueDate;
     if (input.dueTime !== undefined) changes.due_time = input.dueTime;
     if (input.priority !== undefined) changes.priority = input.priority;
+    if (input.recurrence !== undefined) changes.recurrence = input.recurrence;
 
     return this.tasks.patch(this.context.organizationId, taskId, changes);
   }
@@ -154,6 +164,7 @@ export class TaskService {
 
     const updated = await this.tasks.complete(this.context.organizationId, taskId, this.context.userId, notes?.trim() || null);
     await this.recordHistory(taskId, 'completed', notes ?? null);
+    await this.repeat(updated);
     return updated;
   }
 
@@ -240,6 +251,48 @@ export class TaskService {
     const task = await this.tasks.getByIdOrThrow(this.context.organizationId, taskId);
     this.context.requireBranchAccess(task.branch_id);
     return this.history.listForTask(this.context.organizationId, taskId);
+  }
+
+  /**
+   * Creates the next occurrence of a repeating task (066). This is the only
+   * thing that advances a recurrence — there is no scheduler — so an
+   * unfinished daily check stays on the board instead of being replaced.
+   *
+   * It deliberately does not require `tasks.create`: whoever set the task up
+   * authorized the repetition, and the person finishing the work is only
+   * closing the loop. The owner carries over when they are still an active
+   * employee of the branch, because the DB trigger rejects anything else.
+   */
+  private async repeat(completed: Task): Promise<Task | null> {
+    const due = nextTaskOccurrence(completed.due_date ?? new Date().toISOString().slice(0, 10), completed.recurrence);
+    if (!due) return null;
+
+    let owner: string | null = null;
+    if (completed.assigned_supervisor_id) {
+      const employee = await this.employees.getById(this.context.organizationId, completed.assigned_supervisor_id);
+      if (employee && employee.is_active && !employee.deleted_at && employee.branch_id === completed.branch_id) {
+        owner = employee.id;
+      }
+    }
+
+    const assignment = owner
+      ? { task_status: 'assigned' as const, assigned_supervisor_id: owner, assigned_by: this.context.userId, assigned_at: new Date().toISOString() }
+      : {};
+
+    const next = await this.tasks.insert(this.context.organizationId, {
+      branch_id: completed.branch_id,
+      title: completed.title,
+      description: completed.description,
+      due_date: due,
+      due_time: completed.due_time,
+      priority: completed.priority,
+      recurrence: completed.recurrence,
+      created_by: this.context.userId,
+      ...assignment
+    } as Partial<Task>);
+
+    await this.recordHistory(next.id, next.task_status, `Repeat of ${completed.id}`);
+    return next;
   }
 
   private assertNotFinished(task: Task, action: string): void {
