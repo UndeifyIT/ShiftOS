@@ -49,7 +49,6 @@ const EmployeeProfilePage = lazy(() => import('./pages/employees/EmployeeProfile
 const AddEmployeePage = lazy(() => import('./pages/employees/AddEmployeePage.js'));
 const SupervisorsPage = lazy(() => import('./pages/people/SupervisorsPage.js'));
 const AdminsPage = lazy(() => import('./pages/people/AdminsPage.js'));
-const RecentActivityPage = lazy(() => import('./pages/activity/RecentActivityPage.js'));
 const ImportEmployeesPage = lazy(() => import('./pages/employees/import/ImportEmployeesPage.js'));
 const MembersPage = lazy(() => import('./pages/members/MembersPage.js'));
 const InvitationsPage = lazy(() => import('./pages/members/InvitationsPage.js'));
@@ -280,11 +279,6 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/supervisors" element={<SupervisorsPage />} />
         <Route path="/admins" element={<AdminsPage />} />
         <Route path="/recent-activity" element={<RecentActivityPage />} />
-<<<<<<< HEAD
-        <Route path="/reports" element={<ComingSoonPage page="reports" />} />
-        <Route path="/settings" element={<ComingSoonPage page="settings" />} />
-=======
->>>>>>> origin/main
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

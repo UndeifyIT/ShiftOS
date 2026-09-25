@@ -29,7 +29,7 @@ export const PRIORITY_LABEL: Record<TaskPriority, string> = { low: 'Low', normal
 export const PRIORITY_TONE: Record<TaskPriority, Tone> = { low: 'info', normal: 'warn', high: 'bad', critical: 'bad' };
 const PRIORITY_RANK: Record<TaskPriority, number> = { critical: 0, high: 1, normal: 2, low: 3 };
 
-/** The "Repeats" choices (066), as the form offers them and as a card says them. */
+/** The "Repeats" choices (068), as the form offers them and as a card says them. */
 export const RECURRENCE_LABEL: Record<TaskRecurrence, string> = {
   none: 'Does not repeat',
   daily: 'Every day',
@@ -50,7 +50,7 @@ export interface TaskCard {
   done: boolean;
   status: TaskStatus;
   overdue: boolean;
-  /** Completing it creates the next occurrence (066). */
+  /** Completing it creates the next occurrence (068). */
   repeats: boolean;
 }
 

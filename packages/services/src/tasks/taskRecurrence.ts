@@ -1,7 +1,7 @@
 import type { TaskRecurrence } from '@shiftos/repositories';
 
 /**
- * When a repeating task comes back (066).
+ * When a repeating task comes back (068).
  *
  * There is no scheduler in this system, so the chain advances on completion:
  * finishing today's cold-room check is what creates tomorrow's. Dates are

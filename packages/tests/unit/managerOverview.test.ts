@@ -168,6 +168,7 @@ describe('Manager overview model (design handoff HOME.Manager)', () => {
             branch_id: 'br',
             title: 'Check Cold Room Temperature',
             description: null,
+            recurrence: 'none',
             due_date: '2025-05-16',
             due_time: null,
             priority: 'normal',

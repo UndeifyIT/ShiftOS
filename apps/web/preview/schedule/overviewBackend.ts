@@ -1,16 +1,12 @@
-﻿/**
+/**
  * In-memory backend for the Manager overview preview (`?path=/`), seeded to
- * reproduce the design handoff's HOME.Manager morning â€” Friday May 16, 2025
+ * reproduce the design handoff's HOME.Manager morning — Friday May 16, 2025
  * at 07:58 (see mockClock.ts): 20 people, 17 checked in, Sales Floor / Front
  * End / Warehouse / Bakery coverage, 3 coverage gaps, 2 swaps + 3 leave
  * waiting, 2 supervisor invitations, next week still a draft, and the
  * handoff's two announcements.
  */
-<<<<<<< HEAD
-import type { Announcement, AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap, Task } from '../../src/types/domain.js';
-=======
 import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftSwap, Task, Announcement, AnnouncementAcknowledgement } from '../../src/types/domain.js';
->>>>>>> origin/main
 
 const ORG = 'org-abc-supermarket';
 const BRANCH = 'br-main';
@@ -53,22 +49,8 @@ const PEOPLE: Array<[string, string, string, string, boolean, number | null]> = 
 
 const emailOf = (first: string, last: string): string => `${first}.${last}@abc.example`.toLowerCase();
 
-<<<<<<< HEAD
-/**
- * `?data=edge` serves the same screens with the shapes real databases
- * actually contain â€” a member whose user row has no email, an employee with
- * no department, phone, email or hire date, attendance with no shift joined â€”
- * so a page that only survives tidy fixtures fails here instead of in front
- * of someone.
- */
-const MESSY = new URLSearchParams(window.location.search).get('data') === 'edge';
-
-export function createOverviewBackend() {
-  // Employees page preview: handoff-style phone numbers, one person on leave and two inactive (EMP_STATS 17 active Â· 1 on leave).
-=======
 export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
   // Employees page preview: handoff-style phone numbers, one person on leave and two inactive (EMP_STATS 17 active · 1 on leave).
->>>>>>> origin/main
   const STATUS_OF: Record<string, Employee['employment_status']> = { p10: 'on_leave', p14: 'inactive', p15: 'inactive' };
   const employees: Employee[] = PEOPLE.map(([id, first, last, departmentId], index) => ({
     ...stamp({
@@ -93,7 +75,7 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
     created_at: at(index % 2 ? 12 : 28 - (index % 5) * 3, 9, 0)
   }));
 
-  // Employee Profile preview: John Doe's month so far â€” the handoff's HISTORY_DAYS marks with its HISTORY_ROWS times â€” and the first half of April to compare with.
+  // Employee Profile preview: John Doe's month so far — the handoff's HISTORY_DAYS marks with its HISTORY_ROWS times — and the first half of April to compare with.
   // [month, day, clock in 'HH:MM' | null (absent), clock out, late minutes, notes]
   const HISTORY: Array<[number, number, string | null, string | null, number, string | null]> = [
     [5, 1, '09:00', '17:00', 0, null], [5, 2, '09:00', '17:00', 0, null], [5, 5, '09:00', '17:00', 0, null], [5, 6, '09:10', '17:00', 10, null],
@@ -252,13 +234,13 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
   const shifts: Shift[] = [];
   const assignments: ShiftAssignment[] = [];
   const attendance: AttendanceRecord[] = [];
-  const addShift = (id: string, date: string, departmentId: string, start: string, end: string, title = 'Morning Shift'): Shift => {
+  const addShift = (id: string, date: string, departmentId: string, start: string, end: string): Shift => {
     const shift: Shift = stamp({
       id,
       branch_id: BRANCH,
       template_id: null,
       department_id: departmentId,
-      title,
+      title: 'Shift',
       description: null,
       shift_date: date,
       start_time: `${start}:00`,
@@ -313,75 +295,7 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
       });
     }
   }
-  // Chidimma Obi was scheduled and never arrived — the no-show the Attendance
-  // screen marks and the activity feed reports.
-  attendance.push({
-    ...stamp({ id: 'att-p15-absent' }),
-    created_at: at(16, 7, 45),
-    updated_at: at(16, 7, 45),
-    branch_id: BRANCH,
-    shift_assignment_id: 'asg-p15',
-    employee_id: 'p15',
-    attendance_status: 'absent' as const,
-    clock_in_at: null,
-    clock_out_at: null,
-    break_minutes: 0,
-    worked_minutes: 0,
-    overtime_minutes: 0,
-    late_minutes: 0,
-    early_departure_minutes: 0,
-    notes: 'No call, no show',
-    recorded_by: 'user-me',
-    updated_by: null,
-    version: 1
-  });
-
-  // Yesterday, worked start to finish — so Recent Activity's date range has a
-  // day behind today, with the check-outs a finished shift leaves.
-  // [employee, clocked in at 07:xx, clocked out at 17:xx]
-  const YESTERDAY: Array<[string, number, number]> = [
-    ['p1', 22, 4], ['p2', 28, 2], ['p8', 41, 9], ['p12', 25, 1], ['p16', 18, 0], ['p17', 33, 6]
-  ];
-  for (const [id, inMinute, outMinute] of YESTERDAY) {
-    const department = PEOPLE.find(([person]) => person === id)?.[3] ?? 'dep-sales';
-    const shift = addShift(`shf-y-${id}`, '2025-05-15', department, '07:30', '17:00');
-    assignments.push(
-      stamp({
-        id: `asg-y-${id}`,
-        shift_id: shift.id,
-        employee_id: id,
-        assignment_status: 'assigned' as const,
-        assigned_at: at(15, 7, 0),
-        confirmed_at: null,
-        declined_at: null,
-        cancelled_at: null,
-        assigned_by: 'user-me',
-        notes: null
-      })
-    );
-    attendance.push({
-      ...stamp({ id: `att-y-${id}` }),
-      created_at: at(15, 7, inMinute),
-      updated_at: at(15, 17, outMinute),
-      branch_id: BRANCH,
-      shift_assignment_id: `asg-y-${id}`,
-      employee_id: id,
-      attendance_status: inMinute > 30 ? ('late' as const) : ('completed' as const),
-      clock_in_at: at(15, 7, inMinute),
-      clock_out_at: at(15, 17, outMinute),
-      break_minutes: 60,
-      worked_minutes: 510,
-      overtime_minutes: 0,
-      late_minutes: 0,
-      early_departure_minutes: 0,
-      notes: null,
-      recorded_by: 'user-me',
-      updated_by: null,
-      version: 1
-    });
-  }
-
-  // Three published slots nobody is on yet â€” the week's coverage gaps.
+  // Three published slots nobody is on yet — the week's coverage gaps.
   addShift('gap-1', '2025-05-17', 'dep-frontend', '07:30', '17:00');
   addShift('gap-2', '2025-05-17', 'dep-warehouse', '14:30', '22:30');
   addShift('gap-3', '2025-05-18', 'dep-bakery', '07:30', '17:00');
@@ -641,181 +555,12 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
     return { import: record, imported, failed: [], invitesSent, inviteFailures: [] };
   };
 
-  if (MESSY) {
-    // p2 keeps an email, so the member lookup really runs against the null-email row below.
-    const target = employees.find((e) => e.id === 'p2');
-    if (target) Object.assign(target, { department_id: null, phone: null, hire_date: null, avatar_url: 'employees/org/p2/missing.png', reports_to_employee_id: 'nobody' });
-    const noEmail = employees.find((e) => e.id === 'p3');
-    if (noEmail) Object.assign(noEmail, { email: null, department_id: null });
-    members.push(
-      stamp({ id: 'mem-ghost', user_id: 'user-ghost', role_id: 'role-supervisor', joined_at: CREATED, is_active: true, user_email: null as unknown as string, user_first_name: 'Ghost', user_last_name: 'Row', role_name: 'Supervisor' })
-    );
-    history.push({
-      ...stamp({ id: 'hist-messy' }),
-      branch_id: BRANCH,
-      shift_assignment_id: 'asg-missing',
-      employee_id: 'p2',
-      attendance_status: 'present' as const,
-      clock_in_at: at(16, 9, 0),
-      clock_out_at: null,
-      break_minutes: 0,
-      worked_minutes: 0,
-      overtime_minutes: 0,
-      late_minutes: 0,
-      early_departure_minutes: 0,
-      notes: null,
-      recorded_by: 'user-me',
-      updated_by: null,
-      version: 1,
-      shift_date: null,
-      shift_start_time: null,
-      shift_end_time: null,
-      shift_title: null
-    });
-  }
-
-  // Tasks board: the handoff's own six tasks (TASKS_BRANCH), owned by people
-  // from this branch â€” a card's department is its owner's, so it reads from
-  // the same employee rows the rest of the preview uses.
-  const NOW = at(16, 7, 58);
-  const task = (
-    id: string,
-    title: string,
-    priority: Task['priority'],
-    status: Task['task_status'],
-    ownerId: string | null,
-    dueTime: string | null,
-    when: string | null,
-    recurrence: Task['recurrence'] = 'none'
-  ): Task => ({
-    ...stamp({ id }),
-    branch_id: BRANCH,
-    title,
-    description: null,
-    due_date: '2025-05-16',
-    due_time: dueTime,
-    priority,
-    recurrence,
-    task_status: status,
-    assigned_supervisor_id: ownerId,
-    assigned_by: ownerId ? 'user-me' : null,
-    assigned_at: ownerId ? when ?? at(16, 7, 30) : null,
-    completed_at: status === 'completed' ? when : null,
-    completed_by: status === 'completed' ? ownerId : null,
-    completion_notes: null,
-    verified_at: null,
-    verified_by: null,
-    verification_notes: null,
-    verification_status: 'pending',
-    created_by: 'user-me',
-    updated_by: null,
-    version: 1
-  });
-  const tasks: Task[] = [
-    task('t1', 'Restock beverages in aisle 4', 'normal', 'assigned', 'p16', '10:00:00', null),
-    task('t2', 'Bakery preparation check', 'low', 'draft', null, '11:00:00', null, 'daily'),
-    task('t3', 'Floor cleanliness check', 'low', 'assigned', 'p20', '14:00:00', null),
-    task('t4', 'Weekly stock count', 'high', 'in_progress', 'p12', null, at(16, 9, 10), 'weekly'),
-    task('t5', 'Check cold room temperature', 'high', 'completed', 'p12', '08:00:00', at(16, 8, 15), 'daily'),
-    task('t6', 'Morning store walkthrough', 'normal', 'completed', 'p1', '08:00:00', at(16, 8, 25), 'weekdays')
-  ];
-  const DAY = 86_400_000;
-  const nextDue = (from: string, recurrence: Task['recurrence']): string | null => {
-    if (recurrence === 'none') return null;
-    const start = Date.parse(`${from}T00:00:00Z`);
-    if (recurrence === 'weekly') return new Date(start + 7 * DAY).toISOString().slice(0, 10);
-    if (recurrence === 'daily') return new Date(start + DAY).toISOString().slice(0, 10);
-    let next = start + DAY;
-    while ([0, 6].includes(new Date(next).getUTCDay())) next += DAY;
-    return new Date(next).toISOString().slice(0, 10);
-  };
-  const taskOr = (id: unknown): Task => {
-    const found = tasks.find((row) => row.id === id);
-    if (!found) throw new Error('Task not found');
-    return found;
-  };
-
-  // Announcements screen: the handoff's three posts (ANNOUNCEMENTS), one
-  // pinned, with the acknowledgements that fill the receipts panel.
-  const announcement = (
-    id: string,
-    title: string,
-    content: string,
-    type: Announcement['announcement_type'],
-    publishedAt: string,
-    author: string,
-    pinned: boolean,
-    needsAck: boolean,
-    orgWide = false
-  ): Announcement => ({
-    ...stamp({ id }),
-    branch_id: orgWide ? null : BRANCH,
-    title,
-    content,
-    announcement_type: type,
-    visibility_type: orgWide ? 'organization' : 'branch',
-    is_published: true,
-    is_pinned: pinned,
-    requires_acknowledgement: needsAck,
-    published_at: publishedAt,
-    expires_at: null,
-    created_by: author
-  });
-  const announcements: Announcement[] = [
-    announcement(
-      'ann-stocktake',
-      'Stocktake weekend — we close at 6 PM Saturday',
-      "We close early on Saturday for the monthly stocktake. Supervisors should confirm their team's finish times by Friday afternoon.",
-      'operational',
-      at(15, 17, 40),
-      'user-me',
-      true,
-      true
-    ),
-    announcement(
-      'ann-promotion',
-      'New promotion display goes live Friday',
-      "Ensure all displays are updated and shelves are stocked before 10 AM. Ask Sarah if you're unsure where stock goes.",
-      'general',
-      at(16, 7, 30),
-      'user-p1',
-      false,
-      true
-    ),
-    announcement(
-      'ann-threshold',
-      'Late threshold moves to 10 minutes from 1 June',
-      'The grace period shortens from 15 to 10 minutes. Please brief your teams before the change takes effect.',
-      'policy',
-      at(12, 9, 0),
-      'user-me',
-      false,
-      false,
-      true
-    )
-  ];
-  const announcementOr = (id: unknown): Announcement => {
-    const found = announcements.find((row) => row.id === id);
-    if (!found) throw new Error('Announcement not found');
-    return found;
-  };
-  // employee id -> when they acknowledged, per announcement.
-  const ACKNOWLEDGED: Record<string, Record<string, string>> = {
-    'ann-stocktake': {
-      p1: at(15, 18, 42), p7: at(15, 19, 10), p16: at(16, 6, 55), p2: at(16, 7, 31), p12: at(16, 7, 34),
-      p3: at(16, 7, 36), p4: at(16, 7, 41), p5: at(16, 7, 44), p6: at(16, 7, 45), p9: at(16, 7, 47),
-      p11: at(16, 7, 48), p13: at(16, 7, 50), p17: at(16, 7, 52), p18: at(16, 7, 53), p19: at(16, 7, 55), p20: at(16, 7, 56)
-    },
-    'ann-promotion': { p2: at(16, 7, 33), p12: at(16, 7, 35), p1: at(16, 7, 39) },
-    'ann-threshold': { p1: at(12, 9, 2), p7: at(12, 9, 14), p16: at(12, 10, 41) }
-  };
-
   const handlers: Record<string, (input: Record<string, unknown>) => unknown> = {
     list_employee_imports: () => imports.slice(0, 5),
     import_employees: importEmployees,
     invite_member: () => ({}),
     // Supervisors page: the org's roles (org-wide ones are Admins, the rest are supervisors) and what each role may do.
-    // [id, name, org-wide?] â€” Admin is branch-scoped on purpose (048), so it can be invited.
+    // [id, name, org-wide?] — Admin is branch-scoped on purpose (048), so it can be invited.
     list_roles: () =>
       [
         ['role-manager', 'Manager', true],
@@ -871,152 +616,12 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
     list_shifts_for_schedule: () => shifts,
     list_assignments_for_schedule: () => assignments,
     list_attendance_for_branch_and_range: () => attendance,
-    // Attendance screen: marking someone writes the record the same way the real RPC does.
-    mark_attendance: (input) => {
-      const assignmentId = String(input.shiftAssignmentId);
-      const status = String(input.status);
-      const existing = attendance.find((record) => record.shift_assignment_id === assignmentId);
-      const assignment = assignments.find((row) => row.id === assignmentId);
-      const arrived = status === 'present' || status === 'late';
-      const record = existing ?? {
-        ...stamp({ id: `att-new-${assignmentId}` }),
-        branch_id: BRANCH,
-        shift_assignment_id: assignmentId,
-        employee_id: assignment?.employee_id ?? '',
-        attendance_status: 'scheduled' as const,
-        clock_in_at: null,
-        clock_out_at: null,
-        break_minutes: 0,
-        worked_minutes: 0,
-        overtime_minutes: 0,
-        late_minutes: 0,
-        early_departure_minutes: 0,
-        notes: null,
-        recorded_by: 'user-me',
-        updated_by: 'user-me',
-        version: 1
-      };
-      record.attendance_status = status as AttendanceRecord['attendance_status'];
-      record.clock_in_at = arrived ? (input.at as string) ?? record.clock_in_at ?? at(16, 7, 58) : null;
-      record.notes = (input.notes as string) ?? null;
-      if (!existing) attendance.push(record);
-      return record;
-    },
     list_pending_leave: () => [
       leave('lv-1', 'p8', '2025-06-02', '2025-06-04', 'annual_leave', 'Family travel', 13),
       leave('lv-2', 'p16', '2025-05-28', '2025-05-28', 'unpaid_leave', 'Personal appointment', 14),
       leave('lv-3', 'p2', '2025-06-09', '2025-06-09', 'annual_leave', 'Graduation ceremony', 15)
     ],
     list_pending_shift_swap_approvals: () => [swap('sw-1', 'asg-p8', 'p8', 'p11'), swap('sw-2', 'asg-p9', 'p9', 'p10')],
-<<<<<<< HEAD
-    list_announcements: () => announcements,
-    create_announcement: (input) => {
-      const row: Announcement = {
-        ...stamp({ id: `ann-${Date.now()}` }),
-        branch_id: (input.branchId as string) ?? null,
-        title: String(input.title),
-        content: String(input.content),
-        announcement_type: (input.announcementType as Announcement['announcement_type']) ?? 'general',
-        visibility_type: input.branchId ? 'branch' : 'organization',
-        is_published: false,
-        is_pinned: Boolean(input.isPinned),
-        requires_acknowledgement: Boolean(input.requiresAcknowledgement),
-        published_at: null,
-        expires_at: null,
-        created_by: 'user-me'
-      };
-      announcements.push(row);
-      return row;
-    },
-    publish_announcement: (input) => {
-      const row = announcementOr(input.announcementId);
-      row.is_published = true;
-      row.published_at = NOW;
-      return row;
-    },
-    update_announcement: (input) => {
-      const row = announcementOr(input.announcementId);
-      if ('isPinned' in input) row.is_pinned = Boolean(input.isPinned);
-      if ('requiresAcknowledgement' in input) row.requires_acknowledgement = Boolean(input.requiresAcknowledgement);
-      if ('title' in input) row.title = String(input.title);
-      if ('content' in input) row.content = String(input.content);
-      return row;
-    },
-    // Receipts are the branch's active employees, with whoever has acknowledged carrying a timestamp.
-    list_announcement_receipts: (input) => {
-      const acknowledged = ACKNOWLEDGED[String(input.announcementId)] ?? {};
-      return employees
-        .filter((employee) => employee.is_active && employee.employment_status !== 'inactive')
-        .map((employee) => ({
-          employeeId: employee.id,
-          name: `${employee.first_name} ${employee.last_name}`.trim(),
-          departmentId: employee.department_id,
-          email: employee.email,
-          acknowledgedAt: acknowledged[employee.id] ?? null
-        }));
-    },
-    remind_announcement: (input) => {
-      const acknowledged = ACKNOWLEDGED[String(input.announcementId)] ?? {};
-      const outstanding = employees.filter((e) => e.is_active && e.employment_status !== 'inactive' && !acknowledged[e.id]);
-      return { reminded: outstanding.filter((e) => e.email).length, unreachable: outstanding.filter((e) => !e.email).length };
-    },
-    // Tasks screen: creating, assigning, completing and reopening all move the
-    // same rows the board reads, exactly as the real RPCs do.
-    list_tasks: () => tasks,
-    create_task: (input) => {
-      const row = task(
-        `task-${Date.now()}`,
-        String(input.title),
-        (input.priority as Task['priority']) ?? 'normal',
-        'draft',
-        null,
-        (input.dueTime as string) ?? null,
-        null,
-        (input.recurrence as Task['recurrence']) ?? 'none'
-      );
-      row.due_date = (input.dueDate as string) ?? row.due_date;
-      row.description = (input.description as string) ?? null;
-      tasks.push(row);
-      return row;
-    },
-    assign_task: (input) => {
-      const row = taskOr(input.taskId);
-      row.task_status = 'assigned';
-      row.assigned_supervisor_id = String(input.supervisorEmployeeId);
-      row.assigned_by = 'user-me';
-      row.assigned_at = NOW;
-      return row;
-    },
-    complete_task: (input) => {
-      const row = taskOr(input.taskId);
-      row.task_status = 'completed';
-      row.completed_at = NOW;
-      row.completed_by = 'user-me';
-      row.completion_notes = (input.notes as string) ?? null;
-      // Finishing a repeating task creates its next occurrence, as the service does (066).
-      const due = nextDue(row.due_date ?? '2025-05-16', row.recurrence);
-      if (due) {
-        const next = task(`task-${Date.now()}`, row.title, row.priority, row.assigned_supervisor_id ? 'assigned' : 'draft', row.assigned_supervisor_id, row.due_time, null, row.recurrence);
-        next.due_date = due;
-        tasks.push(next);
-      }
-      return row;
-    },
-    // Deleting a task archives it, exactly as the service does — the row stays, it leaves the board.
-    archive_task: (input) => {
-      const row = taskOr(input.taskId);
-      row.deleted_at = NOW;
-      return row;
-    },
-    reopen_task: (input) => {
-      const row = taskOr(input.taskId);
-      row.task_status = 'in_progress';
-      row.completed_at = null;
-      row.completed_by = null;
-      row.completion_notes = null;
-      return row;
-    }
-=======
     // Requests: the handoff's SWAPS and LEAVE — two swaps and three leave requests waiting, and some already decided.
     // Reports: the handoff's last 30 days (91% attendance, 6,240 hours, 11 gaps, 18 swaps) and the 30 before.
     get_operations_summary_report: (input) => operationsReport(String(input.endDate) === '2025-05-16'),
@@ -1062,7 +667,6 @@ export function createOverviewBackend(options: { staffLogins?: boolean } = {}) {
       task('tsk-cold-room', 'Check Cold Room Temperature', { assigned_at: at(16, 6, 50), completed_at: at(16, 7, 46), completed_by: null, task_status: 'completed' }),
       task('tsk-walkthrough', 'Morning Store Walkthrough', { assigned_at: at(16, 7, 20) })
     ]
->>>>>>> origin/main
   };
 
   return async function callRpc<TOutput>(operation: string, _organizationId?: string, input?: unknown): Promise<TOutput> {

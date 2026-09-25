@@ -1,4 +1,4 @@
--- 067_add_announcement_pin_and_acknowledgement.sql
+-- 069_add_announcement_pin_and_acknowledgement.sql (first added as 067; renumbered because PR 24 had already taken 067 — safe to re-run)
 -- Migration: pinning, and whether an announcement asks to be acknowledged
 -- Purpose: The design handoff's Announcements screen has two controls the
 --   table could not answer. A pinned announcement sits at the top of the list
