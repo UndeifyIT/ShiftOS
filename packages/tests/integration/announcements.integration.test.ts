@@ -59,8 +59,8 @@ describe('announcements integration', () => {
     await ctx.call('publish_announcement', { announcementId: announcement.id });
 
     // The Owner test user's own email has no matching employee row by
-    // default (a real, documented case — see EmployeeDashboardPage.tsx's
-    // "Zero-employee-record handling"), so acknowledge correctly rejects
+    // default (a real, documented case — see MyShiftPage.tsx's
+    // "No workforce profile yet" state), so acknowledge correctly rejects
     // until a matching employee exists.
     const beforeLink = await ctx.callRaw('acknowledge_announcement', { announcementId: announcement.id });
     expect(beforeLink.success).toBe(false);

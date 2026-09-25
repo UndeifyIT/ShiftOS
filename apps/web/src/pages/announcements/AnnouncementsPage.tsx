@@ -152,6 +152,9 @@ export default function AnnouncementsPage(): React.ReactElement {
   const [draft, setDraft] = useState<NewAnnouncementDraft>(EMPTY_DRAFT);
   const [composeError, setComposeError] = useState<string | null>(null);
   const [remindOpen, setRemindOpen] = useState(false);
+  // Staff: the handoff's "acknowledge" dialog — one notice from its card, or every outstanding one from Mark all read.
+  const [ackIds, setAckIds] = useState<string[] | null>(null);
+  const [acking, setAcking] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
 
   const shown = filterCards(cards, filter, query, canManage ? undefined : (card) => !card.draft && !mine.get(card.announcement.id));
@@ -181,9 +184,7 @@ export default function AnnouncementsPage(): React.ReactElement {
     onError: (error) => setComposeError(error.message)
   });
   const acknowledge = useRpcMutation<{ acknowledged: boolean }, { announcementId: string }>('acknowledge_announcement', {
-    invalidates: ['has_acknowledged_announcement', 'list_announcement_acknowledgements'],
-    onSuccess: () => show('Acknowledged'),
-    onError: (error) => show(error.message, 'error')
+    invalidates: ['has_acknowledged_announcement', 'list_announcement_acknowledgements']
   });
   const remind = useRpcMutation<AnnouncementReminderResult, { announcementId: string }>('remind_announcement', {
     onSuccess: (result) => {
@@ -222,7 +223,23 @@ export default function AnnouncementsPage(): React.ReactElement {
     setComposeOpen(true);
   };
 
-  const myAwaiting = published.filter((a) => !mine.get(a.id)).length;
+  const awaitingMine = published.filter((a) => !mine.get(a.id));
+  const myAwaiting = awaitingMine.length;
+  const ackTitles = (ackIds ?? []).map((id) => published.find((a) => a.id === id)?.title ?? '').filter(Boolean);
+  const acknowledgeAll = async (): Promise<void> => {
+    if (!ackIds?.length) return;
+    setAcking(true);
+    const results = await Promise.allSettled(ackIds.map((announcementId) => acknowledge.mutateAsync({ announcementId })));
+    setAcking(false);
+    setAckIds(null);
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed) show(`${results.length - failed} acknowledged · ${failed} couldn't be saved`, 'error');
+    else show(results.length === 1 ? 'Acknowledged · your supervisor can see it' : `${results.length} notices acknowledged · your supervisor can see them`);
+  };
+  const markAllRead = (): void => {
+    if (myAwaiting === 0) show('You’re up to date — nothing left to acknowledge');
+    else setAckIds(awaitingMine.map((a) => a.id));
+  };
   const subtitle = canManage
     ? announcementsSubtitle(cards, navRole === 'Supervisor' ? (branchList ?? []).find((b) => b.id === branchId)?.name ?? 'Your branch' : undefined)
     : !canAcknowledge
@@ -314,11 +331,7 @@ export default function AnnouncementsPage(): React.ReactElement {
                       </button>
                     </>
                   ) : canAcknowledge ? (
-                    <AcknowledgeAction
-                      acknowledged={Boolean(mine.get(id))}
-                      busy={acknowledge.isPending && acknowledge.variables?.announcementId === id}
-                      onAcknowledge={() => acknowledge.mutate({ announcementId: id })}
-                    />
+                    <AcknowledgeAction acknowledged={Boolean(mine.get(id))} busy={acking && Boolean(ackIds?.includes(id))} onAcknowledge={() => setAckIds([id])} />
                   ) : null}
                 </CardShell>
               );
@@ -389,7 +402,18 @@ export default function AnnouncementsPage(): React.ReactElement {
 
   return (
     <div className="flex min-h-full flex-col text-[13px] text-[#38312B] [line-height:normal]">
-      <OverviewHeader title="Announcements" subtitle={subtitle} now={now} actions={canCreate && cards.length ? <HeaderCta label="New announcement" onClick={openCompose} /> : null} />
+      <OverviewHeader
+        title="Announcements"
+        subtitle={subtitle}
+        now={now}
+        actions={
+          canCreate && cards.length ? (
+            <HeaderCta label="New announcement" onClick={openCompose} />
+          ) : !canManage && canAcknowledge && cards.length ? (
+            <HeaderCta label="Mark all read" onClick={markAllRead} />
+          ) : null
+        }
+      />
       <div className="flex flex-auto flex-col gap-[18px] bg-[#FDFCFB] px-7 pb-10 pt-[22px] max-[859px]:gap-3.5 max-[859px]:px-3.5 max-[859px]:pb-[84px] max-[859px]:pt-4">{body()}</div>
 
       <HandoffModal
@@ -446,6 +470,18 @@ export default function AnnouncementsPage(): React.ReactElement {
         <DialogNote>
           Only people who haven&apos;t acknowledged it get the reminder, in ShiftOS. Anyone with no ShiftOS login is listed as undelivered and won&apos;t receive anything.
         </DialogNote>
+      </HandoffModal>
+
+      <HandoffModal
+        open={Boolean(ackIds)}
+        title={(ackIds?.length ?? 0) > 1 ? `Acknowledge ${ackIds?.length} notices?` : 'Acknowledge this notice?'}
+        subtitle={(ackIds?.length ?? 0) > 1 ? ackTitles.join(' · ') : ackTitles[0] ?? ''}
+        primary={acking ? 'Saving…' : 'Acknowledge'}
+        primaryDisabled={acking}
+        onPrimary={() => void acknowledgeAll()}
+        onClose={() => setAckIds(null)}
+      >
+        <DialogNote>Acknowledging records that you have read and understood {(ackIds?.length ?? 0) > 1 ? 'these notices' : 'this notice'}, with a timestamp your supervisor can see.</DialogNote>
       </HandoffModal>
 
       <HandoffModal open={exportOpen} title="Export" subtitle="Choose a format and range." primary="Export" primaryDisabled={!selected} onPrimary={exportReceipts} onClose={() => setExportOpen(false)}>

@@ -155,6 +155,15 @@ export class SchedulingService {
   }
 
   /** Resolves "me" the same way attendance/announcements self-service does — email match to an employee record, never a client-supplied employeeId. */
+  /**
+   * Staff only ever see published weeks (the design handoff's "You only see
+   * published shifts"): a draft's shifts are still being built, so someone who
+   * can't edit schedules gets nothing from it until it's published.
+   */
+  private async canSeeSchedule(schedule: Schedule): Promise<boolean> {
+    return schedule.status === 'published' || (await this.context.hasPermission('schedules.update'));
+  }
+
   private async resolveMyEmployee() {
     const user = await this.users.getByIdOrThrow(this.context.userId);
     return this.employees.findByEmail(this.context.organizationId, user.email);
@@ -382,6 +391,7 @@ export class SchedulingService {
     await this.context.requirePermission('shifts.read');
     const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
     this.context.requireBranchAccess(schedule.branch_id);
+    if (!(await this.canSeeSchedule(schedule))) return [];
 
     const shifts = await this.shifts.findByBranchAndDateRange(this.context.organizationId, schedule.branch_id, schedule.start_date, schedule.end_date);
     if (shifts.length === 0) return [];
@@ -421,6 +431,7 @@ export class SchedulingService {
     }
     const schedule = await this.schedules.getByIdOrThrow(this.context.organizationId, scheduleId);
     this.context.requireBranchAccess(schedule.branch_id);
+    if (!(await this.canSeeSchedule(schedule))) return [];
 
     const shifts = await this.shifts.findByBranchAndDateRange(this.context.organizationId, schedule.branch_id, schedule.start_date, schedule.end_date);
     if (shifts.length === 0) return [];

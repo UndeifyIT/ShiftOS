@@ -12,6 +12,7 @@ import { OverviewHeader } from '../dashboard/manager/ManagerOverview.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
 import { DialogNote } from '../people/RolePeopleTable.js';
 import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
+import { useMyEmployee } from '../staff/useStaffSelf.js';
 import { initialsOf, TONES, type Tone } from '../scheduling/grid/scheduleFormat.js';
 import {
   ACCESS_CHIPS,
@@ -105,7 +106,11 @@ export default function SettingsPage(): React.ReactElement {
   const navRole = useNavRole();
   const { profile, authUser, myContext, activeOrganization, hasPermission, refresh } = useSession();
   const { toast, show, dismiss } = useScheduleToast();
-  const tabs = settingsTabs(hasPermission);
+  // Staff get the handoff's "My profile" (PAGES["Staff/Profile"]): the Profile tab alone, read-only — their record is kept by their supervisor.
+  const isStaff = navRole === 'Staff';
+  const tabs: SettingsTab[] = isStaff ? ['Profile'] : settingsTabs(hasPermission);
+  const { employee: myEmployee } = useMyEmployee(isStaff);
+  const employeePhotoUrl = useSignedAvatarUrl(isStaff ? myEmployee?.avatar_url : null);
   const [tab, setTab] = useState<SettingsTab>('Profile');
   const current = tabs.includes(tab) ? tab : 'Profile';
 
@@ -306,7 +311,71 @@ export default function SettingsPage(): React.ReactElement {
   const subtitle =
     navRole === 'Supervisor' && branch ? `${branch.name} · what you control` : [activeOrganization?.name ?? organization?.name, branch?.name].filter(Boolean).join(' · ');
 
-  const profileTab = (
+  const staffFirst = myEmployee?.first_name ?? profile?.first_name ?? '';
+  const staffLast = myEmployee?.last_name ?? profile?.last_name ?? '';
+  const staffName = `${staffFirst} ${staffLast}`.trim() || profile?.email || 'Me';
+  const staffProfileTab = (
+    <>
+      <div className="flex flex-wrap items-start gap-3 rounded-[16px] border border-solid border-[#CFE0FB] bg-[#F2F6FE] px-[17px] py-[15px]">
+        <span aria-hidden="true" className="flex size-[30px] flex-none items-center justify-center rounded-full bg-[#2563EB] text-[14px] font-extrabold text-white">
+          i
+        </span>
+        <div className="min-w-0 flex-[1_1_280px]">
+          <p className="m-0 text-[13.5px] font-extrabold text-[#1F4699]">Your profile is read-only</p>
+          <p className="mb-0 mt-[5px] text-[12.5px] leading-[1.5] text-[#1F4699]">
+            To correct your name, phone number, photo or any employment detail, speak to your supervisor or a manager — they can update it for you. Changes appear here once they save them.
+          </p>
+        </div>
+      </div>
+
+      <section className={`${card} p-5`}>
+        <h2 className={h2}>Profile photo</h2>
+        <p className="mb-3.5 mt-[5px] text-[12.5px] text-[#857A72]">Optional. Without a photo, ShiftOS shows your initials everywhere your name appears.</p>
+        <div className="flex flex-wrap items-center gap-4">
+          {myEmployee?.avatar_url ? (
+            <span className="flex size-[76px] flex-none items-center justify-center overflow-hidden rounded-full bg-[#FDF0E9] text-[22px] font-extrabold text-[#C6420E]">
+              {employeePhotoUrl ? <img src={employeePhotoUrl} alt="" className="size-full object-cover" /> : initialsOf(staffName)}
+            </span>
+          ) : (
+            // content-box, as in the handoff: the dashed border sits outside the 76px
+            <span className="box-content flex size-[76px] flex-none items-center justify-center rounded-full border-[1.5px] border-dashed border-[#EBE7E3] bg-white text-[20px] font-extrabold text-[#A79C93]" />
+          )}
+          <div className="min-w-0 flex-[1_1_240px]">
+            <p className="m-0 text-[12.5px] font-bold">
+              {myEmployee?.avatar_url ? 'Photo on file · maintained by your supervisor.' : 'No photo — your initials are shown instead. Your supervisor can add one.'}
+            </p>
+            <p className="mb-0 mt-1 text-[11.5px] text-[#857A72]">JPG, PNG or WebP · max 2 MB · square images work best.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className={`${card} p-5`}>
+        <h2 className={`${h2} mb-3.5`}>Personal details</h2>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3.5">
+          <Field label="First name">
+            <input type="text" className={control(true)} value={staffFirst} disabled />
+          </Field>
+          <Field label="Last name">
+            <input type="text" className={control(true)} value={staffLast} disabled />
+          </Field>
+          <Field label="Work email" note="Contact support to change the email on your account." full>
+            <input type="text" className={control(true)} value={profile?.email ?? ''} disabled />
+          </Field>
+          <Field label="Phone number">
+            <input type="text" className={control(true)} value={myEmployee?.phone ?? profile?.phone ?? ''} disabled />
+          </Field>
+          <Field label="Job title">
+            <input type="text" className={control(true)} value={profile?.job_title ?? ''} disabled />
+          </Field>
+          <Field label="Role" note="Granted by your organization — ask an owner or admin to change it." full>
+            <input type="text" className={control(true)} value={myContext?.roleName ?? ''} disabled />
+          </Field>
+        </div>
+      </section>
+    </>
+  );
+
+  const profileTab = isStaff ? staffProfileTab : (
     <>
       <section className={`${card} p-5`}>
         <h2 className={h2}>Profile photo</h2>
@@ -677,7 +746,11 @@ export default function SettingsPage(): React.ReactElement {
 
   return (
     <div className="flex min-h-full flex-col text-[13px] text-[#38312B] [line-height:normal]">
-      <OverviewHeader title="Settings" subtitle={subtitle || 'Your account'} now={now} />
+      {isStaff ? (
+        <OverviewHeader title="My profile" subtitle={[staffName, profile?.job_title, branch?.name].filter(Boolean).join(' · ')} now={now} />
+      ) : (
+        <OverviewHeader title="Settings" subtitle={subtitle || 'Your account'} now={now} />
+      )}
       <div className="flex flex-auto flex-col gap-[18px] bg-[#FDFCFB] px-7 pb-10 pt-[22px] max-[859px]:gap-3.5 max-[859px]:px-3.5 max-[859px]:pb-[84px] max-[859px]:pt-4">
         <div className="flex flex-wrap items-start gap-5">
           <nav aria-label="Settings" className="sticky top-0 flex min-w-[180px] flex-[0_1_200px] flex-col gap-0.5">
@@ -704,7 +777,8 @@ export default function SettingsPage(): React.ReactElement {
           </nav>
           <div className="flex min-w-0 flex-auto flex-col gap-4">
             {body[current]}
-            <div className="flex flex-wrap justify-end gap-[9px] pt-1">
+            {/* Nothing on a Staff profile can be edited here, so it has nothing to save. */}
+            <div className={isStaff ? 'hidden' : 'flex flex-wrap justify-end gap-[9px] pt-1'}>
               <button
                 type="button"
                 disabled={saving}

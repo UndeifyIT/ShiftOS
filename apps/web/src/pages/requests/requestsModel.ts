@@ -94,6 +94,8 @@ export function workingDays(start: string, end: string): number {
   return count;
 }
 
+const upperFirst = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
 const STEP_LABELS = ['Requested', 'Counterparty accepted', 'Supervisor approved'];
 
 function steps(done: number, failedAt: number | null): SwapStep[] {
@@ -108,10 +110,11 @@ export function buildSwapViews(swaps: ShiftSwap[], ctx: RequestsContext): SwapVi
     (employee?.department_id && departments.get(employee.department_id)) || 'No department';
   const nameOf = (id: string | null): string => {
     if (!id) return 'Unmatched';
-    if (ctx.meId && id === ctx.meId) return 'You';
     const employee = employees.get(id);
     return employee ? fullName(employee) : 'Former employee';
   };
+  // Cards name both people (the handoff's "John Doe ⇄ Michael Brown"); only the sentences address the viewer as "you".
+  const spoken = (id: string | null): string => (ctx.meId && id === ctx.meId ? 'you' : nameOf(id));
 
   const unique = [...new Map(swaps.map((s) => [s.id, s])).values()];
   return unique
@@ -120,7 +123,8 @@ export function buildSwapViews(swaps: ShiftSwap[], ctx: RequestsContext): SwapVi
       const to = swap.target_employee_id ? employees.get(swap.target_employee_id) : undefined;
       const fromName = nameOf(swap.requested_by_employee_id);
       const toName = nameOf(swap.target_employee_id);
-      const decider = swap.decision_by ? members.get(swap.decision_by) : undefined;
+      // Staff can't list members; the swap listing joins the decider's name in for them.
+      const decider = (swap.decision_by ? members.get(swap.decision_by) : undefined) || swap.decision_by_name || undefined;
       const decidedOn = dd(new Date(swap.decision_at ?? swap.updated_at));
       const shiftDept = (swap.shift_department_id && departments.get(swap.shift_department_id)) || deptOf(from);
       const base = {
@@ -138,7 +142,8 @@ export function buildSwapViews(swaps: ShiftSwap[], ctx: RequestsContext): SwapVi
         case 'accepted':
           return {
             ...base,
-            status: 'Awaiting your approval',
+            // The approver's own queue reads "your"; the people in the swap are waiting on the supervisor.
+            status: ctx.meId ? 'Awaiting approval' : 'Awaiting your approval',
             tone: 'warn',
             age: `Raised ${ago(swap.created_at, ctx.now)}`,
             steps: steps(2, null),
@@ -154,7 +159,7 @@ export function buildSwapViews(swaps: ShiftSwap[], ctx: RequestsContext): SwapVi
             age: `Raised ${ago(swap.created_at, ctx.now)}`,
             steps: steps(1, null),
             awaitingApproval: false,
-            outcome: swap.target_employee_id ? `Waiting for ${toName} to accept` : 'Waiting for someone to take it',
+            outcome: swap.target_employee_id ? `Waiting for ${spoken(swap.target_employee_id)} to accept` : 'Waiting for someone to take it',
             filter: 'Pending'
           };
         case 'approved':
@@ -187,7 +192,7 @@ export function buildSwapViews(swaps: ShiftSwap[], ctx: RequestsContext): SwapVi
             age: `Declined ${dd(new Date(swap.responded_at ?? swap.updated_at))}`,
             steps: steps(1, 1),
             awaitingApproval: false,
-            outcome: `${toName} declined`,
+            outcome: `${upperFirst(spoken(swap.target_employee_id))} declined`,
             filter: 'Resolved'
           };
         default:
@@ -198,7 +203,7 @@ export function buildSwapViews(swaps: ShiftSwap[], ctx: RequestsContext): SwapVi
             age: `Cancelled ${dd(new Date(swap.updated_at))}`,
             steps: steps(1, null),
             awaitingApproval: false,
-            outcome: `Withdrawn by ${fromName}`,
+            outcome: `Withdrawn by ${spoken(swap.requested_by_employee_id)}`,
             filter: 'Resolved'
           };
       }
@@ -224,7 +229,7 @@ export function buildLeaveViews(leave: LeaveRequest[], ctx: RequestsContext): Le
       const status = LEAVE_STATUS[request.status] ?? LEAVE_STATUS.pending;
       return {
         leave: request,
-        name: ctx.meId && request.employee_id === ctx.meId ? 'You' : employee ? fullName(employee) : 'Former employee',
+        name: employee ? fullName(employee) : 'Former employee',
         dept: (employee?.department_id && departments.get(employee.department_id)) || 'No department',
         dates: dateRange(request.start_date, request.end_date),
         days: `${days} working ${days === 1 ? 'day' : 'days'}`,
@@ -252,6 +257,19 @@ export function requestsSubtitle(swaps: SwapView[], leave: LeaveView[], branchNa
   if (!s && !l) return branchName ? `No open requests for ${branchName}` : 'Nothing needs a decision right now';
   const parts = [s ? `${s} ${s === 1 ? 'swap' : 'swaps'}` : null, l ? `${l} leave ${l === 1 ? 'request' : 'requests'}` : null].filter(Boolean);
   return branchName ? `${parts.join(' and ')} for ${branchName}` : `${parts.join(' and ')} ${s + l === 1 ? 'needs' : 'need'} a decision`;
+}
+
+/** Staff's own: '1 swap awaiting approval · 1 leave request pending' (handoff PAGES["Staff/My Requests"]). */
+export function myRequestsSubtitle(swaps: SwapView[], leave: LeaveView[]): string {
+  const approval = swaps.filter((v) => v.swap.status === 'accepted').length;
+  const reply = swaps.filter((v) => v.swap.status === 'pending').length;
+  const pendingLeave = leave.filter((v) => v.filter === 'Pending').length;
+  const parts = [
+    approval ? `${approval} ${approval === 1 ? 'swap' : 'swaps'} awaiting approval` : null,
+    reply ? `${reply} ${reply === 1 ? 'swap' : 'swaps'} awaiting a reply` : null,
+    pendingLeave ? `${pendingLeave} leave ${pendingLeave === 1 ? 'request' : 'requests'} pending` : null
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : 'Nothing waiting on a decision';
 }
 
 export const countLabel = (n: number, tab: RequestTab): string =>

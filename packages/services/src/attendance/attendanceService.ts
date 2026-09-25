@@ -197,7 +197,8 @@ export class AttendanceService {
 
   /** My own attendance history — resolves "me" the same way announcements/self-service does (email match to an employee record). */
   async listMine(options?: { limit?: number; offset?: number }): Promise<AttendanceRecord[]> {
-    await this.context.requirePermission('attendance.clockin');
+    // Reading your own record is attendance.read: Staff no longer clock themselves in (073) but still see their hours.
+    await this.context.requirePermission('attendance.read');
     const employee = await this.resolveMyEmployee();
     if (!employee) {
       return [];

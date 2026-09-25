@@ -26,18 +26,22 @@ export interface ShiftSwapWithShift extends ShiftSwapRequest {
   shift_end_time: string | null;
   shift_title: string | null;
   shift_department_id: string | null;
+  /** Who approved or rejected it, for readers who can't list members ("Approved 12 May by Sarah Johnson"). */
+  decision_by_name: string | null;
 }
 
-/** Every swap listing carries its shift, so the Requests page can say which shift is changing hands. */
+/** Every swap listing carries its shift, so the Requests page can say which shift is changing hands, and who decided it. */
 const WITH_SHIFT = `SELECT s.*,
        sh.shift_date::text AS shift_date,
        sh.start_time::text AS shift_start_time,
        sh.end_time::text AS shift_end_time,
        sh.title AS shift_title,
-       sh.department_id AS shift_department_id
+       sh.department_id AS shift_department_id,
+       NULLIF(trim(concat_ws(' ', du.first_name, du.last_name)), '') AS decision_by_name
   FROM shift_swap_requests s
   LEFT JOIN shift_assignments a ON a.id = s.shift_assignment_id AND a.organization_id = s.organization_id
-  LEFT JOIN shifts sh ON sh.id = a.shift_id AND sh.organization_id = s.organization_id`;
+  LEFT JOIN shifts sh ON sh.id = a.shift_id AND sh.organization_id = s.organization_id
+  LEFT JOIN users du ON du.id = s.decision_by`;
 
 /** No soft-delete: shift_swap_requests is a workflow state machine (see 042_create_shift_swap_requests.sql), not an append-only log — terminal statuses are the end of a row's life, not a deletion. */
 export class ShiftSwapRequestRepository extends BranchScopedRepository<ShiftSwapRequest> {

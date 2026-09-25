@@ -389,7 +389,7 @@ function QuickActions({ overview, go }: { overview: Overview; go: (to: string) =
   );
 }
 
-export function AnnouncementsCard({ overview, go }: { overview: Overview; go: (to: string) => void }): React.ReactElement {
+export function AnnouncementsCard({ previews, go }: { previews: Overview['announcementPreviews']; go: (to: string) => void }): React.ReactElement {
   return (
     <section className={`${card} p-[18px]`}>
       <div className="flex items-center justify-between">
@@ -399,13 +399,13 @@ export function AnnouncementsCard({ overview, go }: { overview: Overview; go: (t
         </button>
       </div>
       <div className="mt-3 flex flex-col gap-2.5">
-        {overview.announcementPreviews.length === 0 ? (
+        {previews.length === 0 ? (
           <article className="rounded-[12px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] px-[13px] py-3">
             <p className="m-0 text-[12.5px] font-extrabold">Nothing posted yet</p>
             <p className="mb-0 mt-1.5 text-[11.5px] leading-[1.5] text-[#857A72]">Post an update so everyone sees it in one place.</p>
           </article>
         ) : (
-          overview.announcementPreviews.map((item) => (
+          previews.map((item) => (
             <article key={item.id} className="rounded-[12px] border border-solid border-[#F2EEEA] bg-[#FDFCFB] px-[13px] py-3">
               <div className="flex items-center gap-2">
                 <span className="size-[9px] flex-none rounded-[3px]" style={{ backgroundColor: item.color }} />
@@ -488,7 +488,7 @@ export function ManagerOverviewBody({ overview, now }: { overview: Overview; now
         </div>
         <div className="flex min-w-0 flex-[1_1_270px] flex-col gap-4">
           <QuickActions overview={overview} go={navigate} />
-          <AnnouncementsCard overview={overview} go={navigate} />
+          <AnnouncementsCard previews={overview.announcementPreviews} go={navigate} />
           <ActivityCard overview={overview} go={navigate} />
         </div>
       </div>

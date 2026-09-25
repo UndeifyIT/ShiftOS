@@ -12,7 +12,7 @@ import { fullName, type Tone } from '../scheduling/grid/scheduleFormat.js';
  * to see it with).
  */
 
-export type AnnouncementFilter = 'All' | 'Pinned' | 'Unacknowledged';
+export type AnnouncementFilter = 'All' | 'Pinned' | 'Unacknowledged' | 'Unread';
 export const ANNOUNCEMENT_FILTERS: AnnouncementFilter[] = ['All', 'Pinned', 'Unacknowledged'];
 export type ReceiptFilter = 'Everyone' | 'Acknowledged' | 'Outstanding';
 export const RECEIPT_FILTERS: ReceiptFilter[] = ['Everyone', 'Acknowledged', 'Outstanding'];
@@ -128,10 +128,10 @@ export function buildCards(input: AnnouncementsInput): AnnouncementCard[] {
 /** Published and someone in its audience hasn't acknowledged it yet. */
 export const isAwaiting = (card: AnnouncementCard): boolean => !card.draft && card.acknowledged < card.receipts.length;
 
-/** Staff layout (handoff Staff/Announcements): just All and what I still have to acknowledge. */
-export const STAFF_FILTERS: AnnouncementFilter[] = ['All', 'Unacknowledged'];
+/** Staff layout (handoff Staff/Announcements): All, and Unread — what I still have to acknowledge. */
+export const STAFF_FILTERS: AnnouncementFilter[] = ['All', 'Unread'];
 
-/** `awaiting` decides Unacknowledged: anyone outstanding for a content manager, or "not by me" for everyone else. */
+/** `awaiting` decides Unacknowledged / Unread: anyone outstanding for a content manager, or "not by me" for everyone else. */
 export function filterCards(cards: AnnouncementCard[], filter: AnnouncementFilter, query: string, awaiting: (card: AnnouncementCard) => boolean = isAwaiting): AnnouncementCard[] {
   const needle = query.trim().toLowerCase();
   return cards.filter(

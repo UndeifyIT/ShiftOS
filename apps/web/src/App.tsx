@@ -1,10 +1,12 @@
 import React, { Suspense, lazy, useRef } from 'react';
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { SkeletonRows, Spinner } from '@shiftos/ui';
 import { useSession } from './auth/SessionProvider.js';
 import { AppShell } from './layout/AppShell.js';
+import { useNavRole } from './layout/Sidebar.js';
 import { ErrorState } from '@shiftos/ui';
 import { useRpcQuery } from './lib/useRpc.js';
+import { usePasswordRecovery } from './lib/passwordRecovery.js';
 import type { Branch } from './types/domain.js';
 
 const LandingPage = lazy(() => import('./pages/marketing/LandingPage.js'));
@@ -57,6 +59,7 @@ const InvitationsPage = lazy(() => import('./pages/members/InvitationsPage.js'))
 const SchedulesPage = lazy(() => import('./pages/scheduling/SchedulesPage.js'));
 const ProfilePage = lazy(() => import('./pages/account/ProfilePage.js'));
 const SecurityPage = lazy(() => import('./pages/account/SecurityPage.js'));
+const MySchedulePage = lazy(() => import('./pages/staff/MySchedulePage.js'));
 const TasksPage = lazy(() => import('./pages/tasks/TasksPage.js'));
 const AttendancePage = lazy(() => import('./pages/attendance/ShiftAttendancePage.js'));
 
@@ -137,11 +140,25 @@ function OnboardingGate(): React.ReactElement {
 
 export function App(): React.ReactElement {
   const { status, errorMessage, refresh, activeOrganization, myContext } = useSession();
+  const recovering = usePasswordRecovery();
+  const { pathname } = useLocation();
 
   if (window.location.pathname === '/manager-demo') {
     return (
       <SuspenseRoute>
         <ManagerDashboardPreviewPage />
+      </SuspenseRoute>
+    );
+  }
+
+  // A reset link signs the person in; until they've set the new password, that's all they can do. Checked
+  // before anything else — saving the password re-runs the session bootstrap, and the page must stay mounted
+  // through that to show its success panel.
+  // Typing /reset-password while normally signed in isn't a reset: that path only serves a link (or a signed-out visitor).
+  if (recovering || (pathname === '/reset-password' && (status === 'unauthenticated' || status === 'loading'))) {
+    return (
+      <SuspenseRoute>
+        <ResetPasswordPage />
       </SuspenseRoute>
     );
   }
@@ -176,7 +193,6 @@ export function App(): React.ReactElement {
           <Route path="/sign-in" element={<SignInPage />} />
           <Route path="/sign-up" element={<SignUpPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -248,6 +264,11 @@ function EmployeeEditRedirect(): React.ReactElement {
   return <Navigate to={`/employees/${employeeId}`} replace />;
 }
 
+/** Staff's Profile is the handoff's read-only "My profile" (settingsV2, Profile only); everyone else keeps the account profile page. */
+function ProfileRoute(): React.ReactElement {
+  return useNavRole() === 'Staff' ? <SettingsPage /> : <ProfilePage />;
+}
+
 function AppShellRoutes(): React.ReactElement {
   return (
     <Routes>
@@ -276,7 +297,8 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/schedules/:scheduleId" element={<SchedulesPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/attendance" element={<AttendancePage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/profile" element={<ProfileRoute />} />
+        <Route path="/my-schedule" element={<MySchedulePage />} />
         <Route path="/security" element={<SecurityPage />} />
         <Route path="/supervisors" element={<SupervisorsPage />} />
         <Route path="/admins" element={<AdminsPage />} />

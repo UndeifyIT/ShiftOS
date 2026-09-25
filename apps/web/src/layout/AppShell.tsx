@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
 import { MoreHorizontal, UserCircle, X } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
-import { Sidebar, useNavItems } from './Sidebar.js';
+import { Sidebar, useNavItems, useNavRole } from './Sidebar.js';
 import { TopBar } from './TopBar.js';
 import { useSession } from '../auth/SessionProvider.js';
 import { FloatingAskShiftOS } from '../components/assistant/FloatingAskShiftOS.js';
@@ -22,7 +22,8 @@ import { RouteErrorBoundary } from './RouteErrorBoundary.js';
  * overview, where the full Ask ShiftOS card already sits.
  */
 
-const PRIMARY_TAB_COUNT = 4;
+// Handoff primaryCount: Staff's five sections all fit in the tab bar, so they get no "More" sheet.
+const primaryTabCount = (role: string): number => (role === 'Staff' ? 5 : 4);
 
 function MobileTabBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }): React.ReactElement {
   const items = useNavItems();
@@ -30,8 +31,10 @@ function MobileTabBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }): Rea
   const navigate = useNavigate();
   const { signOut } = useSession();
 
-  const primary = items.slice(0, PRIMARY_TAB_COUNT);
-  const overflow = items.slice(PRIMARY_TAB_COUNT);
+  const tabCount = primaryTabCount(useNavRole());
+  const primary = items.slice(0, tabCount);
+  const overflow = items.slice(tabCount);
+  const hasMore = tabCount < 5 || overflow.length > 0;
 
   return (
     <>
@@ -52,18 +55,20 @@ function MobileTabBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }): Rea
             }
           >
             <item.icon className="size-[18px]" aria-hidden="true" />
-            <span className="text-[10px] font-bold">{item.label}</span>
+            <span className="whitespace-nowrap text-[10px] font-bold">{item.label}</span>
           </NavLink>
         ))}
-        <button
-          type="button"
-          aria-expanded={moreOpen}
-          onClick={() => setMoreOpen(true)}
-          className="flex flex-1 cursor-pointer flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-neutral-400 transition-colors hover:text-neutral-600"
-        >
-          <MoreHorizontal className="size-[18px]" aria-hidden="true" />
-          <span className="text-[10px] font-bold">More</span>
-        </button>
+        {hasMore ? (
+          <button
+            type="button"
+            aria-expanded={moreOpen}
+            onClick={() => setMoreOpen(true)}
+            className="flex flex-1 cursor-pointer flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-neutral-400 transition-colors hover:text-neutral-600"
+          >
+            <MoreHorizontal className="size-[18px]" aria-hidden="true" />
+            <span className="text-[10px] font-bold">More</span>
+          </button>
+        ) : null}
       </nav>
 
       {moreOpen ? (

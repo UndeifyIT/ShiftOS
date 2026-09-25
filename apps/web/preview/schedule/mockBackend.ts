@@ -24,7 +24,7 @@ const BRANCH = 'br-main';
 // Local time on purpose, so the preview reads "May 9, 07:12 AM" in any timezone, like the handoff.
 const NOW = '2025-05-09T07:12:00';
 
-export type PreviewRole = 'manager' | 'supervisor';
+export type PreviewRole = 'manager' | 'supervisor' | 'staff';
 export interface PreviewOptions {
   role: PreviewRole;
   status: 'published' | 'draft';

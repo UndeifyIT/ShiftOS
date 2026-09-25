@@ -118,6 +118,8 @@ describe('Announcements model (design handoff Manager/Announcements)', () => {
     expect(filterCards(cards, 'Pinned', '').map((c) => c.announcement.id)).toEqual(['b']);
     expect(filterCards(cards, 'Unacknowledged', '').map((c) => c.announcement.id)).toEqual(['b', 'a']);
     expect(filterCards(cards, 'All', 'notice a').map((c) => c.announcement.id)).toEqual(['a']);
+    // Staff's Unread: the ones not acknowledged by me.
+    expect(filterCards(cards, 'Unread', '', (card) => card.announcement.id === 'a').map((c) => c.announcement.id)).toEqual(['a']);
     expect(announcementsSubtitle(cards)).toBe('2 posted · 1 draft · 2 awaiting acknowledgement');
   });
 

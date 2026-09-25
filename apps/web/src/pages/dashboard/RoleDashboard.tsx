@@ -2,12 +2,12 @@ import React from 'react';
 import { useSession } from '../../auth/SessionProvider.js';
 import ManagerDashboardPage from './ManagerDashboardPage.js';
 import SupervisorDashboardPage from './SupervisorDashboardPage.js';
-import EmployeeDashboardPage from './EmployeeDashboardPage.js';
+import MyShiftPage from '../staff/MyShiftPage.js';
 
 const SUPERVISOR_SIGNAL_PERMISSIONS = ['employees.create', 'employees.update', 'schedules.create', 'branches.update'];
 
 /**
- * Picks Manager / Supervisor / Employee by real capability signals from
+ * Picks Manager / Supervisor / Staff by real capability signals from
  * ApplicationContext (never a role-name check, per task §21/§9): org-wide
  * branch access means Manager; branch-scoped access with at least one
  * management permission means Supervisor; anything else (read-only or no
@@ -28,5 +28,5 @@ export default function RoleDashboard(): React.ReactElement {
   if (hasBranchAccess && hasSupervisorSignal) {
     return <SupervisorDashboardPage />;
   }
-  return <EmployeeDashboardPage />;
+  return <MyShiftPage />;
 }

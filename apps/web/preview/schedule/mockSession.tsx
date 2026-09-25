@@ -2,7 +2,7 @@
  * Replaces src/auth/SessionProvider.tsx inside the schedule preview only
  * (see vite.preview.config.ts). Signs in a demo Manager (org-wide, every
  * permission — the Owner role) or Supervisor (branch-scoped, migration 050's
- * permission set plus the handoff's task and announcement capabilities), chosen by the preview URL's `?as=` parameter.
+ * permission set plus the handoff's task and announcement capabilities), or Staff (John Doe, migration 050's Employee set), chosen by the preview URL's `?as=` parameter.
  */
 import React, { createContext, useContext } from 'react';
 import { PREVIEW_BRANCH_ID, PREVIEW_ORGANIZATION_ID, type PreviewRole } from './mockBackend.js';
@@ -26,11 +26,28 @@ const SUPERVISOR_PERMISSIONS = [
   'shifttemplates.read', 'shifttemplates.create', 'shift_templates.read', 'shift_templates.create'
 ];
 
+// Migration 050's Employee set plus 072's branch and department reads, less 073's clock-in — what a Staff login really holds.
+const STAFF_PERMISSIONS = [
+  'branches.read', 'departments.read',
+  'employees.read', 'schedules.read', 'shifts.read',
+  'announcements.read', 'announcements.acknowledge',
+  'swaps.read', 'swaps.request', 'swaps.respond',
+  'attendance.read',
+  'leave.read', 'leave.create', 'leave.cancel',
+  'notifications.read'
+];
+
 const SessionContext = createContext<ReturnType<typeof buildSession> | null>(null);
 
 function buildSession(role: PreviewRole) {
   const isManager = role === 'manager';
-  const permissions = isManager ? ['*'] : SUPERVISOR_PERMISSIONS;
+  const isStaff = role === 'staff';
+  const permissions = isManager ? ['*'] : isStaff ? STAFF_PERMISSIONS : SUPERVISOR_PERMISSIONS;
+  const person = isManager
+    ? { first: 'Daniel', last: 'Okonkwo', email: 'preview@example.com', title: 'Manager', roleId: 'role-owner', roleName: 'Owner' }
+    : isStaff
+      ? { first: 'John', last: 'Doe', email: 'john.doe@abc.example', title: 'Sales Associate', roleId: 'role-employee', roleName: 'Employee' }
+      : { first: 'Sarah', last: 'Johnson', email: 'sarah.johnson@abc.example', title: 'Supervisor', roleId: 'role-supervisor', roleName: 'Supervisor' };
   const activeOrganization = { id: PREVIEW_ORGANIZATION_ID, name: 'ABC Supermarket Ltd.', slug: 'abc', metadata: { onboardingCompletedAt: '2025-01-01' } };
   return {
     status: 'ready' as const,
@@ -38,11 +55,11 @@ function buildSession(role: PreviewRole) {
     profile: {
       id: 'user-me',
       auth_user_id: 'auth-me',
-      first_name: isManager ? 'Daniel' : 'Sarah',
-      last_name: isManager ? 'Okonkwo' : 'Johnson',
-      email: isManager ? 'preview@example.com' : 'sarah.johnson@abc.example',
-      phone: null,
-      job_title: isManager ? 'Manager' : 'Supervisor',
+      first_name: person.first,
+      last_name: person.last,
+      email: person.email,
+      phone: isStaff ? '+234 803 111 2244' : null,
+      job_title: person.title,
       avatar_url: null,
       is_active: true
     },
@@ -51,8 +68,8 @@ function buildSession(role: PreviewRole) {
       userId: 'user-me',
       organizationId: PREVIEW_ORGANIZATION_ID,
       membershipId: 'mem-me',
-      roleId: isManager ? 'role-owner' : 'role-supervisor',
-      roleName: isManager ? 'Owner' : 'Supervisor',
+      roleId: person.roleId,
+      roleName: person.roleName,
       permissions,
       branchAccess: { isOrgWide: isManager, branchIds: [PREVIEW_BRANCH_ID], singleBranchId: isManager ? null : PREVIEW_BRANCH_ID },
       accessibleOrganizationIds: [PREVIEW_ORGANIZATION_ID],
@@ -60,7 +77,7 @@ function buildSession(role: PreviewRole) {
     },
     errorMessage: null,
     activeOrganization,
-    hasPermission: (code: string) => isManager || SUPERVISOR_PERMISSIONS.includes(code),
+    hasPermission: (code: string) => isManager || permissions.includes(code),
     signIn: async () => ({ error: null }),
     signOut: async () => undefined,
     completeProfile: async () => ({ error: null }),
