@@ -7,6 +7,7 @@
  * handoff's two announcements.
  */
 import { EVENT_DEFAULTS } from '../../src/pages/settings/settingsModel.js';
+import { staffHandlers } from './staffBackend.js';
 import type { AttendanceRecord, Employee, EmployeeImport, Invitation, LeaveRequest, Shift, ShiftAssignment, ShiftNote, ShiftSwap, Task, Announcement, AnnouncementAcknowledgement } from '../../src/types/domain.js';
 
 const ORG = 'org-abc-supermarket';
@@ -50,7 +51,7 @@ const PEOPLE: Array<[string, string, string, string, boolean, number | null]> = 
 
 const emailOf = (first: string, last: string): string => `${first}.${last}@abc.example`.toLowerCase();
 
-export function createOverviewBackend(options: { staffLogins?: boolean; supervisor?: boolean } = {}) {
+export function createOverviewBackend(options: { staffLogins?: boolean; supervisor?: boolean; staff?: boolean } = {}) {
   // Supervisor preview (`?as=supervisor`): Sarah Johnson's Morning Shift — everyone active, 17 in, Mary and David late, James absent.
   const sup = Boolean(options.supervisor);
   // Employees page preview: handoff-style phone numbers, one person on leave and two inactive (EMP_STATS 17 active · 1 on leave).
@@ -748,7 +749,7 @@ export function createOverviewBackend(options: { staffLogins?: boolean; supervis
     },
     list_announcements: () => announcements,
     list_announcement_acknowledgements: (input) => acknowledgements.filter((row) => row.announcement_id === input.announcementId),
-    has_acknowledged_announcement: (input) => ({ acknowledged: acknowledgements.some((row) => row.announcement_id === input.announcementId && row.employee_id === 'p1') }),
+    has_acknowledged_announcement: (input) => ({ acknowledged: acknowledgements.some((row) => row.announcement_id === input.announcementId && row.employee_id === (options.staff ? 'p2' : 'p1')) }),
     create_announcement: (input) => {
       const created: Announcement = {
         ...announcement(`ann-${announcements.length + 1}`, String(input.title), String(input.content), at(16, 7, 58), 'user-me', (input.branchId as string | null) ?? null, Boolean(input.isPinned)),
@@ -809,6 +810,8 @@ export function createOverviewBackend(options: { staffLogins?: boolean; supervis
       task('tsk-walkthrough', 'Morning Store Walkthrough', { assigned_at: at(16, 7, 20) })
     ]
   };
+
+  if (options.staff) Object.assign(handlers, staffHandlers({ at, stamp, BRANCH, branchSwaps, branchLeave, leave, swap, withShift, acknowledgements, ack }));
 
   return async function callRpc<TOutput>(operation: string, _organizationId?: string, input?: unknown): Promise<TOutput> {
     await new Promise((resolve) => setTimeout(resolve, 90));

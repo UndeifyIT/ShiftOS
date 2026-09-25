@@ -415,6 +415,8 @@ export interface ShiftSwap {
   shift_end_time?: string | null;
   shift_title?: string | null;
   shift_department_id?: string | null;
+  /** Joined in too: who approved or rejected it. */
+  decision_by_name?: string | null;
 }
 
 export type NotificationPriority = 'low' | 'normal' | 'high' | 'critical';

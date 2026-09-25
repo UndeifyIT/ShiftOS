@@ -47,6 +47,7 @@ export const DATABASE_TABLES = {
 export const APP_ROUTES = [
   '/',
   '/schedules',
+  '/my-schedule',
   '/employees',
   '/employees/import',
   '/supervisors',

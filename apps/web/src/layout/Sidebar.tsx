@@ -21,6 +21,7 @@ import logoShiftOS from '../assets/logo-shiftos.png';
 import { useRpcQuery } from '../lib/useRpc.js';
 import { currentTime } from '../lib/clock.js';
 import type { AttendanceRecord, Branch, Invitation, LeaveRequest, ShiftSwap } from '../types/domain.js';
+import { isOpenSwap, useMyAnnouncements, useMyRequests } from '../pages/staff/useStaffSelf.js';
 
 interface NavItem {
   to: string;
@@ -63,6 +64,15 @@ export const SUPERVISOR_NAV_ITEMS: NavItem[] = [
   { to: '/settings', label: 'Settings', icon: Settings }
 ];
 
+// The handoff's Staff nav (NAVS.Staff, in its order): their own shift, week, requests, notices and profile.
+export const STAFF_NAV_ITEMS: NavItem[] = [
+  { to: '/', label: 'My Shift', icon: Clock },
+  { to: '/my-schedule', label: 'My Schedule', icon: CalendarDays, requiresPermission: 'schedules.read' },
+  { to: '/requests', label: 'My Requests', icon: ArrowLeftRight, requiresPermission: 'swaps.read' },
+  { to: '/announcements', label: 'Announcements', icon: Megaphone, requiresPermission: 'announcements.read' },
+  { to: '/profile', label: 'Profile', icon: UserRound }
+];
+
 export type NavRole = 'Manager' | 'Supervisor' | 'Admin' | 'Staff';
 
 /** The sidebar's role label (handoff roleLabel): org-wide is the Manager; a branch role that runs the schedule is a Supervisor. */
@@ -80,7 +90,8 @@ export function useNavItems(): NavItem[] {
   const { myContext, hasPermission } = useSession();
   const role = useNavRole();
   const isOrgWide = myContext?.branchAccess.isOrgWide ?? false;
-  return (role === 'Supervisor' ? SUPERVISOR_NAV_ITEMS : NAV_ITEMS).filter((item) => {
+  const items = role === 'Supervisor' ? SUPERVISOR_NAV_ITEMS : role === 'Staff' ? STAFF_NAV_ITEMS : NAV_ITEMS;
+  return items.filter((item) => {
     if (item.orgWideOnly && !isOrgWide) return false;
     if (item.requiresPermission && !hasPermission(item.requiresPermission)) return false;
     return true;
@@ -116,6 +127,15 @@ function useNavBadges(): Record<string, number> {
     branchId ? { branchId, startIso: dayStart.toISOString(), endIso: new Date(dayStart.getTime() + 86_400_000).toISOString() } : undefined,
     { enabled: role === 'Supervisor' && Boolean(branchId) && hasPermission('attendance.read') }
   );
+  // Staff: notices still waiting on my acknowledgement, and my own requests still open (handoff BADGES.Staff).
+  const mine = useMyRequests(role === 'Staff');
+  const notices = useMyAnnouncements(role === 'Staff');
+  if (role === 'Staff') {
+    return {
+      '/announcements': notices.published.filter((a) => !notices.acknowledged.get(a.id)).length,
+      '/requests': mine.swaps.filter(isOpenSwap).length + mine.leave.filter((l) => l.status === 'pending').length
+    };
+  }
   return {
     '/attendance': (today ?? []).filter((r) => !r.deleted_at && (r.attendance_status === 'absent' || r.attendance_status === 'no_show')).length,
     '/requests': (swaps?.length ?? 0) + (leave ?? []).filter((l) => l.status === 'pending').length,

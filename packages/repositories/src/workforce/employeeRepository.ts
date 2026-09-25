@@ -42,7 +42,7 @@ export class EmployeeRepository extends BranchScopedRepository<Employee> {
   /**
    * Matches an authenticated user to "their" employee row by email — the
    * same resolution the frontend already performs client-side (see
-   * EmployeeDashboardPage.tsx's `myEmployeeRecord`), needed server-side for
+   * apps/web/src/pages/staff/useStaffSelf.ts's `useMyEmployee`), needed server-side for
    * self-service flows like announcement acknowledgement. Per the documented
    * DEC-016/032 gap, there is no direct auth_user_id/user_id link on
    * employees; a user with no matching employee row (e.g. an Owner who never

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { SkeletonRows, Spinner } from '@shiftos/ui';
 import { useSession } from './auth/SessionProvider.js';
 import { AppShell } from './layout/AppShell.js';
+import { useNavRole } from './layout/Sidebar.js';
 import { ErrorState } from '@shiftos/ui';
 import { useRpcQuery } from './lib/useRpc.js';
 import type { Branch } from './types/domain.js';
@@ -57,6 +58,7 @@ const InvitationsPage = lazy(() => import('./pages/members/InvitationsPage.js'))
 const SchedulesPage = lazy(() => import('./pages/scheduling/SchedulesPage.js'));
 const ProfilePage = lazy(() => import('./pages/account/ProfilePage.js'));
 const SecurityPage = lazy(() => import('./pages/account/SecurityPage.js'));
+const MySchedulePage = lazy(() => import('./pages/staff/MySchedulePage.js'));
 const TasksPage = lazy(() => import('./pages/tasks/TasksPage.js'));
 const AttendancePage = lazy(() => import('./pages/attendance/ShiftAttendancePage.js'));
 
@@ -248,6 +250,11 @@ function EmployeeEditRedirect(): React.ReactElement {
   return <Navigate to={`/employees/${employeeId}`} replace />;
 }
 
+/** Staff's Profile is the handoff's read-only "My profile" (settingsV2, Profile only); everyone else keeps the account profile page. */
+function ProfileRoute(): React.ReactElement {
+  return useNavRole() === 'Staff' ? <SettingsPage /> : <ProfilePage />;
+}
+
 function AppShellRoutes(): React.ReactElement {
   return (
     <Routes>
@@ -276,7 +283,8 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/schedules/:scheduleId" element={<SchedulesPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/attendance" element={<AttendancePage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/profile" element={<ProfileRoute />} />
+        <Route path="/my-schedule" element={<MySchedulePage />} />
         <Route path="/security" element={<SecurityPage />} />
         <Route path="/supervisors" element={<SupervisorsPage />} />
         <Route path="/admins" element={<AdminsPage />} />

@@ -189,7 +189,7 @@ function TodaysShiftBody({ overview, shift, now }: { overview: ManagerOverview; 
         </div>
         <div className="flex min-w-0 flex-[1_1_270px] flex-col gap-4">
           <ShiftControls shift={shift} go={navigate} />
-          <AnnouncementsCard overview={overview} go={navigate} />
+          <AnnouncementsCard previews={overview.announcementPreviews} go={navigate} />
           <ActivityCard overview={overview} go={navigate} />
         </div>
       </div>

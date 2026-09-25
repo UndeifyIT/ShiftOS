@@ -293,6 +293,35 @@ function overlaps(schedule: Schedule, start: string, end: string): boolean {
   return !schedule.deleted_at && schedule.start_date <= end && schedule.end_date >= start;
 }
 
+/**
+ * The overview's Announcements card: live notices, pinned first (066) as on
+ * the Announcements page, then newest — the first two, with the author from
+ * the organization's members when the reader can list them, else the name and
+ * role the listing joins in (author_name / author_role).
+ */
+export function buildAnnouncementPreviews(announcements: Announcement[], members: Member[], now: Date): AnnouncementPreview[] {
+  const membersByUser = new Map(members.map((m) => [m.user_id, m]));
+  return announcements
+    .filter((a) => a.is_published && !a.deleted_at && (!a.expires_at || new Date(a.expires_at).getTime() > now.getTime()))
+    .sort((a, b) => Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned)) || (b.published_at ?? b.created_at).localeCompare(a.published_at ?? a.created_at))
+    .slice(0, 2)
+    .map((a) => {
+      const author = membersByUser.get(a.created_by);
+      const authorLabel = author
+        ? `${`${author.user_first_name} ${author.user_last_name}`.trim()} · ${author.role_name}`
+        : a.author_name
+          ? `${a.author_name}${a.author_role ? ` · ${a.author_role}` : ''}`
+          : 'ShiftOS';
+      return {
+        id: a.id,
+        title: a.title.length > 46 ? `${a.title.slice(0, 44)}…` : a.title,
+        body: a.content,
+        meta: `${authorLabel} · ${relativeStamp(a.published_at ?? a.created_at, now)}`,
+        color: TONE_FG[ANNOUNCEMENT_TONE[a.announcement_type] ?? 'primary']
+      };
+    });
+}
+
 export function buildManagerOverview(input: OverviewInput): ManagerOverview {
   const { now, branch } = input;
   const today = localDay(now);
@@ -449,21 +478,7 @@ export function buildManagerOverview(input: OverviewInput): ManagerOverview {
     .filter((a) => a.is_published && !a.deleted_at && (!a.expires_at || new Date(a.expires_at).getTime() > now.getTime()))
     // Pinned notices first (066), as on the Announcements page, then newest.
     .sort((a, b) => Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned)) || (b.published_at ?? b.created_at).localeCompare(a.published_at ?? a.created_at));
-  const announcementPreviews: AnnouncementPreview[] = liveAnnouncements.slice(0, 2).map((a) => {
-    const author = membersByUser.get(a.created_by);
-    const authorLabel = author
-      ? `${`${author.user_first_name} ${author.user_last_name}`.trim()} · ${author.role_name}`
-      : a.author_name
-        ? `${a.author_name}${a.author_role ? ` · ${a.author_role}` : ''}`
-        : 'ShiftOS';
-    return {
-      id: a.id,
-      title: a.title.length > 46 ? `${a.title.slice(0, 44)}…` : a.title,
-      body: a.content,
-      meta: `${authorLabel} · ${relativeStamp(a.published_at ?? a.created_at, now)}`,
-      color: TONE_FG[ANNOUNCEMENT_TONE[a.announcement_type] ?? 'primary']
-    };
-  });
+  const announcementPreviews = buildAnnouncementPreviews(input.announcements, input.members, now);
 
   const weekAgo = now.getTime() - 7 * DAY_MS;
   const events: ActivityEvent[] = [];
