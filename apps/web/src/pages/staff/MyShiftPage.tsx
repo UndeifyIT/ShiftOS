@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../../auth/SessionProvider.js';
-import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
+import { useRpcQuery } from '../../lib/useRpc.js';
 import type { AttendanceRecord } from '../../types/domain.js';
 import { AnnouncementsCard, card, linkButton, OverviewEmpty, OverviewHeader, OverviewLoading, PanelHead, Pill, StatsGrid } from '../dashboard/manager/ManagerOverview.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
 import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
 import { addDays, TONES, todayDateString, weekStartOf } from '../scheduling/grid/scheduleFormat.js';
-import { buildMyShift, hm, type MyShift, type ShiftAction } from './myShiftModel.js';
+import { buildMyShift, type MyShift, type ShiftAction } from './myShiftModel.js';
 import { StaffRequestDialog, type StaffRequestKind } from './StaffRequestDialog.js';
 import { useMyAnnouncements, useMyRequests } from './useStaffSelf.js';
 import { useStaffSchedule } from './useStaffSchedule.js';
@@ -18,7 +18,8 @@ import { useStaffSchedule } from './useStaffSchedule.js';
  * greeting, four stats, My week, My requests, Shift actions and the
  * branch's announcements — no Ask ShiftOS and no Recent Activity, as in the
  * handoff. Everything is the signed-in person's own: their published shifts,
- * their requests, the notices they still owe an acknowledgement. The
+ * their requests, the notices they still owe an acknowledgement. Staff don't
+ * clock themselves in or out — their supervisor marks attendance. The
  * prototype has no CSS reset, so the values are what it renders (13px base,
  * `line-height: normal`).
  */
@@ -107,25 +108,13 @@ function RequestsPanel({ view }: { view: MyShift }): React.ReactElement {
   );
 }
 
-interface ClockState {
-  label: string;
-  body: string;
-  run: () => void;
-}
-
-function ShiftActions({ actions, clock, onAction }: { actions: ShiftAction[]; clock: ClockState | null; onAction: (action: ShiftAction['action']) => void }): React.ReactElement {
+function ShiftActions({ actions, onAction }: { actions: ShiftAction[]; onAction: (action: ShiftAction['action']) => void }): React.ReactElement {
   const item = 'block w-full cursor-pointer rounded-[12px] border-0 px-[13px] py-[11px] text-left';
   return (
     <section className={`${card} p-[18px]`}>
       <h2 className="mb-1 mt-0 text-[14.5px] font-extrabold tracking-normal">Shift actions</h2>
       <p className="mb-3.5 mt-0 text-[12px] text-[#A79C93]">Your shift, requests and schedule</p>
       <div className="flex flex-col gap-[9px]">
-        {clock ? (
-          <button type="button" onClick={clock.run} className={item} style={{ color: TONES.primary[0], backgroundColor: TONES.primary[1] }}>
-            <span className="block text-[12.5px] font-extrabold">{clock.label}</span>
-            <span className="mt-0.5 block text-[11.5px] font-medium text-[#857A72]">{clock.body}</span>
-          </button>
-        ) : null}
         {actions.map((action) => (
           <button key={action.title} type="button" onClick={() => onAction(action.action)} className={item} style={{ color: TONES[action.tone][0], backgroundColor: TONES[action.tone][1] }}>
             <span className="block text-[12.5px] font-extrabold">{action.title}</span>
@@ -148,7 +137,7 @@ export default function MyShiftPage(): React.ReactElement {
   const staff = useStaffSchedule(weekStart, addDays(weekStart, 13));
   const requests = useMyRequests();
   const notices = useMyAnnouncements();
-  const attendance = useRpcQuery<AttendanceRecord[]>('list_my_attendance', undefined, { enabled: hasPermission('attendance.read') || hasPermission('attendance.clockin') });
+  const attendance = useRpcQuery<AttendanceRecord[]>('list_my_attendance', undefined, { enabled: hasPermission('attendance.read') });
   const [dialog, setDialog] = useState<{ kind: StaffRequestKind; assignmentId?: string } | null>(null);
 
   const view = useMemo(
@@ -173,34 +162,6 @@ export default function MyShiftPage(): React.ReactElement {
         : null,
     [staff.me, staff.shifts, staff.publishedDates, staff.employees, staff.departments, staff.timeZone, requests.swaps, requests.leave, notices.published, notices.acknowledged, attendance.data, now]
   );
-
-  // Clocking in and out of today's shift stays where it always was for Staff: on the home, as the first shift action.
-  const todays = view?.next && view.next.shift_date === today ? view.next : null;
-  const todaysAssignment = todays ? staff.assignmentByShift.get(todays.id) : undefined;
-  const record = (attendance.data ?? []).find((r) => r.shift_assignment_id === todaysAssignment?.id);
-  const clockIn = useRpcMutation<AttendanceRecord, { shiftAssignmentId: string }>('clock_in', {
-    invalidates: ['list_my_attendance'],
-    onSuccess: () => show('Clocked in · have a good shift'),
-    onError: (error) => show(error.message, 'error')
-  });
-  const clockOut = useRpcMutation<AttendanceRecord, { shiftAssignmentId: string }>('clock_out', {
-    invalidates: ['list_my_attendance'],
-    onSuccess: () => show('Clocked out · shift closed'),
-    onError: (error) => show(error.message, 'error')
-  });
-  const status = record?.attendance_status ?? 'scheduled';
-  const clock: ClockState | null =
-    todays && todaysAssignment && hasPermission('attendance.clockin')
-      ? status === 'scheduled'
-        ? { label: 'Clock in', body: `${todays.title} · starts ${hm(todays.start_time)}`, run: () => !clockIn.isPending && clockIn.mutate({ shiftAssignmentId: todaysAssignment.id }) }
-        : (status === 'present' || status === 'late') && !record?.clock_out_at
-          ? {
-              label: 'Clock out',
-              body: `On shift since ${record?.clock_in_at ? new Date(record.clock_in_at).toTimeString().slice(0, 5) : hm(todays.start_time)}`,
-              run: () => !clockOut.isPending && clockOut.mutate({ shiftAssignmentId: todaysAssignment.id })
-            }
-          : null
-      : null;
 
   const openSwap = (): void => {
     const upcoming = staff.shifts
@@ -249,7 +210,7 @@ export default function MyShiftPage(): React.ReactElement {
                 <RequestsPanel view={view} />
               </div>
               <div className="flex min-w-0 flex-[1_1_270px] flex-col gap-4">
-                <ShiftActions actions={view.actions} clock={clock} onAction={onAction} />
+                <ShiftActions actions={view.actions} onAction={onAction} />
                 <AnnouncementsCard previews={view.announcementPreviews} go={navigate} />
               </div>
             </div>

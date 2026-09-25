@@ -19,11 +19,11 @@ Sidebar: `STAFF_NAV_ITEMS` in the handoff's order, badges for my open requests a
 
 - **Migration 072** — the standard Employee role gets `branches.read` and `departments.read`. Both are scoped to the caller's own branch by the services. Needed for the branch name, branch time zone and department names the handoff shows Staff.
 - Swap listings join `decision_by_name`, so "Approved 12 May by Sarah Johnson" works for readers who can't list members.
+- **Migration 073** — Staff don't clock themselves in or out; their supervisor marks attendance (as in the handoff, which has no Staff clock-in). The Employee role loses `attendance.clockin`, and `list_my_attendance` now needs `attendance.read` so Staff still see their hours.
 - `list_shifts_for_employee_in_schedule` / `list_my_shift_assignments_in_schedule` return nothing from an unpublished schedule to anyone without `schedules.update` — "You only see published shifts".
 
 ## Deliberate deviations
 
-- **Clock in / Clock out** stays on the Staff home, as the first Shift action, while today's shift is open. The handoff has no clock-in, but ShiftOS Staff clock themselves in and removing it would take the feature away.
 - **My Schedule empty state** uses the Staff copy (`PAGES["Staff/My Schedule"].empty`, "Nothing published yet"). The prototype reuses the Supervisor's Create / Import / Copy last week buttons for Staff, which Staff can't use. "Request a shift" is dropped: there is no such request in ShiftOS.
 - **Swaps move one shift**, so the "Takes over" side shows the same shift and the new-request dialog has no "Their shift" field (as on the Manager page).
 - **Row meta shows the department**, not a job title, as elsewhere. Employees have no job-title field; the profile's job title is the login's.

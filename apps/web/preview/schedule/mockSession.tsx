@@ -26,13 +26,13 @@ const SUPERVISOR_PERMISSIONS = [
   'shifttemplates.read', 'shifttemplates.create', 'shift_templates.read', 'shift_templates.create'
 ];
 
-// Migration 050's Employee set plus 072's branch and department reads — what a Staff login really holds.
+// Migration 050's Employee set plus 072's branch and department reads, less 073's clock-in — what a Staff login really holds.
 const STAFF_PERMISSIONS = [
   'branches.read', 'departments.read',
   'employees.read', 'schedules.read', 'shifts.read',
   'announcements.read', 'announcements.acknowledge',
   'swaps.read', 'swaps.request', 'swaps.respond',
-  'attendance.clockin', 'attendance.read',
+  'attendance.read',
   'leave.read', 'leave.create', 'leave.cancel',
   'notifications.read'
 ];
