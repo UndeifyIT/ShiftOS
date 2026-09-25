@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildMyShift, dayChip, workingDays, type MyShiftInput } from '../../../apps/web/src/pages/staff/myShiftModel.js';
+import { buildMyShift, dayChip, type MyShiftInput } from '../../../apps/web/src/pages/staff/myShiftModel.js';
+import { workingDays } from '../../../apps/web/src/pages/requests/requestsModel.js';
 import type { Announcement, AttendanceRecord, Employee, LeaveRequest, Shift, ShiftSwap } from '../../../apps/web/src/types/domain.js';
 
 const BASE = { organization_id: 'org', created_at: '2025-05-01T09:00:00Z', updated_at: '2025-05-01T09:00:00Z', deleted_at: null };

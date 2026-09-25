@@ -4,18 +4,20 @@ import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
 import { HandoffModal, ModalField, ModalFields, modalControl, modalTextarea, modalSelect } from '../../components/HandoffModal.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import { useNavRole } from '../../layout/Sidebar.js';
-import type { Branch, Department, Employee, LeaveRequest, Member, Schedule, Shift, ShiftAssignment, ShiftSwap } from '../../types/domain.js';
+import type { Branch, Department, Employee, LeaveRequest, Member, ShiftSwap } from '../../types/domain.js';
 import { OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
-import { LEAVE_TYPE_LABEL, weekdayDayMonth } from '../dashboard/manager/overviewModel.js';
+import { LEAVE_TYPE_LABEL } from '../dashboard/manager/overviewModel.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
 import { DialogNote, HeaderCta } from '../people/RolePeopleTable.js';
+import { StaffRequestDialog, type StaffRequestKind } from '../staff/StaffRequestDialog.js';
 import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
-import { avatarTone, fullName, initialsOf, todayDateString, TONES, type Tone } from '../scheduling/grid/scheduleFormat.js';
+import { avatarTone, fullName, initialsOf, TONES, type Tone } from '../scheduling/grid/scheduleFormat.js';
 import {
   applyFilter,
   buildLeaveViews,
   buildSwapViews,
   countLabel,
+  myRequestsSubtitle,
   REQUEST_FILTERS,
   REQUEST_TABS,
   requestsSubtitle,
@@ -198,16 +200,15 @@ type Dialog =
   | { kind: 'reviewLeave'; view: LeaveView }
   | { kind: 'declineLeave'; view: LeaveView }
   | { kind: 'viewLeave'; view: LeaveView }
-  | { kind: 'newRequest' };
+  | { kind: 'newRequest' }
+  | { kind: 'staffRequest'; request: StaffRequestKind };
 
+/** An approver recording time off for someone in the branch; Staff raise their own through StaffRequestDialog. */
 interface NewRequestDraft {
-  type: 'Time off' | 'Shift swap';
   employeeId: string;
   leaveType: LeaveRequest['leave_type'];
   startDate: string;
   endDate: string;
-  assignmentId: string;
-  targetId: string;
   reason: string;
 }
 
@@ -296,69 +297,28 @@ export default function RequestsPage(): React.ReactElement {
     onError: fail
   });
 
-  // ---- New request (approvers: time off for someone in the branch; everyone else: a swap or time off of their own)
-  const emptyDraft = (): NewRequestDraft => ({
-    type: isApprover || !canRequestSwap ? 'Time off' : 'Shift swap',
-    employeeId: isApprover ? '' : me?.id ?? '',
-    leaveType: 'annual_leave',
-    startDate: '',
-    endDate: '',
-    assignmentId: '',
-    targetId: '',
-    reason: ''
-  });
+  // ---- New request: approvers record time off for someone in the branch; everyone else raises their own (StaffRequestDialog).
+  const emptyDraft = (): NewRequestDraft => ({ employeeId: '', leaveType: 'annual_leave', startDate: '', endDate: '', reason: '' });
   const [draft, setDraft] = useState<NewRequestDraft>(emptyDraft);
   const createLeave = useRpcMutation<LeaveRequest, { employeeId: string; leaveType: string; startDate: string; endDate: string; reason: string }>('create_leave_request', {
     invalidates: leaveInvalidates,
     onSuccess: () =>
-      done(isApprover ? 'Leave request recorded · pending approval' : 'Leave request sent · pending approval', () => {
+      done('Leave request recorded · pending approval', () => {
         setTab('Time off');
         setFilter('Pending');
       }),
     onError: fail
   });
-  const requestSwap = useRpcMutation<unknown, { shiftAssignmentId: string; targetEmployeeId?: string | null; notes?: string | null }>('request_shift_swap', {
-    invalidates: swapInvalidates,
-    onSuccess: () =>
-      done('Request submitted to your supervisor', () => {
-        setTab('Swap requests');
-        setFilter('Pending');
-      }),
-    onError: fail
-  });
-
-  // My upcoming shifts, for a swap request of my own.
-  const today = todayDateString(now);
-  const { data: schedules } = useRpcQuery<Schedule[]>('list_schedules', scoped, { enabled: !isApprover && canRequestSwap && Boolean(me) && hasPermission('schedules.read') });
-  const current = [...(schedules ?? [])].filter((s) => s.status === 'published' && s.end_date >= today).sort((a, b) => a.start_date.localeCompare(b.start_date))[0];
-  const { data: myShifts } = useRpcQuery<Shift[]>('list_shifts_for_employee_in_schedule', current && me ? { scheduleId: current.id, employeeId: me.id } : undefined, {
-    enabled: Boolean(current && me)
-  });
-  const { data: myAssignments } = useRpcQuery<ShiftAssignment[]>('list_my_shift_assignments_in_schedule', current ? { scheduleId: current.id } : undefined, {
-    enabled: Boolean(current && me)
-  });
-  const shiftChoices = (myShifts ?? [])
-    .filter((shift) => shift.shift_date >= today)
-    .flatMap((shift) => {
-      const assignment = (myAssignments ?? []).find((a) => a.shift_id === shift.id);
-      return assignment ? [{ id: assignment.id, label: `${weekdayDayMonth(shift.shift_date)} · ${shift.start_time.slice(0, 5)} – ${shift.end_time.slice(0, 5)}` }] : [];
-    });
-  const colleagues = (employees ?? []).filter((e) => e.is_active && !e.deleted_at && e.employment_status === 'active' && e.id !== me?.id);
 
   const submitNewRequest = (): void => {
     if (!draft.reason.trim()) return setDialogError('Add a reason — your supervisor sees it with the request.');
-    if (draft.type === 'Shift swap') {
-      if (!draft.assignmentId) return setDialogError('Pick the shift you want to give up.');
-      requestSwap.mutate({ shiftAssignmentId: draft.assignmentId, targetEmployeeId: draft.targetId || null, notes: draft.reason.trim() });
-      return;
-    }
-    if (!draft.employeeId) return setDialogError(isApprover ? 'Choose who the time off is for.' : 'No employee record is linked to your account.');
+    if (!draft.employeeId) return setDialogError('Choose who the time off is for.');
     if (!draft.startDate || !draft.endDate) return setDialogError('Pick the first and last day.');
     if (draft.endDate < draft.startDate) return setDialogError('The last day can’t be before the first day.');
     createLeave.mutate({ employeeId: draft.employeeId, leaveType: draft.leaveType, startDate: draft.startDate, endDate: draft.endDate, reason: draft.reason.trim() });
   };
 
-  const busy = approveSwap.isPending || rejectSwap.isPending || approveLeave.isPending || rejectLeave.isPending || createLeave.isPending || requestSwap.isPending;
+  const busy = approveSwap.isPending || rejectSwap.isPending || approveLeave.isPending || rejectLeave.isPending || createLeave.isPending;
   const loading = tab === 'Swap requests' ? (canApproveSwaps ? branchSwaps.isLoading : mySwaps.isLoading) : canApproveLeave ? branchLeave.isLoading : myLeave.isLoading;
   const canNewRequest = canCreateLeave || (!isApprover && canRequestSwap);
 
@@ -451,10 +411,7 @@ export default function RequestsPage(): React.ReactElement {
               !canApproveLeave && canCreateLeave ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setDraft({ ...emptyDraft(), type: 'Time off' });
-                    open({ kind: 'newRequest' });
-                  }}
+                  onClick={() => open({ kind: 'staffRequest', request: 'leave' })}
                   className="h-9 cursor-pointer rounded-[10px] border-0 bg-[#F04E17] px-[15px] font-[inherit] text-[12.5px] font-bold text-white hover:bg-[#DC4611]"
                 >
                   Request time off
@@ -475,15 +432,17 @@ export default function RequestsPage(): React.ReactElement {
     <div className="flex min-h-full flex-col text-[13px] text-[#38312B] [line-height:normal]">
       <OverviewHeader
         title={isApprover ? (navRole === 'Supervisor' ? 'Requests' : 'Swap & leave requests') : 'My requests'}
-        subtitle={isApprover ? requestsSubtitle(swapViews, leaveViews, navRole === 'Supervisor' ? branchLabel : undefined) : `${swapViews.filter((v) => v.filter === 'Pending').length} swaps and ${leaveViews.filter((v) => v.filter === 'Pending').length} leave requests pending`}
+        subtitle={isApprover ? requestsSubtitle(swapViews, leaveViews, navRole === 'Supervisor' ? branchLabel : undefined) : myRequestsSubtitle(swapViews, leaveViews)}
         now={now}
         actions={
           canNewRequest ? (
             <HeaderCta
               label="New request"
               onClick={() => {
-                setDraft(emptyDraft());
-                open({ kind: 'newRequest' });
+                if (isApprover) {
+                  setDraft(emptyDraft());
+                  open({ kind: 'newRequest' });
+                } else open({ kind: 'staffRequest', request: canRequestSwap ? 'swap' : 'leave' });
               }}
             />
           ) : null
@@ -626,90 +585,67 @@ export default function RequestsPage(): React.ReactElement {
 
       <HandoffModal
         open={dialog?.kind === 'newRequest'}
-        title={draft.type === 'Time off' && !isApprover ? 'Request time off' : 'New request'}
-        subtitle={isApprover ? 'Record time off for someone in your branch — it waits for approval like any other request.' : 'Raise a swap or time-off request. It goes to your supervisor for approval.'}
-        primary={createLeave.isPending || requestSwap.isPending ? 'Submitting…' : 'Submit request'}
+        title="New request"
+        subtitle="Record time off for someone in your branch — it waits for approval like any other request."
+        primary={createLeave.isPending ? 'Submitting…' : 'Submit request'}
         primaryDisabled={busy}
         onPrimary={submitNewRequest}
         onClose={close}
       >
         <ModalFields>
-          {!isApprover && canRequestSwap && canCreateLeave ? (
-            <ModalField label="Request type" required>
-              <select className={modalSelect} value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value as NewRequestDraft['type'] })}>
-                <option>Shift swap</option>
-                <option>Time off</option>
-              </select>
-            </ModalField>
-          ) : null}
-          {draft.type === 'Shift swap' ? (
-            <>
-              <ModalField label="Your shift" required>
-                <select className={modalSelect} value={draft.assignmentId} onChange={(event) => setDraft({ ...draft, assignmentId: event.target.value })}>
-                  <option value="">{shiftChoices.length ? 'Choose a shift' : 'No upcoming shifts'}</option>
-                  {shiftChoices.map((choice) => (
-                    <option key={choice.id} value={choice.id}>
-                      {choice.label}
-                    </option>
-                  ))}
-                </select>
-              </ModalField>
-              <ModalField label="Swap with">
-                <select className={modalSelect} value={draft.targetId} onChange={(event) => setDraft({ ...draft, targetId: event.target.value })}>
-                  <option value="">Anyone in the branch</option>
-                  {colleagues.map((person) => (
-                    <option key={person.id} value={person.id}>
-                      {fullName(person)}
-                    </option>
-                  ))}
-                </select>
-              </ModalField>
-            </>
-          ) : (
-            <>
-              {isApprover ? (
-                <ModalField label="Employee" required>
-                  <select className={modalSelect} value={draft.employeeId} onChange={(event) => setDraft({ ...draft, employeeId: event.target.value })}>
-                    <option value="">Choose a person</option>
-                    {(employees ?? [])
-                      .filter((e) => e.is_active && !e.deleted_at)
-                      .map((person) => (
-                        <option key={person.id} value={person.id}>
-                          {fullName(person)}
-                        </option>
-                      ))}
-                  </select>
-                </ModalField>
-              ) : null}
-              <ModalField label="Leave type" required>
-                <select className={modalSelect} value={draft.leaveType} onChange={(event) => setDraft({ ...draft, leaveType: event.target.value as LeaveRequest['leave_type'] })}>
-                  {Object.entries(LEAVE_TYPE_LABEL).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </ModalField>
-              <ModalField label="First day" required>
-                <input type="date" className={modalControl} value={draft.startDate} onChange={(event) => setDraft({ ...draft, startDate: event.target.value, endDate: draft.endDate || event.target.value })} />
-              </ModalField>
-              <ModalField label="Last day" required>
-                <input type="date" className={modalControl} value={draft.endDate} min={draft.startDate || undefined} onChange={(event) => setDraft({ ...draft, endDate: event.target.value })} />
-              </ModalField>
-            </>
-          )}
+          <ModalField label="Employee" required>
+            <select className={modalSelect} value={draft.employeeId} onChange={(event) => setDraft({ ...draft, employeeId: event.target.value })}>
+              <option value="">Choose a person</option>
+              {(employees ?? [])
+                .filter((e) => e.is_active && !e.deleted_at)
+                .map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {fullName(person)}
+                  </option>
+                ))}
+            </select>
+          </ModalField>
+          <ModalField label="Leave type" required>
+            <select className={modalSelect} value={draft.leaveType} onChange={(event) => setDraft({ ...draft, leaveType: event.target.value as LeaveRequest['leave_type'] })}>
+              {Object.entries(LEAVE_TYPE_LABEL).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </ModalField>
+          <ModalField label="First day" required>
+            <input type="date" className={modalControl} value={draft.startDate} onChange={(event) => setDraft({ ...draft, startDate: event.target.value, endDate: draft.endDate || event.target.value })} />
+          </ModalField>
+          <ModalField label="Last day" required>
+            <input type="date" className={modalControl} value={draft.endDate} min={draft.startDate || undefined} onChange={(event) => setDraft({ ...draft, endDate: event.target.value })} />
+          </ModalField>
           <ModalField label="Reason" required full>
             <textarea
               rows={3}
               className={modalTextarea}
               value={draft.reason}
-              placeholder={draft.type === 'Shift swap' ? 'Family commitment' : 'Your supervisor sees this with the request.'}
+              placeholder="Your supervisor sees this with the request."
               onChange={(event) => setDraft({ ...draft, reason: event.target.value })}
             />
           </ModalField>
         </ModalFields>
         {errorLine}
       </HandoffModal>
+
+      <StaffRequestDialog
+        open={dialog?.kind === 'staffRequest'}
+        kind={dialog?.kind === 'staffRequest' ? dialog.request : 'leave'}
+        now={now}
+        onClose={close}
+        onDone={(message) => {
+          const request = dialog?.kind === 'staffRequest' ? dialog.request : 'leave';
+          done(message, () => {
+            setTab(request === 'leave' ? 'Time off' : 'Swap requests');
+            setFilter('Pending');
+          });
+        }}
+      />
 
       <ScheduleToast toast={toast} onDismiss={dismiss} />
     </div>

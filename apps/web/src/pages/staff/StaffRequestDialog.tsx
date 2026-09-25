@@ -5,7 +5,7 @@ import { useRpcMutation } from '../../lib/useRpc.js';
 import type { LeaveRequest } from '../../types/domain.js';
 import { LEAVE_TYPE_LABEL, weekdayDayMonth } from '../dashboard/manager/overviewModel.js';
 import { addDays, fullName, todayDateString } from '../scheduling/grid/scheduleFormat.js';
-import { workingDays } from './myShiftModel.js';
+import { workingDays } from '../requests/requestsModel.js';
 import { useStaffSchedule } from './useStaffSchedule.js';
 
 /*

@@ -147,17 +147,6 @@ function openSwapFor(shift: Shift, swaps: ShiftSwap[], meId: string): ShiftSwap 
   );
 }
 
-/** Monday–Friday between two dates, inclusive — the handoff's "Working days". */
-export function workingDays(start: string, end: string): number {
-  if (!start || !end || end < start) return 0;
-  let count = 0;
-  for (let date = start; date <= end; date = addDays(date, 1)) {
-    const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
-    if (weekday !== 0 && weekday !== 6) count += 1;
-  }
-  return count;
-}
-
 export function buildMyShift(input: MyShiftInput, me: Employee): MyShift {
   const { now } = input;
   const today = todayDateString(now);

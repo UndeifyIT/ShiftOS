@@ -5,6 +5,7 @@ import {
   buildLeaveViews,
   buildSwapViews,
   countLabel,
+  myRequestsSubtitle,
   requestsSubtitle,
   workingDays,
   type RequestsContext
@@ -157,5 +158,38 @@ describe('Requests model (design handoff Manager/Requests)', () => {
     expect(countLabel(2, 'Swap requests')).toBe('2 swap requests');
     expect(workingDays('2025-05-17', '2025-05-18')).toBe(0);
     expect(ago(at(16, 7, 59), NOW)).toBe('just now');
+  });
+});
+
+describe('Requests model, seen by Staff (handoff Staff/My Requests)', () => {
+  const MINE: RequestsContext = { ...CTX, members: [], meId: 'e1' };
+
+  it('names both people on the card and waits on the supervisor, not "you"', () => {
+    const [view] = buildSwapViews([swap('s1', 'accepted')], MINE);
+    expect(view).toMatchObject({ status: 'Awaiting approval', fromName: 'John Test', toName: 'Michael Test' });
+  });
+
+  it('speaks to the viewer in the outcome sentences', () => {
+    const [aimed] = buildSwapViews([swap('s2', 'pending', { requested_by_employee_id: 'e2', target_employee_id: 'e1' })], MINE);
+    expect(aimed.outcome).toBe('Waiting for you to accept');
+    const [withdrawn] = buildSwapViews([swap('s3', 'cancelled')], MINE);
+    expect(withdrawn.outcome).toBe('Withdrawn by you');
+  });
+
+  it('names who approved it from the listing when members can’t be read', () => {
+    const [view] = buildSwapViews([swap('s4', 'approved', { decision_by: 'u-sarah', decision_at: at(12, 11), decision_by_name: 'Sarah Johnson' })], MINE);
+    expect(view.outcome).toBe('Approved by Sarah Johnson · schedule updated');
+  });
+
+  it('keeps the person’s own name on their leave rows', () => {
+    const [row] = buildLeaveViews([{ ...leave('l1', 'pending', '2025-06-09', '2025-06-09'), employee_id: 'e1' }], MINE);
+    expect(row.name).toBe('John Test');
+  });
+
+  it('summarises what is waiting the way the handoff subtitle does', () => {
+    const swaps = buildSwapViews([swap('s5', 'accepted'), swap('s6', 'pending')], MINE);
+    const leaves = buildLeaveViews([leave('l2', 'pending', '2025-06-09', '2025-06-09')], MINE);
+    expect(myRequestsSubtitle(swaps, leaves)).toBe('1 swap awaiting approval · 1 swap awaiting a reply · 1 leave request pending');
+    expect(myRequestsSubtitle([], [])).toBe('Nothing waiting on a decision');
   });
 });
