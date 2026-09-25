@@ -21,6 +21,7 @@ import {
 import { ValidationError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
 import { assertNonEmptyString, assertUuid, assertValidDateRange, assertOneOf } from '../validation.js';
+import { notifyBranchEvent } from '../notifications/notificationService.js';
 import { clearEmployeeShifts } from './clearEmployeeShifts.js';
 import { detectScheduleConflicts } from './scheduleConflictRules.js';
 import { computeDuration, isDateWithinRange } from './time.js';
@@ -478,7 +479,11 @@ export class SchedulingService {
       (changes as Record<string, unknown>)[timestampField] = new Date().toISOString();
     }
 
-    return this.assignments.patch(this.context.organizationId, assignmentId, changes);
+    const updated = await this.assignments.patch(this.context.organizationId, assignmentId, changes);
+    if (isActiveAssignment(assignment) && !isActiveAssignment(updated)) {
+      await this.notifyIfUncovered(shift);
+    }
+    return updated;
   }
 
   async removeAssignment(assignmentId: string): Promise<ShiftAssignment> {
@@ -489,7 +494,32 @@ export class SchedulingService {
     const shift = await this.shifts.getByIdOrThrow(this.context.organizationId, assignment.shift_id);
     this.context.requireBranchAccess(shift.branch_id);
 
-    return this.assignments.archive(this.context.organizationId, assignmentId);
+    const archived = await this.assignments.archive(this.context.organizationId, assignmentId);
+    if (isActiveAssignment(assignment)) {
+      await this.notifyIfUncovered(shift);
+    }
+    return archived;
+  }
+
+  /**
+   * Settings → Notifications "Coverage gaps": a published shift that has just
+   * lost its last assigned person. Draft, cancelled and finished shifts aren't
+   * gaps; neither is one somebody is still on.
+   */
+  private async notifyIfUncovered(shift: Shift): Promise<void> {
+    if (!['published', 'scheduled', 'active'].includes(shift.status)) return;
+    const remaining = (await this.assignments.findByShift(this.context.organizationId, shift.id)).filter(isActiveAssignment);
+    if (remaining.length > 0) return;
+    await notifyBranchEvent(
+      this.context.client,
+      this.context.organizationId,
+      shift.branch_id,
+      'schedules.update',
+      'coverage_gaps',
+      `${shift.title} on ${shift.shift_date} has nobody on it`,
+      `${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)} · the last assigned person came off this published shift.`,
+      { excludeUserId: this.context.userId, priority: 'high' }
+    );
   }
 
   async listAssignmentsForShift(shiftId: string): Promise<ShiftAssignment[]> {

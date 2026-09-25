@@ -3,6 +3,7 @@ import { loadConfig } from '@shiftos/config';
 import { createDatabaseClient } from '@shiftos/database';
 import { createDefaultRegistry, createHttpServer, type VerifyAccessToken } from '@shiftos/api';
 import { SupabaseAuthProvider } from '@shiftos/auth';
+import { runScheduledNotifications } from '@shiftos/services';
 
 /**
  * Local/production entrypoint for the RPC HTTP transport (packages/api's
@@ -56,7 +57,32 @@ function main(): void {
     console.log(`ShiftOS RPC server listening on http://localhost:${port}`);
   });
 
+  // The notifications nothing triggers (an unpublished schedule, invitation
+  // outcomes, the weekly acknowledgement digest) — checked every ten minutes.
+  // Each is claimed before it is sent, so repeats and extra servers are safe.
+  // SCHEDULED_NOTIFICATIONS=off turns this off, e.g. for a second instance.
+  let jobRunning = false;
+  const runJob = async (): Promise<void> => {
+    if (jobRunning) return;
+    jobRunning = true;
+    try {
+      const result = await runScheduledNotifications(client);
+      if (result.errors.length) {
+        // eslint-disable-next-line no-console
+        console.error('Scheduled notifications:', result.errors.join('; '));
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Scheduled notifications failed:', error);
+    } finally {
+      jobRunning = false;
+    }
+  };
+  const jobTimer = process.env.SCHEDULED_NOTIFICATIONS === 'off' ? null : setInterval(() => void runJob(), 10 * 60_000);
+  if (jobTimer) setTimeout(() => void runJob(), 30_000);
+
   const shutdown = async (): Promise<void> => {
+    if (jobTimer) clearInterval(jobTimer);
     server.close();
     await client.close();
     process.exit(0);

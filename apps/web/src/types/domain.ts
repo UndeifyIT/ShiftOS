@@ -242,7 +242,7 @@ export interface ShiftAssignment {
 export type TaskStatus = 'draft' | 'assigned' | 'in_progress' | 'completed' | 'verified' | 'cancelled';
 export type TaskPriority = 'low' | 'normal' | 'high' | 'critical';
 export type TaskVerificationStatus = 'pending' | 'verified' | 'rework_required';
-/** How often a task comes back (066); completing a repeating task creates its next occurrence. */
+/** How often a task comes back (068); completing a repeating task creates its next occurrence. */
 export type TaskRecurrence = 'none' | 'daily' | 'weekdays' | 'weekly';
 
 export interface Task {
@@ -329,18 +329,16 @@ export interface Announcement {
   announcement_type: AnnouncementType;
   visibility_type: AnnouncementVisibility;
   is_published: boolean;
-<<<<<<< HEAD
-  /** Pinned posts sort above the rest and are highlighted (067). */
-  is_pinned: boolean;
-  /** Whether recipients are asked to acknowledge this one (067). */
-  requires_acknowledgement: boolean;
-=======
-  /** Migration 066; absent on rows read before it ran. */
+  /** Migration 066: shown first, with the handoff's "Pinned" badge. */
   is_pinned?: boolean;
->>>>>>> origin/main
+  /** Migration 069: whether readers are asked to acknowledge it. */
+  requires_acknowledgement?: boolean;
   published_at: string | null;
   expires_at: string | null;
   created_by: string;
+  /** Joined by list_announcements: who posted it and their role. */
+  author_name?: string | null;
+  author_role?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -504,4 +502,27 @@ export interface OperationsSummaryReport {
   swapRequests: number;
   hoursByEmployee: Array<{ employee_id: string; shifts: number; worked_minutes: number; overtime_minutes: number; late_minutes: number }>;
   requestActivity: Array<{ department_id: string | null; kind: 'swap' | 'leave'; raised: number; approved: number; declined: number }>;
+}
+
+export type ShiftNoteCategory = 'handover' | 'incident' | 'inventory' | 'staffing';
+
+/** A shift note (036, category and handover flag 070) as `list_branch_shift_notes` returns it — with its shift and author. */
+export interface ShiftNote {
+  id: string;
+  organization_id: string;
+  branch_id: string;
+  shift_id: string;
+  note: string;
+  category: ShiftNoteCategory;
+  include_in_handover: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  shift_title?: string;
+  shift_date?: string;
+  shift_start_time?: string;
+  shift_end_time?: string;
+  author_name?: string | null;
+  author_role?: string | null;
 }

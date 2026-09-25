@@ -1,4 +1,4 @@
--- 066_add_task_recurrence.sql
+-- 068_add_task_recurrence.sql (first added as 066; renumbered because PR 24 had already taken 066 — safe to re-run)
 -- Migration: let a task repeat
 -- Purpose: The design handoff's New task form offers "Repeats", and the
 --   branch checks the board exists for — cold room temperature, the floor

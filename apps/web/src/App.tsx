@@ -39,6 +39,8 @@ const AdminConsolePage = lazy(() => import('./pages/admin/AdminConsolePage.js'))
 const AnnouncementsPage = lazy(() => import('./pages/announcements/AnnouncementsPage.js'));
 const RequestsPage = lazy(() => import('./pages/requests/RequestsPage.js'));
 const RecentActivityPage = lazy(() => import('./pages/activity/RecentActivityPage.js'));
+const TeamPage = lazy(() => import('./pages/team/TeamPage.js'));
+const ShiftNotesPage = lazy(() => import('./pages/shiftNotes/ShiftNotesPage.js'));
 const ReportsPage = lazy(() => import('./pages/reports/ReportsPage.js'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage.js'));
 const OrganizationSettingsPage = lazy(() => import('./pages/organization/OrganizationSettingsPage.js'));
@@ -49,7 +51,6 @@ const EmployeeProfilePage = lazy(() => import('./pages/employees/EmployeeProfile
 const AddEmployeePage = lazy(() => import('./pages/employees/AddEmployeePage.js'));
 const SupervisorsPage = lazy(() => import('./pages/people/SupervisorsPage.js'));
 const AdminsPage = lazy(() => import('./pages/people/AdminsPage.js'));
-const RecentActivityPage = lazy(() => import('./pages/activity/RecentActivityPage.js'));
 const ImportEmployeesPage = lazy(() => import('./pages/employees/import/ImportEmployeesPage.js'));
 const MembersPage = lazy(() => import('./pages/members/MembersPage.js'));
 const InvitationsPage = lazy(() => import('./pages/members/InvitationsPage.js'));
@@ -57,7 +58,7 @@ const SchedulesPage = lazy(() => import('./pages/scheduling/SchedulesPage.js'));
 const ProfilePage = lazy(() => import('./pages/account/ProfilePage.js'));
 const SecurityPage = lazy(() => import('./pages/account/SecurityPage.js'));
 const TasksPage = lazy(() => import('./pages/tasks/TasksPage.js'));
-const AttendancePage = lazy(() => import('./pages/attendance/AttendancePage.js'));
+const AttendancePage = lazy(() => import('./pages/attendance/ShiftAttendancePage.js'));
 
 function FullPageSpinner(): React.ReactElement {
   return (
@@ -280,11 +281,8 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/supervisors" element={<SupervisorsPage />} />
         <Route path="/admins" element={<AdminsPage />} />
         <Route path="/recent-activity" element={<RecentActivityPage />} />
-<<<<<<< HEAD
-        <Route path="/reports" element={<ComingSoonPage page="reports" />} />
-        <Route path="/settings" element={<ComingSoonPage page="settings" />} />
-=======
->>>>>>> origin/main
+        <Route path="/team" element={<TeamPage />} />
+        <Route path="/shift-notes" element={<ShiftNotesPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

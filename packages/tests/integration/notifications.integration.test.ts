@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { runScheduledNotifications } from '@shiftos/services';
 import { createTestContext, TEST_FIXTURES, type TestContext } from '../testEnv.js';
 
 describe('notifications integration', () => {
@@ -57,8 +58,10 @@ describe('notifications integration', () => {
 
   it('lets a person switch off one event, and then stops sending it', async () => {
     const defaults = await ctx.call<Array<{ event_type: string; channel: string; is_enabled: boolean }>>('get_my_notification_event_preferences', {});
-    expect(defaults).toHaveLength(6);
-    expect(defaults.every((row) => row.is_enabled)).toBe(true);
+    expect(defaults).toHaveLength(18);
+    // The handoff's defaults: absences are in-app only, the digest email only.
+    expect(defaults.find((row) => row.event_type === 'absences' && row.channel === 'email')?.is_enabled).toBe(false);
+    expect(defaults.find((row) => row.event_type === 'announcement_digest' && row.channel === 'in_app')?.is_enabled).toBe(false);
 
     await ctx.call('set_my_notification_event_preference', { eventType: 'leave_decisions', channel: 'in_app', isEnabled: false });
     const saved = await ctx.call<Array<{ event_type: string; channel: string; is_enabled: boolean }>>('get_my_notification_event_preferences', {});
@@ -77,7 +80,15 @@ describe('notifications integration', () => {
     const after = await ctx.call<unknown[]>('list_my_notifications', { unreadOnly: true });
     expect(after).toHaveLength(before.length);
 
-    const bad = await ctx.callRaw('set_my_notification_event_preference', { eventType: 'coverage_gaps', channel: 'in_app', isEnabled: false });
+    const bad = await ctx.callRaw('set_my_notification_event_preference', { eventType: 'gossip', channel: 'in_app', isEnabled: false });
     expect(bad.success).toBe(false);
+  });
+
+  it('runs the scheduled notifications cleanly, and sends each one only once', async () => {
+    const monday = new Date('2027-10-04T08:00:00Z');
+    const first = await runScheduledNotifications(ctx.client, monday);
+    expect(first.errors).toEqual([]);
+    const second = await runScheduledNotifications(ctx.client, monday);
+    expect(second).toEqual({ unpublishedSchedules: 0, invitations: 0, digests: 0, errors: [] });
   });
 });

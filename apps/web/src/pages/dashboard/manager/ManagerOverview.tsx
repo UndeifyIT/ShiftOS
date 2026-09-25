@@ -5,7 +5,7 @@ import shiftyGuide from '../../../assets/shifty-guide.png';
 import { ScheduleIcon } from '../../scheduling/grid/ScheduleIcon.js';
 import { ScheduleToast, useScheduleToast } from '../../scheduling/grid/ScheduleToast.js';
 import { avatarTone, initialsOf, TONES, type Tone } from '../../scheduling/grid/scheduleFormat.js';
-import { answerQuestion, ASK_CHIPS, ASK_HINTS } from './askShiftOS.js';
+import { answerQuestion, ASK_CHIPS, ASK_HINTS, type AskAnswer } from './askShiftOS.js';
 import { clock12, pillDate, TONE_FG, type ManagerOverview as Overview } from './overviewModel.js';
 
 /*
@@ -15,9 +15,9 @@ import { clock12, pillDate, TONE_FG, type ManagerOverview as Overview } from './
  * content-box circles — not a Tailwind approximation.
  */
 
-const pillStyle = (tone: Tone): React.CSSProperties => ({ color: TONES[tone][0], backgroundColor: TONES[tone][1] });
+export const pillStyle = (tone: Tone): React.CSSProperties => ({ color: TONES[tone][0], backgroundColor: TONES[tone][1] });
 
-function Pill({ tone, style, children }: { tone?: Tone; style?: React.CSSProperties; children: React.ReactNode }): React.ReactElement {
+export function Pill({ tone, style, children }: { tone?: Tone; style?: React.CSSProperties; children: React.ReactNode }): React.ReactElement {
   return (
     <span className="inline-flex items-center gap-[5px] rounded-full px-2.5 py-1 text-[11px] font-bold" style={style ?? pillStyle(tone ?? 'neutral')}>
       {children}
@@ -25,8 +25,8 @@ function Pill({ tone, style, children }: { tone?: Tone; style?: React.CSSPropert
   );
 }
 
-const linkButton = 'cursor-pointer border-0 bg-transparent p-0 text-[12px] font-bold text-[#C6420E] hover:text-[#F04E17]';
-const card = 'rounded-[16px] border border-solid border-[#EBE7E3] bg-white';
+export const linkButton = 'cursor-pointer border-0 bg-transparent p-0 text-[12px] font-bold text-[#C6420E] hover:text-[#F04E17]';
+export const card = 'rounded-[16px] border border-solid border-[#EBE7E3] bg-white';
 
 /** The handoff's page header (title, subtitle, date/time pill) — shared by the overview and the pages it links to. */
 export function OverviewHeader({
@@ -81,7 +81,7 @@ function ShiftyCard({ onOpen, onDismiss }: { onOpen: () => void; onDismiss: () =
 }
 
 /** Handoff typeStep(): types a hint, holds, erases three characters a tick, moves on — every 110ms. */
-function useTypedHint(active: boolean): React.RefObject<HTMLSpanElement> {
+function useTypedHint(active: boolean, hints: string[]): React.RefObject<HTMLSpanElement> {
   const ref = useRef<HTMLSpanElement>(null);
   const state = useRef({ i: 0, c: 0, back: false, hold: 0 });
   useEffect(() => {
@@ -90,7 +90,7 @@ function useTypedHint(active: boolean): React.RefObject<HTMLSpanElement> {
       const node = ref.current;
       if (!node || document.hidden) return;
       const t = state.current;
-      const current = ASK_HINTS[t.i % ASK_HINTS.length];
+      const current = hints[t.i % hints.length];
       if (t.hold > 0) {
         t.hold -= 1;
         return;
@@ -113,16 +113,31 @@ function useTypedHint(active: boolean): React.RefObject<HTMLSpanElement> {
       node.textContent = current.slice(0, Math.max(0, t.c));
     }, 110);
     return () => window.clearInterval(timer);
-  }, [active]);
+  }, [active, hints]);
   return ref;
 }
 
-function AskShiftOSCard({ overview, now, onToast }: { overview: Overview; now: Date; onToast: (text: string) => void }): React.ReactElement {
+/** The dark Ask ShiftOS card — the Manager's chips and answers by default; the Supervisor passes its own. */
+export function AskShiftOSCard({
+  overview,
+  now,
+  onToast,
+  chips = ASK_CHIPS,
+  hints = ASK_HINTS,
+  answer: answerFor = answerQuestion
+}: {
+  overview: Overview;
+  now: Date;
+  onToast: (text: string) => void;
+  chips?: string[];
+  hints?: string[];
+  answer?: (question: string, overview: Overview, now: Date) => AskAnswer;
+}): React.ReactElement {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [asked, setAsked] = useState<string | null>(null);
-  const answer = asked ? answerQuestion(asked, overview, now) : null;
-  const typedRef = useTypedHint(!query && !asked);
+  const answer = asked ? answerFor(asked, overview, now) : null;
+  const typedRef = useTypedHint(!query && !asked, hints);
 
   const run = (question: string): void => {
     const trimmed = question.trim();
@@ -177,7 +192,7 @@ function AskShiftOSCard({ overview, now, onToast }: { overview: Overview; now: D
       </div>
 
       <div className="mt-[11px] flex flex-wrap gap-[7px]">
-        {ASK_CHIPS.map((label) => (
+        {chips.map((label) => (
           <button
             key={label}
             type="button"
@@ -233,10 +248,10 @@ function AskShiftOSCard({ overview, now, onToast }: { overview: Overview; now: D
   );
 }
 
-function StatsGrid({ overview }: { overview: Overview }): React.ReactElement {
+export function StatsGrid({ stats }: { stats: Overview['stats'] }): React.ReactElement {
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(196px,1fr))] gap-3.5">
-      {overview.stats.map((stat) => (
+      {stats.map((stat) => (
         <div key={stat.label} className={`${card} px-[18px] py-4`}>
           <div className="flex items-center gap-2.5">
             <span className="size-[9px] flex-none rounded-[3px]" style={{ backgroundColor: stat.color }} />
@@ -250,7 +265,7 @@ function StatsGrid({ overview }: { overview: Overview }): React.ReactElement {
   );
 }
 
-function PanelHead({ title, children }: { title: string; children: React.ReactNode }): React.ReactElement {
+export function PanelHead({ title, children }: { title: string; children: React.ReactNode }): React.ReactElement {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-solid border-[#F2EEEA] px-[18px] py-[15px]">
       <h2 className="m-0 text-[14.5px] font-extrabold tracking-normal">{title}</h2>
@@ -374,7 +389,7 @@ function QuickActions({ overview, go }: { overview: Overview; go: (to: string) =
   );
 }
 
-function AnnouncementsCard({ overview, go }: { overview: Overview; go: (to: string) => void }): React.ReactElement {
+export function AnnouncementsCard({ overview, go }: { overview: Overview; go: (to: string) => void }): React.ReactElement {
   return (
     <section className={`${card} p-[18px]`}>
       <div className="flex items-center justify-between">
@@ -406,13 +421,13 @@ function AnnouncementsCard({ overview, go }: { overview: Overview; go: (to: stri
   );
 }
 
-function ActivityCard({ overview, go }: { overview: Overview; go: (to: string) => void }): React.ReactElement {
+export function ActivityCard({ overview, go }: { overview: Overview; go: (to: string) => void }): React.ReactElement {
   const events = overview.activity.slice(0, 3);
   return (
     <section className={`${card} p-[18px]`}>
       <div className="flex items-center justify-between">
         <h2 className="m-0 text-[14.5px] font-extrabold tracking-normal">Recent Activity</h2>
-        <button type="button" onClick={() => go('/attendance')} className={linkButton}>
+        <button type="button" onClick={() => go('/recent-activity')} className={linkButton}>
           View all
         </button>
       </div>
@@ -465,7 +480,7 @@ export function ManagerOverviewBody({ overview, now }: { overview: Overview; now
     <>
       {overview.showShifty && !shiftyHidden ? <ShiftyCard onOpen={() => navigate(`/schedules?week=${overview.nextWeekStart}`)} onDismiss={hideShifty} /> : null}
       <AskShiftOSCard overview={overview} now={now} onToast={(text) => show(text)} />
-      <StatsGrid overview={overview} />
+      <StatsGrid stats={overview.stats} />
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-[2_1_460px] flex-col gap-4">
           <CoveragePanel overview={overview} onOpenSchedules={() => navigate(`/schedules?week=${overview.weekStart}`)} />

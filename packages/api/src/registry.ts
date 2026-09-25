@@ -30,7 +30,7 @@ import {
   getAnnouncement, listAnnouncements, acknowledgeAnnouncement, hasAcknowledgedAnnouncement,
   listAnnouncementAcknowledgements, remindAnnouncement
 } from './operations/announcement.js';
-import { createShiftNote, listShiftNotesForShift, archiveShiftNote } from './operations/shiftNote.js';
+import { createShiftNote, listShiftNotesForShift, listBranchShiftNotes, archiveShiftNote } from './operations/shiftNote.js';
 import {
   createDepartment,
   getDepartment,
@@ -53,7 +53,7 @@ import {
 } from './operations/shiftSwap.js';
 import { getAttendanceSummaryReport, getTaskCompletionReport, getLeaveUsageReport, getOperationsSummaryReport } from './operations/reporting.js';
 import {
-  clockIn, clockOut, markAttendanceAbsent, getAttendanceRecord, listAttendanceForEmployee,
+  clockIn, clockOut, markAttendanceAbsent, markAttendance, setAttendanceNote, getAttendanceRecord, listAttendanceForEmployee,
   listMyAttendance, listAttendanceForBranchAndRange, recordAttendanceCorrection, listAttendanceCorrections
 } from './operations/attendance.js';
 import {
@@ -176,11 +176,15 @@ export function createDefaultRegistry(): RpcRegistry {
 
   registry.register(createShiftNote);
   registry.register(listShiftNotesForShift);
+  registry.register(listBranchShiftNotes);
   registry.register(archiveShiftNote);
 
   registry.register(clockIn);
   registry.register(clockOut);
   registry.register(markAttendanceAbsent);
+  // mark_attendance (PR 25) was defined but never registered, so the Attendance screen's marking failed.
+  registry.register(markAttendance);
+  registry.register(setAttendanceNote);
   registry.register(getAttendanceRecord);
   registry.register(listAttendanceForEmployee);
   registry.register(listMyAttendance);

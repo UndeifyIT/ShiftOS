@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
-import { HandoffModal, ModalField, ModalFields, modalControl } from '../../components/HandoffModal.js';
+import { HandoffModal, ModalField, ModalFields, modalControl, modalTextarea, modalSelect } from '../../components/HandoffModal.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
-import type { Department, Employee, LeaveRequest, Member, Schedule, Shift, ShiftAssignment, ShiftSwap } from '../../types/domain.js';
+import { useNavRole } from '../../layout/Sidebar.js';
+import type { Branch, Department, Employee, LeaveRequest, Member, Schedule, Shift, ShiftAssignment, ShiftSwap } from '../../types/domain.js';
 import { OverviewHeader, OverviewLoading } from '../dashboard/manager/ManagerOverview.js';
 import { LEAVE_TYPE_LABEL, weekdayDayMonth } from '../dashboard/manager/overviewModel.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
@@ -220,6 +221,10 @@ export default function RequestsPage(): React.ReactElement {
   const canRespond = hasPermission('swaps.respond');
   const canRequestSwap = hasPermission('swaps.request');
   const canCreateLeave = hasPermission('leave.create');
+  const navRole = useNavRole();
+  const { data: branchList } = useRpcQuery<Branch[]>('list_branches', undefined, { enabled: hasPermission('branches.read') });
+  const homeBranchId = useDefaultBranchId();
+  const branchLabel = (branchList ?? []).find((b) => b.id === homeBranchId)?.name ?? 'your branch';
 
   const branchId = useDefaultBranchId() ?? '';
   const scoped = branchId ? { branchId } : undefined;
@@ -469,8 +474,8 @@ export default function RequestsPage(): React.ReactElement {
   return (
     <div className="flex min-h-full flex-col text-[13px] text-[#38312B] [line-height:normal]">
       <OverviewHeader
-        title={isApprover ? 'Swap & leave requests' : 'My requests'}
-        subtitle={isApprover ? requestsSubtitle(swapViews, leaveViews) : `${swapViews.filter((v) => v.filter === 'Pending').length} swaps and ${leaveViews.filter((v) => v.filter === 'Pending').length} leave requests pending`}
+        title={isApprover ? (navRole === 'Supervisor' ? 'Requests' : 'Swap & leave requests') : 'My requests'}
+        subtitle={isApprover ? requestsSubtitle(swapViews, leaveViews, navRole === 'Supervisor' ? branchLabel : undefined) : `${swapViews.filter((v) => v.filter === 'Pending').length} swaps and ${leaveViews.filter((v) => v.filter === 'Pending').length} leave requests pending`}
         now={now}
         actions={
           canNewRequest ? (
@@ -520,11 +525,15 @@ export default function RequestsPage(): React.ReactElement {
         <ModalFields>
           <ModalField label="Reason for declining" required full>
             <textarea
-              className={`${modalControl} h-auto min-h-[84px] resize-y py-2.5 leading-[1.5]`}
+              rows={3}
+              className={modalTextarea}
               value={note}
               placeholder="Coverage cannot move between departments"
               onChange={(event) => setNote(event.target.value)}
             />
+          </ModalField>
+          <ModalField label="Notify requester">
+            <input className={modalControl} value="Yes" readOnly />
           </ModalField>
         </ModalFields>
         {errorLine}
@@ -576,7 +585,8 @@ export default function RequestsPage(): React.ReactElement {
         <ModalFields>
           <ModalField label="Reason for declining" required full>
             <textarea
-              className={`${modalControl} h-auto min-h-[84px] resize-y py-2.5 leading-[1.5]`}
+              rows={3}
+              className={modalTextarea}
               value={note}
               placeholder="Coverage cannot be arranged for those days"
               onChange={(event) => setNote(event.target.value)}
@@ -626,7 +636,7 @@ export default function RequestsPage(): React.ReactElement {
         <ModalFields>
           {!isApprover && canRequestSwap && canCreateLeave ? (
             <ModalField label="Request type" required>
-              <select className={modalControl} value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value as NewRequestDraft['type'] })}>
+              <select className={modalSelect} value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value as NewRequestDraft['type'] })}>
                 <option>Shift swap</option>
                 <option>Time off</option>
               </select>
@@ -635,7 +645,7 @@ export default function RequestsPage(): React.ReactElement {
           {draft.type === 'Shift swap' ? (
             <>
               <ModalField label="Your shift" required>
-                <select className={modalControl} value={draft.assignmentId} onChange={(event) => setDraft({ ...draft, assignmentId: event.target.value })}>
+                <select className={modalSelect} value={draft.assignmentId} onChange={(event) => setDraft({ ...draft, assignmentId: event.target.value })}>
                   <option value="">{shiftChoices.length ? 'Choose a shift' : 'No upcoming shifts'}</option>
                   {shiftChoices.map((choice) => (
                     <option key={choice.id} value={choice.id}>
@@ -645,7 +655,7 @@ export default function RequestsPage(): React.ReactElement {
                 </select>
               </ModalField>
               <ModalField label="Swap with">
-                <select className={modalControl} value={draft.targetId} onChange={(event) => setDraft({ ...draft, targetId: event.target.value })}>
+                <select className={modalSelect} value={draft.targetId} onChange={(event) => setDraft({ ...draft, targetId: event.target.value })}>
                   <option value="">Anyone in the branch</option>
                   {colleagues.map((person) => (
                     <option key={person.id} value={person.id}>
@@ -659,7 +669,7 @@ export default function RequestsPage(): React.ReactElement {
             <>
               {isApprover ? (
                 <ModalField label="Employee" required>
-                  <select className={modalControl} value={draft.employeeId} onChange={(event) => setDraft({ ...draft, employeeId: event.target.value })}>
+                  <select className={modalSelect} value={draft.employeeId} onChange={(event) => setDraft({ ...draft, employeeId: event.target.value })}>
                     <option value="">Choose a person</option>
                     {(employees ?? [])
                       .filter((e) => e.is_active && !e.deleted_at)
@@ -672,7 +682,7 @@ export default function RequestsPage(): React.ReactElement {
                 </ModalField>
               ) : null}
               <ModalField label="Leave type" required>
-                <select className={modalControl} value={draft.leaveType} onChange={(event) => setDraft({ ...draft, leaveType: event.target.value as LeaveRequest['leave_type'] })}>
+                <select className={modalSelect} value={draft.leaveType} onChange={(event) => setDraft({ ...draft, leaveType: event.target.value as LeaveRequest['leave_type'] })}>
                   {Object.entries(LEAVE_TYPE_LABEL).map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
@@ -690,7 +700,8 @@ export default function RequestsPage(): React.ReactElement {
           )}
           <ModalField label="Reason" required full>
             <textarea
-              className={`${modalControl} h-auto min-h-[84px] resize-y py-2.5 leading-[1.5]`}
+              rows={3}
+              className={modalTextarea}
               value={draft.reason}
               placeholder={draft.type === 'Shift swap' ? 'Family commitment' : 'Your supervisor sees this with the request.'}
               onChange={(event) => setDraft({ ...draft, reason: event.target.value })}

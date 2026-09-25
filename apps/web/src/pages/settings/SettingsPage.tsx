@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getCountryOptions } from '@shiftos/geography';
 import { useSession } from '../../auth/SessionProvider.js';
 import { useDefaultBranchId } from '../../auth/useDefaultBranchId.js';
+import { useNavRole } from '../../layout/Sidebar.js';
 import { HandoffModal } from '../../components/HandoffModal.js';
 import { removeAvatar, uploadUserAvatar, useSignedAvatarUrl } from '../../lib/avatars.js';
 import { supabase } from '../../lib/supabase.js';
@@ -14,13 +15,14 @@ import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToas
 import { initialsOf, TONES, type Tone } from '../scheduling/grid/scheduleFormat.js';
 import {
   ACCESS_CHIPS,
+  SUPERVISOR_ACCESS_CHIPS,
   attendanceRules,
   DAY_LABELS,
   DAYS,
   DEFAULT_HOURS,
   deviceName,
   hoursLine,
-  NOTIFICATION_ROWS,
+  notificationRows,
   passwordStrength,
   PASSWORD_RULES,
   preferenceMap,
@@ -100,6 +102,7 @@ const outlineButton = 'h-[34px] cursor-pointer rounded-[10px] border border-soli
 
 export default function SettingsPage(): React.ReactElement {
   const now = useNow();
+  const navRole = useNavRole();
   const { profile, authUser, myContext, activeOrganization, hasPermission, refresh } = useSession();
   const { toast, show, dismiss } = useScheduleToast();
   const tabs = settingsTabs(hasPermission);
@@ -299,7 +302,9 @@ export default function SettingsPage(): React.ReactElement {
     }
   };
 
-  const subtitle = [activeOrganization?.name ?? organization?.name, branch?.name].filter(Boolean).join(' · ');
+  // The Supervisor's header is the handoff's 'Main Branch · what you control'.
+  const subtitle =
+    navRole === 'Supervisor' && branch ? `${branch.name} · what you control` : [activeOrganization?.name ?? organization?.name, branch?.name].filter(Boolean).join(' · ');
 
   const profileTab = (
     <>
@@ -374,7 +379,7 @@ export default function SettingsPage(): React.ReactElement {
         <h2 className={h2}>Your role and access</h2>
         <p className="mb-3.5 mt-[5px] text-[12.5px] text-[#857A72]">Roles are granted by a manager. You can see what you have, but not change it here.</p>
         <div className="flex flex-wrap gap-2">
-          {ACCESS_CHIPS.map((chip) => {
+          {(navRole === 'Supervisor' ? SUPERVISOR_ACCESS_CHIPS : ACCESS_CHIPS).map((chip) => {
             const on = hasPermission(chip.permission);
             return (
               <span
@@ -499,11 +504,15 @@ export default function SettingsPage(): React.ReactElement {
           </div>
         ))}
       </div>
-      {hasPermission('branches.update') ? (
+      {branch ? (
         <button
           type="button"
-          disabled={!branch}
           onClick={() => {
+            // Without branches.update the hours are read-only: say who sets them rather than open an editor that can't save.
+            if (!hasPermission('branches.update')) {
+              show('Branch hours are set by a manager — ask them to change these', 'error');
+              return;
+            }
             setHoursDraft(savedHours ?? DEFAULT_HOURS);
             setHoursOpen(true);
           }}
@@ -523,7 +532,7 @@ export default function SettingsPage(): React.ReactElement {
         <span className="text-center">Email</span>
         <span className="text-center">WhatsApp</span>
       </div>
-      {NOTIFICATION_ROWS.map((row) => (
+      {notificationRows(navRole === 'Manager' || navRole === 'Supervisor' || navRole === 'Admin').map((row) => (
         <div key={row.event} className="grid grid-cols-[minmax(0,1fr)_74px_74px_74px] items-center gap-2.5 border-0 border-b border-solid border-[#F7F4F1] px-[18px] py-[13px]">
           <span className="min-w-0">
             <span className="block text-[12.5px] font-bold">{row.label}</span>

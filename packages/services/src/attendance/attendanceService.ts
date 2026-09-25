@@ -11,6 +11,7 @@ import {
 import { ValidationError, AuthorizationError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
 import { assertNonEmptyString, assertUuid } from '../validation.js';
+import { notifyBranchEvent } from '../notifications/notificationService.js';
 
 /**
  * Attendance service (backend completion pass). attendance_records/
@@ -76,11 +77,13 @@ export class AttendanceService {
       throw new ValidationError(`Cannot mark absent: attendance is already "${record.attendance_status}"`);
     }
 
-    return this.records.patch(this.context.organizationId, record.id, {
+    const updated = await this.records.patch(this.context.organizationId, record.id, {
       attendance_status: noShow ? 'no_show' : 'absent',
       notes: notes?.trim() || null,
       updated_by: this.context.userId
     } as Partial<AttendanceRecord>);
+    await this.notifyAbsence(updated);
+    return updated;
   }
 
   /**
@@ -139,7 +142,41 @@ export class AttendanceService {
     }
 
     await this.context.audit('mark_attendance', 'attendance_record', before.id, { status: before.attendance_status }, { status: input.status });
+    const wasAbsent = before.attendance_status === 'absent' || before.attendance_status === 'no_show';
+    if ((input.status === 'absent' || input.status === 'no_show') && !wasAbsent) {
+      await this.notifyAbsence(updated);
+    }
     return updated;
+  }
+
+  /** Settings → Notifications "Absences": tell whoever marks attendance in the branch, apart from the person who just did. */
+  private async notifyAbsence(record: AttendanceRecord): Promise<void> {
+    const employee = await this.employees.getByIdOrThrow(this.context.organizationId, record.employee_id);
+    const assignment = await this.assignments.getByIdOrThrow(this.context.organizationId, record.shift_assignment_id);
+    const shift = await this.shifts.getByIdOrThrow(this.context.organizationId, assignment.shift_id);
+    await notifyBranchEvent(
+      this.context.client,
+      this.context.organizationId,
+      record.branch_id,
+      'attendance.update',
+      'absences',
+      `${employee.first_name} ${employee.last_name} marked ${record.attendance_status === 'no_show' ? 'no-show' : 'absent'}`,
+      `${shift.title} · ${shift.shift_date} ${shift.start_time.slice(0, 5)}–${shift.end_time.slice(0, 5)}${record.notes ? ` · ${record.notes}` : ''}`,
+      { excludeUserId: this.context.userId }
+    );
+  }
+
+  /** The note on a record (handoff Attendance "Notes" column) — status and times stay as they are. */
+  async setNote(attendanceRecordId: string, notes: string | null): Promise<AttendanceRecord> {
+    assertUuid(attendanceRecordId, 'attendanceRecordId');
+    await this.context.requirePermission('attendance.update');
+    const record = await this.records.getByIdOrThrow(this.context.organizationId, attendanceRecordId);
+    this.context.requireBranchAccess(record.branch_id);
+    const trimmed = notes?.trim() || null;
+    if (trimmed && trimmed.length > 500) {
+      throw new ValidationError('Notes can be at most 500 characters');
+    }
+    return this.records.patch(this.context.organizationId, record.id, { notes: trimmed, updated_by: this.context.userId } as Partial<AttendanceRecord>);
   }
 
   async getRecord(recordId: string): Promise<AttendanceRecord> {

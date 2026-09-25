@@ -2,17 +2,28 @@
  * Replaces src/auth/SessionProvider.tsx inside the schedule preview only
  * (see vite.preview.config.ts). Signs in a demo Manager (org-wide, every
  * permission — the Owner role) or Supervisor (branch-scoped, migration 050's
- * permission set), chosen by the preview URL's `?as=` parameter.
+ * permission set plus the handoff's task and announcement capabilities), chosen by the preview URL's `?as=` parameter.
  */
 import React, { createContext, useContext } from 'react';
 import { PREVIEW_BRANCH_ID, PREVIEW_ORGANIZATION_ID, type PreviewRole } from './mockBackend.js';
 
+// Migration 060's Supervisor set, plus the two capabilities the handoff's Supervisor has on
+// (STNG_PERMISSIONS.Supervisor: Assign tasks, Post announcements) — a manager grants them from "Manage permissions".
 const SUPERVISOR_PERMISSIONS = [
-  'employees.read', 'employees.create', 'employees.update',
+  'branches.read', 'departments.read',
+  'employees.read', 'employees.create', 'employees.update', 'employees.archive',
   'schedules.read', 'schedules.create', 'schedules.update', 'schedules.publish', 'schedules.archive',
   'shifts.read', 'shifts.create', 'shifts.update', 'shifts.archive',
   'assignments.create', 'assignments.update', 'assignments.delete',
-  'shift_templates.read', 'shift_templates.create', 'tasks.read', 'attendance.read', 'announcements.read', 'swaps.read'
+  'swaps.read', 'swaps.request', 'swaps.respond', 'swaps.approve',
+  'tasks.read', 'tasks.complete', 'tasks.create', 'tasks.assign', 'tasks.update',
+  'announcements.read', 'announcements.acknowledge', 'announcements.create', 'announcements.publish', 'announcements.update',
+  'shiftnotes.read', 'shiftnotes.create',
+  'reports.read',
+  'attendance.clockin', 'attendance.read', 'attendance.correct', 'attendance.update',
+  'leave.read', 'leave.create', 'leave.cancel', 'leave.approve',
+  'notifications.read',
+  'shifttemplates.read', 'shifttemplates.create', 'shift_templates.read', 'shift_templates.create'
 ];
 
 const SessionContext = createContext<ReturnType<typeof buildSession> | null>(null);
@@ -29,7 +40,7 @@ function buildSession(role: PreviewRole) {
       auth_user_id: 'auth-me',
       first_name: isManager ? 'Daniel' : 'Sarah',
       last_name: isManager ? 'Okonkwo' : 'Johnson',
-      email: 'preview@example.com',
+      email: isManager ? 'preview@example.com' : 'sarah.johnson@abc.example',
       phone: null,
       job_title: isManager ? 'Manager' : 'Supervisor',
       avatar_url: null,

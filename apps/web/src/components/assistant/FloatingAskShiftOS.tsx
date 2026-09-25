@@ -2,25 +2,33 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import shiftyGuide from '../../assets/shifty-guide.png';
 import { useSession } from '../../auth/SessionProvider.js';
-import { answerQuestion, ASK_CHIPS } from '../../pages/dashboard/manager/askShiftOS.js';
+import { useNavRole } from '../../layout/Sidebar.js';
+import { answerQuestion, answerSupervisorQuestion, ASK_CHIPS, ASK_CHIPS_SUP } from '../../pages/dashboard/manager/askShiftOS.js';
 import { useManagerOverview } from '../../pages/dashboard/manager/useManagerOverview.js';
 import { ScheduleToast, useScheduleToast } from '../../pages/scheduling/grid/ScheduleToast.js';
 
 /*
  * The handoff's floating Ask ShiftOS bubble (`ShiftOS Dashboards.dc.html`
  * lines 2799-2831, showFloatingAssistant): a Shifty button in the bottom-right
- * of every Manager page except the overview, which has the full Ask ShiftOS
+ * of every Manager and Supervisor page except the home page, which has the full Ask ShiftOS
  * card. It answers from the same branch data and intents as that card.
  */
 
-function AskPanel({ onCollapse }: { onCollapse: () => void }): React.ReactElement {
+function AskPanel({ onCollapse, supervisor }: { onCollapse: () => void; supervisor: boolean }): React.ReactElement {
   const navigate = useNavigate();
+  const { hasPermission } = useSession();
+  const chips = supervisor ? ASK_CHIPS_SUP : ASK_CHIPS;
   // Loaded only while the panel is open; react-query shares the cache with the overview.
   const { overview, now, status } = useManagerOverview();
   const { toast, show, dismiss } = useScheduleToast();
   const [query, setQuery] = useState('');
   const [asked, setAsked] = useState<string | null>(null);
-  const answer = asked && overview ? answerQuestion(asked, overview, now) : null;
+  const answer =
+    asked && overview
+      ? supervisor
+        ? answerSupervisorQuestion(asked, overview, now, { editSchedules: hasPermission('schedules.update'), createTasks: hasPermission('tasks.create') })
+        : answerQuestion(asked, overview, now)
+      : null;
 
   const run = (question: string): void => {
     const trimmed = question.trim();
@@ -83,7 +91,7 @@ function AskPanel({ onCollapse }: { onCollapse: () => void }): React.ReactElemen
       </div>
 
       <div className="mt-[9px] flex flex-wrap gap-1.5">
-        {ASK_CHIPS.slice(0, 2).map((label) => (
+        {chips.slice(0, 2).map((label) => (
           <button
             key={label}
             type="button"
@@ -100,19 +108,19 @@ function AskPanel({ onCollapse }: { onCollapse: () => void }): React.ReactElemen
 }
 
 export function FloatingAskShiftOS(): React.ReactElement | null {
-  const { myContext } = useSession();
+  const role = useNavRole();
   const { pathname } = useLocation();
   const [expanded, setExpanded] = useState(false);
 
   // Handoff go(): changing page always folds the bubble back up.
   useEffect(() => setExpanded(false), [pathname]);
 
-  // Managers only (org-wide access, as RoleDashboard decides), and never on the overview itself.
-  if (!myContext?.branchAccess.isOrgWide || pathname === '/') return null;
+  // Managers and Supervisors (handoff showFloatingAssistant), and never on the home page, which has the full card.
+  if ((role !== 'Manager' && role !== 'Supervisor') || pathname === '/') return null;
 
   return (
     <div className="fixed bottom-5 right-5 z-[60] flex flex-col items-end text-[13px] [line-height:normal] max-[859px]:bottom-[84px] print:hidden">
-      {expanded ? <AskPanel onCollapse={() => setExpanded(false)} /> : null}
+      {expanded ? <AskPanel onCollapse={() => setExpanded(false)} supervisor={role === 'Supervisor'} /> : null}
       <button
         type="button"
         onClick={() => setExpanded((open) => !open)}

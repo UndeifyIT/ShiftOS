@@ -29,7 +29,18 @@ export function settingsTabs(can: (code: string) => boolean): SettingsTab[] {
   return tabs;
 }
 
-/** Handoff STNG_PERMISSIONS, each backed by the permission that grants it. */
+/** Handoff STNG_PERMISSIONS.Supervisor, each backed by the permission that grants it. */
+export const SUPERVISOR_ACCESS_CHIPS: Array<{ label: string; permission: string }> = [
+  { label: 'Manage schedules', permission: 'schedules.update' },
+  { label: 'Mark attendance', permission: 'attendance.update' },
+  { label: 'Assign tasks', permission: 'tasks.assign' },
+  { label: 'Post announcements', permission: 'announcements.create' },
+  { label: 'Approve swaps', permission: 'swaps.approve' },
+  { label: 'Organization settings', permission: 'organizations.update' },
+  { label: 'Change billing', permission: 'organizations.update' }
+];
+
+/** Handoff STNG_PERMISSIONS.Manager, each backed by the permission that grants it. */
 export const ACCESS_CHIPS: Array<{ label: string; permission: string }> = [
   { label: 'Manage schedules', permission: 'schedules.update' },
   { label: 'Mark attendance', permission: 'attendance.update' },
@@ -104,22 +115,59 @@ export function hoursLine(hours: WeekHours | null, day: Day): string {
 /** Handoff saveHours(): every open day closes after it opens. */
 export const validHours = (hours: WeekHours): boolean => DAYS.every((d) => hours[d].closed || (Boolean(hours[d].open) && Boolean(hours[d].close) && hours[d].open < hours[d].close));
 
-export type EventType = 'swap_updates' | 'leave_decisions' | 'announcement_reminders';
+export type EventType =
+  | 'swap_updates'
+  | 'leave_decisions'
+  | 'announcement_reminders'
+  | 'coverage_gaps'
+  | 'unpublished_schedule'
+  | 'absences'
+  | 'leave_requests'
+  | 'announcement_digest'
+  | 'invitations';
 export type EventChannel = 'in_app' | 'email';
 
-/** The events ShiftOS sends notifications for (067) — the handoff's "Notify me about" rows. */
-export const NOTIFICATION_ROWS: Array<{ event: EventType; label: string; body: string }> = [
+type NotificationRow = { event: EventType; label: string; body: string };
+
+/** The handoff's STNG_NOTIFICATIONS rows, word for word — what the people who run a branch are told about (071). */
+export const BRANCH_NOTIFICATION_ROWS: NotificationRow[] = [
+  { event: 'coverage_gaps', label: 'Coverage gaps', body: 'A published shift loses its last assigned person.' },
+  { event: 'unpublished_schedule', label: 'Unpublished schedule', body: 'A week is still in draft two days before it starts.' },
+  { event: 'absences', label: 'Absences', body: 'Someone is marked absent on any shift.' },
+  { event: 'leave_requests', label: 'Leave requests', body: 'Staff submit time off needing approval.' },
+  { event: 'announcement_digest', label: 'Announcement acknowledgements', body: "Weekly digest of who hasn't read what." },
+  { event: 'invitations', label: 'Invitations', body: 'An invitation is accepted or expires unused.' }
+];
+
+/** What staff are told about their own requests (067). */
+export const PERSONAL_NOTIFICATION_ROWS: NotificationRow[] = [
   { event: 'swap_updates', label: 'Shift swaps', body: 'A swap you raised is accepted, approved or declined.' },
   { event: 'leave_decisions', label: 'Leave decisions', body: 'Your time off is approved or declined.' },
   { event: 'announcement_reminders', label: 'Announcement reminders', body: 'Someone asks you to acknowledge a notice.' }
 ];
 
+/** A Manager or Supervisor gets the handoff's six rows; anyone else the three about their own requests. */
+export const notificationRows = (runsABranch: boolean): NotificationRow[] => (runsABranch ? BRANCH_NOTIFICATION_ROWS : PERSONAL_NOTIFICATION_ROWS);
+
+/** The server's defaults for switches nobody has set (handoff STNG_NOTIFICATIONS `on`). */
+export const EVENT_DEFAULTS: Record<EventType, Record<EventChannel, boolean>> = {
+  swap_updates: { in_app: true, email: true },
+  leave_decisions: { in_app: true, email: true },
+  announcement_reminders: { in_app: true, email: true },
+  coverage_gaps: { in_app: true, email: true },
+  unpublished_schedule: { in_app: true, email: true },
+  absences: { in_app: true, email: false },
+  leave_requests: { in_app: true, email: true },
+  announcement_digest: { in_app: false, email: true },
+  invitations: { in_app: true, email: false }
+};
+
 export type EventPreferences = Record<`${EventType}:${EventChannel}`, boolean>;
 
 export function preferenceMap(rows: Array<{ event_type: EventType; channel: EventChannel; is_enabled: boolean }> | undefined): EventPreferences {
   const map = {} as EventPreferences;
-  for (const { event } of NOTIFICATION_ROWS) {
-    for (const channel of ['in_app', 'email'] as const) map[`${event}:${channel}`] = true;
+  for (const event of Object.keys(EVENT_DEFAULTS) as EventType[]) {
+    for (const channel of ['in_app', 'email'] as const) map[`${event}:${channel}`] = EVENT_DEFAULTS[event][channel];
   }
   for (const row of rows ?? []) map[`${row.event_type}:${row.channel}`] = row.is_enabled;
   return map;

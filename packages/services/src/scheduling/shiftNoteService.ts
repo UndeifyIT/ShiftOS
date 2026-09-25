@@ -1,7 +1,7 @@
-import { ShiftNoteRepository, ShiftRepository, type ShiftNote } from '@shiftos/repositories';
+import { SHIFT_NOTE_CATEGORIES, ShiftNoteRepository, ShiftRepository, type ShiftNote, type ShiftNoteCategory, type ShiftNoteWithDetails } from '@shiftos/repositories';
 import { AuthorizationError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
-import { assertNonEmptyString, assertUuid } from '../validation.js';
+import { assertNonEmptyString, assertOneOf, assertUuid } from '../validation.js';
 
 /**
  * Shift Notes (backend completion pass, migration 036) — a handover/incident
@@ -19,9 +19,10 @@ export class ShiftNoteService {
     this.shifts = new ShiftRepository(context.client);
   }
 
-  async createNote(shiftId: string, note: string): Promise<ShiftNote> {
+  async createNote(shiftId: string, note: string, options: { category?: ShiftNoteCategory; includeInHandover?: boolean } = {}): Promise<ShiftNote> {
     assertUuid(shiftId, 'shiftId');
     assertNonEmptyString(note, 'note');
+    if (options.category !== undefined) assertOneOf(options.category, SHIFT_NOTE_CATEGORIES, 'category');
     await this.context.requirePermission('shiftnotes.create');
 
     const shift = await this.shifts.getByIdOrThrow(this.context.organizationId, shiftId);
@@ -31,6 +32,8 @@ export class ShiftNoteService {
       branch_id: shift.branch_id,
       shift_id: shiftId,
       note: note.trim(),
+      category: options.category ?? 'handover',
+      include_in_handover: options.includeInHandover ?? true,
       created_by: this.context.userId
     } as Partial<ShiftNote>);
   }
@@ -43,6 +46,16 @@ export class ShiftNoteService {
     this.context.requireBranchAccess(shift.branch_id);
 
     return this.notes.listForShift(this.context.organizationId, shiftId);
+  }
+
+  /** A branch's notes from the last `days` days (1–31), newest first, with their shift and author. */
+  async listNotesForBranch(branchId: string, days = 7): Promise<ShiftNoteWithDetails[]> {
+    assertUuid(branchId, 'branchId');
+    await this.context.requirePermission('shiftnotes.read');
+    this.context.requireBranchAccess(branchId);
+    const span = Math.min(31, Math.max(1, Math.round(days)));
+    const since = new Date(Date.now() - span * 86_400_000).toISOString();
+    return this.notes.listForBranchSince(this.context.organizationId, branchId, since);
   }
 
   async archiveNote(noteId: string): Promise<ShiftNote> {

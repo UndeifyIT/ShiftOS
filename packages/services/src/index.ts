@@ -26,5 +26,6 @@ export * from './communications/announcementService.js';
 export * from './attendance/attendanceService.js';
 export * from './leave/leaveRequestService.js';
 export * from './notifications/notificationService.js';
+export * from './notifications/scheduledNotifications.js';
 export * from './notifications/deliveryProvider.js';
 export * from './security/disposableEmail.js';

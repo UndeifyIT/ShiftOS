@@ -13,7 +13,6 @@ import { ValidationError, NotFoundError } from '@shiftos/errors';
 import type { ApplicationContext } from '../applicationContext.js';
 import { notifyEvent } from '../notifications/notificationService.js';
 import { assertNonEmptyString, assertUuid, assertOneOf } from '../validation.js';
-import { notify } from '../notifications/notificationService.js';
 
 const ANNOUNCEMENT_TYPES: readonly AnnouncementType[] = ['general', 'policy', 'safety', 'operational', 'emergency'];
 
@@ -24,15 +23,8 @@ export interface CreateAnnouncementInput {
   content: string;
   announcementType?: AnnouncementType;
   expiresAt?: string | null;
-<<<<<<< HEAD
-  /** 067 — sits at the top of the list, in its own card. */
-  isPinned?: boolean;
-  /** 067 — whether recipients are asked to acknowledge it. */
-  requiresAcknowledgement?: boolean;
-=======
   /** Migration 066: pin it to the top of the list. */
   isPinned?: boolean;
->>>>>>> origin/main
 }
 
 export interface UpdateAnnouncementInput {
@@ -41,18 +33,6 @@ export interface UpdateAnnouncementInput {
   announcementType?: AnnouncementType;
   expiresAt?: string | null;
   isPinned?: boolean;
-<<<<<<< HEAD
-  requiresAcknowledgement?: boolean;
-}
-
-/** One recipient's line in the receipts panel. */
-export interface AnnouncementReceipt {
-  employeeId: string;
-  name: string;
-  departmentId: string | null;
-  email: string | null;
-  acknowledgedAt: string | null;
-=======
 }
 
 export interface AnnouncementReminderResult {
@@ -60,7 +40,6 @@ export interface AnnouncementReminderResult {
   reminded: number;
   /** Outstanding recipients with no ShiftOS login to remind (no user with their email). */
   undelivered: number;
->>>>>>> origin/main
 }
 
 /** Communications service (backend completion pass) — the announcements domain had a full table/repository layer (014) but no permission codes, service, or API until now. */
@@ -100,12 +79,7 @@ export class AnnouncementService {
       announcement_type: input.announcementType ?? 'general',
       visibility_type: visibilityType,
       is_published: false,
-<<<<<<< HEAD
-      is_pinned: input.isPinned ?? false,
-      requires_acknowledgement: input.requiresAcknowledgement ?? false,
-=======
       is_pinned: input.isPinned === true,
->>>>>>> origin/main
       expires_at: input.expiresAt ?? null,
       created_by: this.context.userId
     } as Partial<Announcement>);
@@ -129,10 +103,6 @@ export class AnnouncementService {
     if (input.announcementType !== undefined) changes.announcement_type = input.announcementType;
     if (input.expiresAt !== undefined) changes.expires_at = input.expiresAt;
     if (input.isPinned !== undefined) changes.is_pinned = input.isPinned;
-<<<<<<< HEAD
-    if (input.requiresAcknowledgement !== undefined) changes.requires_acknowledgement = input.requiresAcknowledgement;
-=======
->>>>>>> origin/main
 
     if (Object.keys(changes).length === 0) {
       throw new ValidationError('No changes supplied');
@@ -270,69 +240,6 @@ export class AnnouncementService {
    * receipts panel. Recipients are the active employees of its audience: one
    * branch, or every branch the caller can see for an organization-wide post.
    */
-  async listReceipts(announcementId: string): Promise<AnnouncementReceipt[]> {
-    assertUuid(announcementId, 'announcementId');
-    await this.context.requirePermission('announcements.read');
-    await this.context.requirePermission('employees.read');
-
-    const announcement = await this.getScoped(announcementId);
-    const branchIds = this.context.resolveBranchScope(announcement.branch_id ?? undefined);
-    const employees = (await this.employees.listByBranches(this.context.organizationId, branchIds)).filter(
-      (employee) => employee.is_active && !employee.deleted_at
-    );
-    const acknowledgements = await this.acknowledgements.listForAnnouncement(this.context.organizationId, announcementId);
-    const acknowledgedAt = new Map(acknowledgements.map((row) => [row.employee_id, row.acknowledged_at]));
-
-    return employees.map((employee) => ({
-      employeeId: employee.id,
-      name: `${employee.first_name} ${employee.last_name}`.trim(),
-      departmentId: employee.department_id ?? null,
-      email: employee.email ?? null,
-      acknowledgedAt: acknowledgedAt.get(employee.id) ?? null
-    }));
-  }
-
-  /**
-   * Nudges everyone who has not acknowledged yet. The in-app notification is
-   * the delivery this system can actually make good on, so that is what is
-   * written; the count of people it could not reach (no ShiftOS login) comes
-   * back rather than being quietly dropped.
-   */
-  async remindUnacknowledged(announcementId: string): Promise<{ reminded: number; unreachable: number }> {
-    assertUuid(announcementId, 'announcementId');
-    await this.context.requirePermission('announcements.update');
-
-    const announcement = await this.getScoped(announcementId);
-    if (!announcement.is_published) {
-      throw new ValidationError('Publish the announcement before reminding anyone about it');
-    }
-
-    const outstanding = (await this.listReceipts(announcementId)).filter((receipt) => receipt.acknowledgedAt === null);
-    let reminded = 0;
-    let unreachable = 0;
-
-    for (const receipt of outstanding) {
-      const user = receipt.email ? await this.users.findByEmail(receipt.email) : null;
-      if (!user) {
-        unreachable += 1;
-        continue;
-      }
-      await notify(
-        this.context.client,
-        this.context.organizationId,
-        user.id,
-        'Please acknowledge an announcement',
-        announcement.title,
-        'normal'
-      );
-      reminded += 1;
-    }
-
-    await this.context.audit('remind_announcement', 'announcement', announcementId, null, { reminded, unreachable });
-    return { reminded, unreachable };
-  }
-
-  /** Branch-visibility-aware fetch: an org-wide announcement (branch_id null) is always in scope; a branch-specific one requires access to that branch. */
   private async getScoped(announcementId: string): Promise<Announcement> {
     const announcement = await this.announcements.getById(this.context.organizationId, announcementId);
     if (!announcement) {

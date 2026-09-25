@@ -42,6 +42,7 @@ export * from './scheduling/shiftSwapRequestRepository.js';
 export * from './reporting/reportingRepository.js';
 export * from './notifications/notificationPreferenceRepository.js';
 export * from './notifications/notificationEventPreferenceRepository.js';
+export * from './notifications/notificationDispatchRepository.js';
 export * from './notifications/notificationDeliveryAttemptRepository.js';
 
 // Attendance

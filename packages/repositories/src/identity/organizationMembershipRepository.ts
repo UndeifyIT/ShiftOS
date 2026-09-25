@@ -35,6 +35,35 @@ export class OrganizationMembershipRepository extends TenantScopedRepository<Org
    * ShiftAssignmentRepository.listForShifts) applies here: a member
    * administration screen should never fan out a query per row.
    */
+  /**
+   * The users in this organization whose role grants `permissionCode` and who
+   * can work in `branchId` — org-wide roles, or an explicit branch grant (021).
+   * Who "runs the branch" for a notification: e.g. leave.approve for a new
+   * leave request, attendance.update for an absence.
+   */
+  async findUserIdsWithBranchPermission(organizationId: string, branchId: string, permissionCode: string): Promise<string[]> {
+    const rows = await this.client.query<{ user_id: string }>(
+      `SELECT DISTINCT om.user_id
+         FROM organization_memberships om
+         JOIN roles r ON r.id = om.role_id AND r.organization_id = om.organization_id AND r.deleted_at IS NULL
+         JOIN role_permissions rp ON rp.role_id = r.id
+         JOIN permissions p ON p.id = rp.permission_id AND p.is_active = true
+        WHERE om.organization_id = $1
+          AND om.is_active = true
+          AND om.deleted_at IS NULL
+          AND p.code = $3
+          AND (
+            r.grants_org_wide_branch_access = true
+            OR EXISTS (
+              SELECT 1 FROM organization_member_branch_access a
+               WHERE a.membership_id = om.id AND a.branch_id = $2 AND a.deleted_at IS NULL
+            )
+          )`,
+      [organizationId, branchId, permissionCode]
+    );
+    return rows.map((row) => row.user_id);
+  }
+
   async listWithUserAndRole(organizationId: string): Promise<MembershipWithDetails[]> {
     return this.client.query<MembershipWithDetails>(
       `SELECT om.*, u.email AS user_email, u.first_name AS user_first_name, u.last_name AS user_last_name, r.name AS role_name
