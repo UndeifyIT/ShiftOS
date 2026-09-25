@@ -10,9 +10,9 @@ import type { Announcement, Employee, LeaveRequest, ShiftSwap } from '../../type
  */
 
 /** The signed-in person's own employee record (null when their login isn't linked to one yet), and the branch's people it was found among. */
-export function useMyEmployee(): { employee: Employee | null; employees: Employee[]; loading: boolean } {
+export function useMyEmployee(enabled = true): { employee: Employee | null; employees: Employee[]; loading: boolean } {
   const { profile, hasPermission } = useSession();
-  const { data, isLoading } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: hasPermission('employees.read') });
+  const { data, isLoading } = useRpcQuery<Employee[]>('list_employees', undefined, { enabled: enabled && hasPermission('employees.read') });
   const email = profile?.email?.toLowerCase() ?? '';
   const employees = useMemo(() => data ?? [], [data]);
   const employee = useMemo(() => employees.find((e) => !e.deleted_at && Boolean(e.email) && e.email!.toLowerCase() === email) ?? null, [employees, email]);
