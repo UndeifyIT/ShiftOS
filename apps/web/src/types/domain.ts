@@ -191,6 +191,12 @@ export interface Member {
   user_first_name: string;
   user_last_name: string;
   role_name: string;
+  /** The member's own job title and phone (list_members joins them in). */
+  user_job_title?: string | null;
+  user_phone?: string | null;
+  /** True when the role reaches every branch (Owner/Manager); otherwise branch_ids lists the explicit grants. */
+  role_org_wide?: boolean;
+  branch_ids?: string[];
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

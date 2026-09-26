@@ -17,6 +17,17 @@ const HIGHLIGHT: AuthHighlight = {
   body: 'Role, branch and permissions were set by the person who invited you.'
 };
 
+/** The Auth handoff's "Admin Invitation" screen: an Admin oversees the subscription and branches rather than running the day-to-day. */
+const ADMIN_HIGHLIGHT: AuthHighlight = {
+  icon: ShieldCheck,
+  title: "Admins don't run daily operations",
+  body: "You'll oversee subscription and branches — Managers keep running the day-to-day."
+};
+
+function isAdminInvitation(invitation: { role_name: string } | null): boolean {
+  return Boolean(invitation && /admin/i.test(invitation.role_name));
+}
+
 interface PendingInvitation {
   organization_name: string;
   role_name: string;
@@ -31,6 +42,8 @@ type View = 'loading' | 'form' | 'expired' | 'used' | 'revoked' | 'not-found' | 
 
 /** See the mount effect's own comment for why this needs to survive a remount. */
 const ACCEPTED_SESSION_KEY = 'shiftos.acceptInvitation.justAccepted';
+/** The flag's value when the accepted invitation was an Admin's, so the remounted success view keeps the Admin copy. */
+const ACCEPTED_AS_ADMIN = 'admin';
 
 /**
  * SHARED-005 — Accept Invitation / Account Setup (WF-002). The invite email
@@ -51,6 +64,7 @@ export default function AcceptInvitationPage(): React.ReactElement {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [acceptedAsAdmin, setAcceptedAsAdmin] = useState(false);
   // Guards the hash-error branch below against running more than once. The
   // branch is not naturally idempotent: it strips the error out of the URL
   // via history.replaceState as a side effect, so a second invocation of
@@ -77,7 +91,9 @@ export default function AcceptInvitationPage(): React.ReactElement {
     // submission appear to silently do nothing. sessionStorage (unlike
     // component state or a ref) survives that remount, so a fresh mount can
     // recognize "we already succeeded" before ever hitting the network.
-    if (window.sessionStorage.getItem(ACCEPTED_SESSION_KEY) === '1') {
+    const accepted = window.sessionStorage.getItem(ACCEPTED_SESSION_KEY);
+    if (accepted === '1' || accepted === ACCEPTED_AS_ADMIN) {
+      setAcceptedAsAdmin(accepted === ACCEPTED_AS_ADMIN);
       setView('success');
       return;
     }
@@ -166,7 +182,8 @@ export default function AcceptInvitationPage(): React.ReactElement {
       // Written before setView so it's already in place if the USER_UPDATED
       // event this same call fires (see the mount effect's comment) causes a
       // remount before this render even commits.
-      window.sessionStorage.setItem(ACCEPTED_SESSION_KEY, '1');
+      window.sessionStorage.setItem(ACCEPTED_SESSION_KEY, isAdminInvitation(invitation) ? ACCEPTED_AS_ADMIN : '1');
+      setAcceptedAsAdmin(isAdminInvitation(invitation));
       setView('success');
     } catch (err) {
       if (isNetworkError(err)) setView('network-error');
@@ -176,25 +193,43 @@ export default function AcceptInvitationPage(): React.ReactElement {
     }
   };
 
-  const benefits: AuthBenefit[] = invitation
-    ? [
-        { icon: Building2, title: invitation.organization_name, body: invitation.branch_names.join(', ') || 'All branches' },
-        { icon: ShieldCheck, title: `${invitation.role_name} role`, body: 'Access scoped by your organization.' },
-        { icon: Clock3, title: 'Invitation valid 7 days', body: `Expires ${new Date(invitation.expires_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}.` },
-        { icon: User, title: 'Invited by', body: `${invitation.invited_by_name}.` }
-      ]
-    : [];
+  const admin = isAdminInvitation(invitation);
+  const expires = invitation ? new Date(invitation.expires_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const branchCount = invitation?.branch_names.length ?? 0;
+  const benefits: AuthBenefit[] = !invitation
+    ? []
+    : admin
+      ? [
+          {
+            icon: Building2,
+            title: invitation.organization_name,
+            body: branchCount ? `${branchCount} ${branchCount === 1 ? 'branch' : 'branches'} · ${invitation.branch_names.join(', ')}` : 'Every branch in the organization'
+          },
+          { icon: ShieldCheck, title: 'Admin role', body: 'Subscription, billing and branch oversight' },
+          { icon: Clock3, title: 'Invitation valid 7 days', body: `Expires ${expires}` },
+          { icon: User, title: 'Invited by', body: invitation.invited_by_name }
+        ]
+      : [
+          { icon: Building2, title: invitation.organization_name, body: invitation.branch_names.join(', ') || 'All branches' },
+          { icon: ShieldCheck, title: `${invitation.role_name} role`, body: 'Access scoped by your organization.' },
+          { icon: Clock3, title: 'Invitation valid 7 days', body: `Expires ${expires}.` },
+          { icon: User, title: 'Invited by', body: `${invitation.invited_by_name}.` }
+        ];
 
   return (
     <AuthShell
-      eyebrow="You've been invited"
-      title="Join Your Team on"
+      eyebrow={admin ? "You've been invited as an Admin" : "You've been invited"}
+      title={admin ? 'Oversee Your Organization on' : 'Join Your Team on'}
       accent="ShiftOS"
-      body="Your manager has invited you to a ShiftOS organization. Set a password to activate your account."
-      highlight={HIGHLIGHT}
+      body={
+        admin && invitation
+          ? `${invitation.organization_name} invited you to manage their ShiftOS subscription and view organization-wide branch information.`
+          : 'Your manager has invited you to a ShiftOS organization. Set a password to activate your account.'
+      }
+      highlight={admin ? ADMIN_HIGHLIGHT : HIGHLIGHT}
       benefits={benefits}
       topRightPrompt="Not your invitation?"
-      topRightLinkLabel="Contact your manager"
+      topRightLinkLabel={admin && invitation ? `Contact ${invitation.invited_by_name}` : 'Contact your manager'}
     >
       {view === 'loading' ? (
         <div className="py-16 text-center text-sm text-neutral-400">Checking your invitation…</div>
@@ -243,7 +278,7 @@ export default function AcceptInvitationPage(): React.ReactElement {
           icon={Clock3}
           tone="warn"
           title="This invitation has expired"
-          body={`Invitations are valid for 7 days. Ask ${invitation?.invited_by_name ?? 'your manager'} to send a new one — your place on the team is unaffected.`}
+          body={`${admin ? 'Admin invitations' : 'Invitations'} are valid for 7 days. Ask ${invitation?.invited_by_name ?? 'your manager'} to send a new one — your place on the team is unaffected.`}
           ctaLabel="Back to sign in"
           onCta={() => navigate('/sign-in')}
         />
@@ -252,7 +287,7 @@ export default function AcceptInvitationPage(): React.ReactElement {
           icon={XCircle}
           tone="bad"
           title="This invitation was already accepted"
-          body="An account already exists for this email. Sign in instead, or reset your password if you've forgotten it."
+          body={`${admin ? 'An Admin account' : 'An account'} already exists for this email. Sign in instead, or reset your password if you've forgotten it.`}
           ctaLabel="Go to sign in"
           onCta={() => navigate('/sign-in')}
           secondaryLabel="Reset password"
@@ -272,20 +307,36 @@ export default function AcceptInvitationPage(): React.ReactElement {
           icon={CheckCircle2}
           tone="ok"
           title="Welcome to ShiftOS"
-          body="Your account is active. Next, complete your profile so your team can recognize you."
-          ctaLabel="Complete profile →"
+          body={
+            acceptedAsAdmin
+              ? "Your Admin account is active. You'll land on your organization overview — branches, leadership and subscription in one place."
+              : 'Your account is active. Next, complete your profile so your team can recognize you.'
+          }
+          ctaLabel={acceptedAsAdmin ? 'Go to Admin dashboard →' : 'Complete profile →'}
           onCta={() => {
             // Clears the flag the mount effect above checks -- without this,
             // a later, unrelated invitation accepted in the same browser tab
             // session would skip straight to 'success' without ever
             // checking that invitation's own real status.
             window.sessionStorage.removeItem(ACCEPTED_SESSION_KEY);
-            navigate('/complete-profile');
+            // Until the profile exists every route renders Complete Profile
+            // (App.tsx), so the Admin's '/' passes through it first and then
+            // lands on the Admin overview.
+            navigate(acceptedAsAdmin ? '/' : '/complete-profile');
           }}
+          secondaryLabel={acceptedAsAdmin ? 'Complete profile' : undefined}
+          onSecondary={
+            acceptedAsAdmin
+              ? () => {
+                  window.sessionStorage.removeItem(ACCEPTED_SESSION_KEY);
+                  navigate('/complete-profile');
+                }
+              : undefined
+          }
         />
       ) : (
         <>
-          <h2 className="text-center text-[22px] font-extrabold tracking-[-0.02em] text-neutral-900">Accept your invitation</h2>
+          <h2 className="text-center text-[22px] font-extrabold tracking-[-0.02em] text-neutral-900">{admin ? 'Accept your Admin invitation' : 'Accept your invitation'}</h2>
           <p className="mt-2 text-center text-[13px] text-neutral-500">Set a password to activate your ShiftOS account.</p>
 
           {invitation ? (
@@ -302,7 +353,7 @@ export default function AcceptInvitationPage(): React.ReactElement {
                 <span className="block truncate text-[13px] font-extrabold text-neutral-900">{invitation.organization_name}</span>
                 <span className="block truncate text-xs text-neutral-500">
                   {invitation.role_name}
-                  {invitation.branch_names.length ? ` · ${invitation.branch_names.join(', ')}` : ''} · invited by{' '}
+                  {!admin && invitation.branch_names.length ? ` · ${invitation.branch_names.join(', ')}` : ''} · invited by{' '}
                   {invitation.invited_by_name}
                 </span>
               </span>

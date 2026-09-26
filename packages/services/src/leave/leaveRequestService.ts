@@ -191,7 +191,8 @@ export class LeaveRequestService {
 
   /** Every leave request in a branch, decided ones included — same permission as the pending queue. */
   async listForBranch(requestedBranchId?: string, options?: { limit?: number; offset?: number }): Promise<LeaveRequest[]> {
-    await this.context.requirePermission('leave.approve');
+    // Approvers, and read-only oversight (reports.read — Managers, Supervisors, Admins): the Admin console's Requests tab.
+    if (!(await this.context.hasPermission('leave.approve'))) await this.context.requirePermission('reports.read');
     const branchIds = this.context.resolveBranchScope(requestedBranchId);
     return this.leaveRequests.findForBranches(this.context.organizationId, branchIds, options);
   }

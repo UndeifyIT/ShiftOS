@@ -75,13 +75,22 @@ export const STAFF_NAV_ITEMS: NavItem[] = [
 
 export type NavRole = 'Manager' | 'Supervisor' | 'Admin' | 'Staff';
 
-/** The sidebar's role label (handoff roleLabel): org-wide is the Manager; a branch role that runs the schedule is a Supervisor. */
+const RUNS_OPERATIONS = ['employees.create', 'employees.update', 'schedules.create', 'schedules.update'];
+
+/**
+ * Which of the handoff's experiences a person gets, from what they can do:
+ * org-wide access is the Manager; someone who manages members but runs no
+ * schedules or employees is an Admin (the standalone Admin console — 048/072);
+ * a branch role that runs the schedule or the team is a Supervisor; anyone
+ * else is Staff.
+ */
 export function useNavRole(): NavRole {
   const { myContext } = useSession();
   if (myContext?.branchAccess.isOrgWide) return 'Manager';
   const permissions = myContext?.permissions ?? [];
-  if (['employees.create', 'employees.update', 'schedules.create', 'branches.update'].some((code) => permissions.includes(code))) return 'Supervisor';
-  if (permissions.includes('org.members.manage')) return 'Admin';
+  const runsOperations = RUNS_OPERATIONS.some((code) => permissions.includes(code));
+  if (permissions.includes('org.members.manage') && !runsOperations) return 'Admin';
+  if (runsOperations) return 'Supervisor';
   return 'Staff';
 }
 

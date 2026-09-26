@@ -1,32 +1,21 @@
 import React from 'react';
-import { useSession } from '../../auth/SessionProvider.js';
+import { useNavRole } from '../../layout/Sidebar.js';
 import ManagerDashboardPage from './ManagerDashboardPage.js';
 import SupervisorDashboardPage from './SupervisorDashboardPage.js';
 import MyShiftPage from '../staff/MyShiftPage.js';
-
-const SUPERVISOR_SIGNAL_PERMISSIONS = ['employees.create', 'employees.update', 'schedules.create', 'branches.update'];
+import AdminOverviewPage from '../adminConsole/AdminOverviewPage.js';
 
 /**
- * Picks Manager / Supervisor / Staff by real capability signals from
- * ApplicationContext (never a role-name check, per task §21/§9): org-wide
- * branch access means Manager; branch-scoped access with at least one
- * management permission means Supervisor; anything else (read-only or no
- * management permission) means Staff. Today only the "Owner" role exists out
- * of the box (no create_role RPC yet — see the final gap report), so in
- * practice every live organization currently lands on the Manager dashboard;
- * this still resolves correctly the moment additional roles exist.
+ * The home page for each of the handoff's experiences, picked by real
+ * capability signals (useNavRole — never a role-name check): org-wide access
+ * is the Manager's overview; a member-managing role that runs no operations is
+ * the Admin console's Overview; a role that runs schedules or the team is the
+ * Supervisor's Today's Shift; anyone else gets Staff's My Shift.
  */
 export default function RoleDashboard(): React.ReactElement {
-  const { myContext } = useSession();
-  const isOrgWide = myContext?.branchAccess.isOrgWide ?? false;
-  const hasBranchAccess = (myContext?.branchAccess.branchIds.length ?? 0) > 0;
-  const hasSupervisorSignal = SUPERVISOR_SIGNAL_PERMISSIONS.some((permission) => myContext?.permissions.includes(permission));
-
-  if (isOrgWide) {
-    return <ManagerDashboardPage />;
-  }
-  if (hasBranchAccess && hasSupervisorSignal) {
-    return <SupervisorDashboardPage />;
-  }
+  const role = useNavRole();
+  if (role === 'Manager') return <ManagerDashboardPage />;
+  if (role === 'Admin') return <AdminOverviewPage />;
+  if (role === 'Supervisor') return <SupervisorDashboardPage />;
   return <MyShiftPage />;
 }

@@ -1,3 +1,4 @@
+import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -17,6 +18,14 @@ import { defineConfig } from 'vitest/config';
  * `pnpm test` (the root `pretest` script does this automatically).
  */
 export default defineConfig({
+  // apps/web resolves this workspace package by alias (apps/web/vite.config.ts)
+  // rather than through node_modules, so unit tests of web models that use it
+  // need the same alias.
+  resolve: {
+    alias: {
+      '@shiftos/geography': fileURLToPath(new URL('./packages/geography/src', import.meta.url))
+    }
+  },
   test: {
     environment: 'node',
     include: ['packages/tests/**/*.test.ts'],

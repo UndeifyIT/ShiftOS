@@ -46,8 +46,11 @@ const ShiftNotesPage = lazy(() => import('./pages/shiftNotes/ShiftNotesPage.js')
 const ReportsPage = lazy(() => import('./pages/reports/ReportsPage.js'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage.js'));
 const OrganizationSettingsPage = lazy(() => import('./pages/organization/OrganizationSettingsPage.js'));
-const BranchListPage = lazy(() => import('./pages/branches/BranchListPage.js'));
+const RoleBranches = import('./pages/adminConsole/RoleBranches.js');
+const RoleBranchList = lazy(() => RoleBranches.then((m) => ({ default: m.RoleBranchList })));
+const RoleBranchDetail = lazy(() => RoleBranches.then((m) => ({ default: m.RoleBranchDetail })));
 const BranchDetailPage = lazy(() => import('./pages/branches/BranchDetailPage.js'));
+const AdminSubscriptionPage = lazy(() => import('./pages/adminConsole/AdminSubscriptionPage.js'));
 const EmployeeDirectoryPage = lazy(() => import('./pages/employees/EmployeeDirectoryPage.js'));
 const EmployeeProfilePage = lazy(() => import('./pages/employees/EmployeeProfilePage.js'));
 const AddEmployeePage = lazy(() => import('./pages/employees/AddEmployeePage.js'));
@@ -279,10 +282,11 @@ function AppShellRoutes(): React.ReactElement {
         <Route path="/requests" element={<RequestsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/subscription" element={<AdminSubscriptionPage />} />
         <Route path="/organization" element={<OrganizationSettingsPage />} />
-        <Route path="/branches" element={<BranchListPage />} />
+        <Route path="/branches" element={<RoleBranchList />} />
         <Route path="/branches/new" element={<BranchDetailPage />} />
-        <Route path="/branches/:branchId" element={<BranchDetailPage />} />
+        <Route path="/branches/:branchId" element={<RoleBranchDetail />} />
         <Route path="/employees" element={<EmployeeDirectoryPage />} />
         <Route path="/employees/new" element={<AddEmployeePage />} />
         <Route path="/employees/import" element={<ImportEmployeesPage />} />

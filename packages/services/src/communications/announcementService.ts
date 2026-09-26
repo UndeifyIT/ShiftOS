@@ -178,7 +178,8 @@ export class AnnouncementService {
    */
   async listAcknowledgements(announcementId: string): Promise<AnnouncementAcknowledgement[]> {
     assertUuid(announcementId, 'announcementId');
-    await this.context.requirePermission('announcements.update');
+    // Authors, and read-only oversight (reports.read — Managers, Supervisors, Admins): the Admin console's Announcements tab.
+    if (!(await this.context.hasPermission('announcements.update'))) await this.context.requirePermission('reports.read');
     const announcement = await this.getScoped(announcementId);
     return this.acknowledgements.listForAnnouncement(this.context.organizationId, announcement.id);
   }

@@ -239,7 +239,8 @@ export class ShiftSwapService {
    * Same permission as the pending queue.
    */
   async listBranchSwaps(requestedBranchId?: string): Promise<ShiftSwapWithShift[]> {
-    await this.context.requirePermission('swaps.approve');
+    // Approvers, and read-only oversight (reports.read — Managers, Supervisors, Admins): the Admin console's Requests tab.
+    if (!(await this.context.hasPermission('swaps.approve'))) await this.context.requirePermission('reports.read');
     const branchIds = this.context.resolveBranchScope(requestedBranchId);
     return this.swaps.listForBranchesWithShift(this.context.organizationId, branchIds);
   }

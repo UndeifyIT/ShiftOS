@@ -7,6 +7,7 @@ import { TopBar } from './TopBar.js';
 import { useSession } from '../auth/SessionProvider.js';
 import { FloatingAskShiftOS } from '../components/assistant/FloatingAskShiftOS.js';
 import { RouteErrorBoundary } from './RouteErrorBoundary.js';
+import { AdminShell } from '../pages/adminConsole/AdminShell.js';
 
 /**
  * UI-003 §5 Application Shell + UI-010 §6 navigation adaptation: a
@@ -167,6 +168,11 @@ function DisposableEmailNotice(): React.ReactElement | null {
 }
 
 export function AppShell(): React.ReactElement {
+  // Admins get the handoff's standalone console, with its own sidebar and no top bar.
+  return useNavRole() === 'Admin' ? <AdminShell /> : <StandardShell />;
+}
+
+function StandardShell(): React.ReactElement {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // Keyed by path so a page that failed doesn't keep its error after navigating away.
   const { pathname } = useLocation();

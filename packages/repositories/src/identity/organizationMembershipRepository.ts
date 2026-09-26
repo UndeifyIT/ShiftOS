@@ -17,6 +17,12 @@ export interface MembershipWithDetails extends OrganizationMembership {
   user_first_name: string;
   user_last_name: string;
   role_name: string;
+  /** The member's job title and phone, for the Admin console's leadership cards. */
+  user_job_title?: string | null;
+  user_phone?: string | null;
+  /** True when the role reaches every branch (Owner/Manager); otherwise branch_ids lists the explicit grants (021). */
+  role_org_wide?: boolean;
+  branch_ids?: string[];
 }
 
 export class OrganizationMembershipRepository extends TenantScopedRepository<OrganizationMembership> {
@@ -66,7 +72,9 @@ export class OrganizationMembershipRepository extends TenantScopedRepository<Org
 
   async listWithUserAndRole(organizationId: string): Promise<MembershipWithDetails[]> {
     return this.client.query<MembershipWithDetails>(
-      `SELECT om.*, u.email AS user_email, u.first_name AS user_first_name, u.last_name AS user_last_name, r.name AS role_name
+      `SELECT om.*, u.email AS user_email, u.first_name AS user_first_name, u.last_name AS user_last_name, r.name AS role_name,
+              u.job_title AS user_job_title, u.phone AS user_phone, r.grants_org_wide_branch_access AS role_org_wide,
+              COALESCE((SELECT array_agg(a.branch_id) FROM organization_member_branch_access a WHERE a.membership_id = om.id AND a.deleted_at IS NULL), '{}') AS branch_ids
          FROM organization_memberships om
          JOIN users u ON u.id = om.user_id
          JOIN roles r ON r.id = om.role_id

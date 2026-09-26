@@ -9,6 +9,8 @@ import { supabase } from '../../lib/supabase.js';
 import { useRpcMutation, useRpcQuery } from '../../lib/useRpc.js';
 import type { Branch, Department, Employee, Organization, Role } from '../../types/domain.js';
 import { OverviewHeader } from '../dashboard/manager/ManagerOverview.js';
+import { AdminPage } from '../adminConsole/AdminShell.js';
+import { Segmented } from '../adminConsole/adminUi.js';
 import { useNow } from '../dashboard/manager/useManagerOverview.js';
 import { DialogNote } from '../people/RolePeopleTable.js';
 import { ScheduleToast, useScheduleToast } from '../scheduling/grid/ScheduleToast.js';
@@ -99,6 +101,21 @@ function Toggle({ on, label, disabled, onClick }: { on: boolean; label: string; 
   );
 }
 
+/** The Admin console's "Your role and access" (grantedPerms / deniedPerms), each backed by the permission behind it. */
+const ADMIN_ACCESS: Array<{ label: string; permission: string }> = [
+  { label: 'Manage subscription', permission: 'organizations.update' },
+  { label: 'View branches', permission: 'branches.read' },
+  { label: 'Add branches', permission: 'branches.create' },
+  { label: 'View branch leadership', permission: 'org.members.manage' },
+  { label: 'View organization overview', permission: 'organizations.read' }
+];
+const ADMIN_NOT_INCLUDED: Array<{ label: string; permission: string }> = [
+  { label: 'Manage schedules', permission: 'schedules.update' },
+  { label: 'Manage employees', permission: 'employees.update' },
+  { label: 'Approve leave', permission: 'leave.approve' },
+  { label: 'Manage attendance', permission: 'attendance.update' }
+];
+
 const outlineButton = 'h-[34px] cursor-pointer rounded-[10px] border border-solid bg-white px-[13px] font-[inherit] text-[12px] font-bold';
 
 export default function SettingsPage(): React.ReactElement {
@@ -108,7 +125,13 @@ export default function SettingsPage(): React.ReactElement {
   const { toast, show, dismiss } = useScheduleToast();
   // Staff get the handoff's "My profile" (PAGES["Staff/Profile"]): the Profile tab alone, read-only — their record is kept by their supervisor.
   const isStaff = navRole === 'Staff';
-  const tabs: SettingsTab[] = isStaff ? ['Profile'] : settingsTabs(hasPermission);
+  // Admins get the Admin console's Settings (ShiftOS Admin.dc.html SETTINGS_TABS): Profile, Organization, Security, Billing.
+  const isAdmin = navRole === 'Admin';
+  const tabs: SettingsTab[] = isStaff
+    ? ['Profile']
+    : isAdmin
+      ? (['Profile', 'Organization', 'Security', 'Billing'] as SettingsTab[]).filter((t) => t !== 'Organization' || hasPermission('organizations.read'))
+      : settingsTabs(hasPermission);
   const { employee: myEmployee } = useMyEmployee(isStaff);
   const employeePhotoUrl = useSignedAvatarUrl(isStaff ? myEmployee?.avatar_url : null);
   const [tab, setTab] = useState<SettingsTab>('Profile');
@@ -444,6 +467,29 @@ export default function SettingsPage(): React.ReactElement {
         </div>
       </section>
 
+      {isAdmin ? (
+        <section className={`${card} p-5`}>
+          <h2 className={h2}>Your role and access</h2>
+          <p className="mb-3.5 mt-[5px] text-[12.5px] text-[#857A72]">Admins oversee the organization and subscription — day-to-day operations stay with Managers and Supervisors.</p>
+          <div className="flex flex-wrap gap-2">
+            {ADMIN_ACCESS.filter((chip) => hasPermission(chip.permission)).map((chip) => (
+              <span key={chip.label} className="inline-flex items-center gap-2 rounded-full border border-solid border-[#BFE6CF] bg-[#E9F7EF] px-[13px] py-2 text-[12px] font-bold text-[#1E6B45]">
+                <span className="flex size-4 flex-none items-center justify-center rounded-full bg-[#2E9E62] text-[9px] font-extrabold text-white">✓</span>
+                {chip.label}
+              </span>
+            ))}
+          </div>
+          <p className="mb-2 mt-4 text-[11px] font-extrabold uppercase tracking-[.06em] text-[#A79C93]">Not included</p>
+          <div className="flex flex-wrap gap-2">
+            {ADMIN_NOT_INCLUDED.filter((chip) => !hasPermission(chip.permission)).map((chip) => (
+              <span key={chip.label} className="inline-flex items-center gap-2 rounded-full border border-solid border-[#F3C6BD] bg-[#FCEDEA] px-[13px] py-2 text-[12px] font-bold text-[#8E2A17]">
+                <span className="flex size-4 flex-none items-center justify-center rounded-full bg-[#C93A22] text-[9px] font-extrabold text-white">✕</span>
+                {chip.label}
+              </span>
+            ))}
+          </div>
+        </section>
+      ) : (
       <section className={`${card} p-5`}>
         <h2 className={h2}>Your role and access</h2>
         <p className="mb-3.5 mt-[5px] text-[12.5px] text-[#857A72]">Roles are granted by a manager. You can see what you have, but not change it here.</p>
@@ -467,6 +513,7 @@ export default function SettingsPage(): React.ReactElement {
           })}
         </div>
       </section>
+      )}
     </>
   );
 
@@ -744,6 +791,51 @@ export default function SettingsPage(): React.ReactElement {
     Billing: billingTab
   };
 
+  const saveBar = (
+    <div className={isStaff ? 'hidden' : 'flex flex-wrap justify-end gap-[9px] pt-1'}>
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => void save()}
+        className={[
+          'h-[42px] rounded-[11px] border-0 px-5 font-[inherit] text-[13px] font-bold text-white [line-height:normal]',
+          saving ? 'cursor-progress bg-[#F5A98A]' : 'cursor-pointer bg-[#F04E17] shadow-[0_10px_22px_-13px_rgba(240,78,23,.75)]'
+        ].join(' ')}
+      >
+        {saving ? 'Saving…' : 'Save changes'}
+      </button>
+    </div>
+  );
+
+  if (isAdmin) {
+    return (
+      <AdminPage title="Settings" subtitle="Your account and access.">
+        <div className="flex max-w-[900px] flex-col gap-4">
+          <div>
+            <Segmented options={tabs} value={current} onChange={setTab} />
+          </div>
+          {body[current]}
+          {current === 'Profile' || current === 'Organization' ? saveBar : null}
+        </div>
+        <HandoffModal
+          open={danger !== null}
+          title={danger === 'delete' ? 'Delete organization' : 'Transfer organization ownership'}
+          subtitle="This can't be done from inside ShiftOS."
+          primary="Done"
+          onPrimary={() => setDanger(null)}
+          onClose={() => setDanger(null)}
+        >
+          <DialogNote>
+            {danger === 'delete'
+              ? 'Deleting an organization removes every person, schedule and attendance record for good, so ShiftOS support does it with you. Export your reports first, then contact support from your account email.'
+              : 'Ownership moves between two people, so ShiftOS support makes the change with both of you. Contact support from your account email with the member who should take over.'}
+          </DialogNote>
+        </HandoffModal>
+        <ScheduleToast toast={toast} onDismiss={dismiss} />
+      </AdminPage>
+    );
+  }
+
   return (
     <div className="flex min-h-full flex-col text-[13px] text-[#38312B] [line-height:normal]">
       {isStaff ? (
@@ -778,19 +870,7 @@ export default function SettingsPage(): React.ReactElement {
           <div className="flex min-w-0 flex-auto flex-col gap-4">
             {body[current]}
             {/* Nothing on a Staff profile can be edited here, so it has nothing to save. */}
-            <div className={isStaff ? 'hidden' : 'flex flex-wrap justify-end gap-[9px] pt-1'}>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void save()}
-                className={[
-                  'h-[42px] rounded-[11px] border-0 px-5 font-[inherit] text-[13px] font-bold text-white',
-                  saving ? 'cursor-progress bg-[#F5A98A]' : 'cursor-pointer bg-[#F04E17] shadow-[0_10px_22px_-13px_rgba(240,78,23,.75)]'
-                ].join(' ')}
-              >
-                {saving ? 'Saving…' : 'Save changes'}
-              </button>
-            </div>
+            {saveBar}
           </div>
         </div>
       </div>
